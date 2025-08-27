@@ -1,104 +1,136 @@
-import React, { useState } from 'react';
-import { Router, Route, Link, useLocation } from 'wouter';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { useState } from "react";
+import { Route, Switch } from "wouter";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { Toaster } from "@/components/ui/toaster";
+import Dashboard from "@/components/dashboard";
+import Ladder from "@/components/ladder";
+import Tournaments from "@/components/tournaments";
+import KellyPool from "@/components/kelly-pool";
+import Players from "@/components/players";
+import Bounties from "@/components/bounties";
+import Charity from "@/components/charity";
+import LiveStream from "@/components/live-stream";
+import Checkout from "@/pages/checkout";
+import NotFound from "@/pages/not-found";
 
-// Pages
-import LadderPage from './pages/LadderPage';
-import StreamPage from './pages/StreamPage';
-import JoinPage from './pages/JoinPage';
-import AdminPage from './pages/AdminPage';
-import PaymentsPage from './pages/PaymentsPage';
-import SpecialEventsPage from './pages/SpecialEventsPage';
-import PosterGeneratorPage from './pages/PosterGeneratorPage';
+const queryClient = new QueryClient();
 
-// Components
-import Header from './components/Header';
-import Footer from './components/Footer';
-
-// Utils
-import { queryClient } from './lib/queryClient';
-
-// Logo - Use fallback for now
-const logoPath = '/billiards-logo.svg';
-
-function Navigation() {
-  const [location] = useLocation();
-  
-  const navItems = [
-    { href: '/', label: 'Ladder', icon: '🎱' },
-    { href: '/stream', label: 'Live Stream', icon: '📺' },
-    { href: '/join', label: 'Join Queue', icon: '🎯' },
-    { href: '/events', label: 'Special Events', icon: '🎉' },
-    { href: '/payments', label: 'Payments', icon: '💰' },
-    { href: '/poster', label: 'Fight Night Poster', icon: '🥊' },
-    { href: '/admin', label: 'Admin', icon: '⚙️' },
+function Navigation({ activeTab, setActiveTab }: { activeTab: string; setActiveTab: (tab: string) => void }) {
+  const tabs = [
+    { id: "dashboard", label: "Dashboard" },
+    { id: "ladder", label: "Ladder" },
+    { id: "live-stream", label: "Live Stream" },
+    { id: "tournaments", label: "Tournaments" },
+    { id: "kelly-pool", label: "Kelly Pool" },
+    { id: "players", label: "Players" },
+    { id: "bounties", label: "Bounties" },
+    { id: "charity", label: "Charity" },
   ];
 
   return (
-    <nav className="bg-green-900/20 border-b border-green-700/30 sticky top-0 z-50 backdrop-blur-sm">
+    <header className="sticky top-0 z-50 backdrop-blur-md bg-felt-dark/80 border-b border-neon-green/20">
       <div className="container mx-auto px-4">
-        <div className="flex items-center justify-between py-4">
+        <nav className="flex items-center justify-between py-4">
+          {/* Brand Logo */}
           <div className="flex items-center space-x-4">
-            <img 
-              src={logoPath} 
-              alt="Action Ladder Billiards" 
-              className="w-10 h-10 rounded-full"
-              data-testid="logo-image"
-            />
-            <div className="hidden md:block">
-              <h1 className="text-xl font-bold text-green-400 neon-glow" data-testid="site-title">
-                Action Ladder Billiards
-              </h1>
-              <p className="text-xs text-green-500" data-testid="site-tagline">
-                First rule of the hustle: You don't tell 'em where the bread came from. just eat
-              </p>
+            <div className="w-12 h-12 bg-gradient-to-br from-neon-green to-accent rounded-xl flex items-center justify-center shadow-neon">
+              <span className="text-xl font-black text-felt-dark">🎱</span>
+            </div>
+            <div>
+              <h1 className="text-xl font-black text-neon-green">TRI-CITY TEXAS LADDER</h1>
+              <p className="text-sm text-gray-400">Seguin • New Braunfels • San Marcos</p>
             </div>
           </div>
           
-          <div className="flex items-center space-x-1 overflow-x-auto">
-            {navItems.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`px-3 py-2 rounded text-sm transition-all duration-200 whitespace-nowrap ${
-                  location === item.href
-                    ? 'bg-green-700/30 text-green-300 border border-green-500/50'
-                    : 'text-green-400 hover:bg-green-800/20 hover:text-green-300'
-                }`}
-                data-testid={`nav-${item.label.toLowerCase().replace(/\s+/g, '-')}`}
-              >
-                <span className="mr-1">{item.icon}</span>
-                <span className="hidden sm:inline">{item.label}</span>
-              </Link>
-            ))}
+          {/* Live Status Badge */}
+          <div className="hidden md:flex items-center space-x-4">
+            <div className="flex items-center space-x-2 bg-red-600/20 border border-red-500/50 rounded-full px-3 py-1">
+              <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
+              <span className="text-sm font-semibold text-red-400">LIVE NOW</span>
+            </div>
+            <button className="bg-neon-green/20 hover:bg-neon-green/30 border border-neon-green/50 text-neon-green px-4 py-2 rounded-lg transition-colors">
+              Join via QR
+            </button>
           </div>
+          
+          {/* Mobile Menu Button */}
+          <button className="md:hidden p-2">
+            <svg className="w-6 h-6 text-neon-green" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16"></path>
+            </svg>
+          </button>
+        </nav>
+        
+        {/* Navigation Tabs */}
+        <div className="flex space-x-1 overflow-x-auto pb-4 scrollbar-hide">
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              data-testid={`tab-${tab.id}`}
+              className={`px-4 py-2 rounded-lg whitespace-nowrap transition-colors ${
+                activeTab === tab.id
+                  ? "bg-neon-green/20 text-neon-green border border-neon-green/50"
+                  : "hover:bg-white/10 text-gray-300"
+              }`}
+              onClick={() => setActiveTab(tab.id)}
+            >
+              {tab.label}
+            </button>
+          ))}
         </div>
       </div>
-    </nav>
+    </header>
   );
 }
 
 function App() {
+  const [activeTab, setActiveTab] = useState("dashboard");
+
   return (
     <QueryClientProvider client={queryClient}>
-      <div className="min-h-screen bg-black text-green-400 gritty-texture">
-
+      <div className="min-h-screen bg-felt-dark text-white font-sans overflow-x-hidden">
+        {/* Background Effects */}
+        <div className="fixed inset-0 bg-felt-texture opacity-90 pointer-events-none"></div>
+        <div className="fixed inset-0 bg-smoky opacity-40 pointer-events-none"></div>
         
-        <Router>
-          <Navigation />
-          
-          <main className="container mx-auto px-4 py-8">
-            <Route path="/" component={LadderPage} />
-            <Route path="/stream" component={StreamPage} />
-            <Route path="/join" component={JoinPage} />
-            <Route path="/events" component={SpecialEventsPage} />
-            <Route path="/payments" component={PaymentsPage} />
-            <Route path="/poster" component={PosterGeneratorPage} />
-            <Route path="/admin" component={AdminPage} />
-          </main>
-          
-          <Footer />
-        </Router>
+        <Navigation activeTab={activeTab} setActiveTab={setActiveTab} />
+        
+        <main className="relative z-10">
+          <Switch>
+            <Route path="/checkout">
+              <Checkout />
+            </Route>
+            <Route>
+              {/* Hero Banner */}
+              <section className="bg-gradient-to-r from-felt-green/50 to-transparent py-8">
+                <div className="container mx-auto px-4">
+                  <div className="text-center">
+                    <h2 className="text-4xl md:text-5xl font-black text-white mb-4">
+                      POOL. POINTS. PRIDE.
+                    </h2>
+                    <p className="text-lg text-gray-300 mb-6">
+                      Walk‑ups got theme songs. Matches get streamed. Dog a ball? We're clipping it. 😈
+                    </p>
+                  </div>
+                </div>
+              </section>
+
+              <div className="container mx-auto px-4 py-8">
+                {activeTab === "dashboard" && <Dashboard />}
+                {activeTab === "ladder" && <Ladder />}
+                {activeTab === "live-stream" && <LiveStream />}
+                {activeTab === "tournaments" && <Tournaments />}
+                {activeTab === "kelly-pool" && <KellyPool />}
+                {activeTab === "players" && <Players />}
+                {activeTab === "bounties" && <Bounties />}
+                {activeTab === "charity" && <Charity />}
+              </div>
+            </Route>
+            <Route component={NotFound} />
+          </Switch>
+        </main>
+        
+        <Toaster />
       </div>
     </QueryClientProvider>
   );
