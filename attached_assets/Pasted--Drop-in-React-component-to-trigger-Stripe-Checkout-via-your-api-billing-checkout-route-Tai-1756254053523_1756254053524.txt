@@ -1,0 +1,102 @@
+// Drop-in React component to trigger Stripe Checkout via your /api/billing/checkout route
+// - Tailwind-ready
+// - TypeScript friendly, but works in JS too (remove types)
+// - Pass hallId, operatorId, playerCount, and optional email
+// - On success: redirects to Stripe-hosted Checkout
+
+import React, { useState } from "react";
+
+export type CheckoutProps = {
+  hallId: string;
+  operatorId: string;
+  playerCount: number; // use your live active-player count
+  email?: string;      // prefill Checkout email (optional)
+  className?: string;
+  label?: string;      // button text
+};
+
+export default function CheckoutButton({ hallId, operatorId, playerCount, email, className = "", label = "Subscribe" }: CheckoutProps) {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function startCheckout() {
+    try {
+      setError(null);
+      setLoading(true);
+
+      const res = await fetch("/api/billing/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ hallId, operatorId, playerCount, email }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({ error: res.statusText }));
+        throw new Error(data.error || `Checkout failed (${res.status})`);
+      }
+
+      const data: { url: string; tier: string } = await res.json();
+
+      // Optional: analytics/logging
+      console.log("Redirecting to Stripe Checkout for tier:", data.tier);
+
+      // Redirect to Stripe Checkout
+      window.location.href = data.url;
+    } catch (e: any) {
+      setError(e.message || "Something went wrong starting checkout.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="flex flex-col items-start gap-2">
+      <button
+        onClick={startCheckout}
+        disabled={loading}
+        className={`inline-flex items-center justify-center rounded-2xl px-5 py-3 text-sm font-semibold shadow-sm transition hover:shadow-md disabled:opacity-60 disabled:cursor-not-allowed bg-black text-white ${className}`}
+      >
+        {loading ? "Redirecting…" : label}
+      </button>
+      {error && (
+        <p className="text-sm text-red-600">{error}</p>
+      )}
+      {/* Optional: tiny helper text */}
+      <p className="text-xs text-gray-500">
+        We’ll open a secure Stripe page to complete your subscription.
+      </p>
+    </div>
+  );
+}
+
+// ---- Example usage in a pricing card ----
+// import CheckoutButton from "./CheckoutButton";
+//
+// function PricingCardMedium() {
+//   const hallId = "hall_abc";        // from your DB/session
+//   const operatorId = "op_123";       // from your auth session
+//   const playerCount = 22;             // computed live from your roster
+//   const email = "owner@poolhall.com"; // optional
+//   return (
+//     <div className="rounded-3xl border p-6 space-y-4">
+//       <h3 className="text-xl font-bold">Medium Hall – $299/mo</h3>
+//       <ul className="text-sm list-disc ml-5">
+//         <li>Up to 25 players</li>
+//         <li>Advanced analytics & ROI reports</li>
+//         <li>Priority support</li>
+//       </ul>
+//       <CheckoutButton
+//         hallId={hallId}
+//         operatorId={operatorId}
+//         playerCount={playerCount}
+//         email={email}
+//         label="Subscribe – Medium"
+//       />
+//     </div>
+//   );
+// }
+
+// Notes:
+// 1) Ensure your backend route /api/billing/checkout returns { url, tier } as in the server code provided earlier.
+// 2) If you use Next.js App Router, prefer a server action or route handler for the POST and call it from the client as above.
+// 3) For SSR/Edge deployments, keep Stripe secret logic on the server only; never expose Price IDs client-side.

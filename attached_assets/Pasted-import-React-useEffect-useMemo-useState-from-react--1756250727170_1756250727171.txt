@@ -1,0 +1,1297 @@
+import React, { useEffect, useMemo, useState } from "react";
+
+// ──────────────────────────────────────────────────────────────────────────────
+// TRI‑CITY TEXAS BILLIARDS LADDER — Single‑file React site (no backend)
+// • Tailwind classes for styling
+// • Everything persists to localStorage
+// • Standings, match recorder, no‑show penalties, clips gallery, challenge log
+// • Export/Import JSON for easy backup
+// ──────────────────────────────────────────────────────────────────────────────
+
+const STORAGE_KEY = "tctl-data-v1";
+
+const GAME_TYPES = [
+  "Straight 8 (Open)",
+  "BCA 8-Ball",
+  "Fast 8",
+  "14.1 (Straight Pool)",
+  "Saratoga",
+  "9-Ball",
+  "1 ball 1 pocket",
+  "10-Ball",
+  "1-Pocket (9ft only)",
+  "Banks",
+  "9-Ball Banks",
+];
+
+const nowISO = () => new Date().toISOString();
+const daysAgo = (n) => new Date(Date.now() - n * 86400000);
+
+function loadData() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch (e) {
+    console.error("Failed to load", e);
+    return null;
+  }
+}
+
+function saveData(data) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  } catch (e) {
+    console.error("Failed to save", e);
+  }
+}
+
+function defaultData() {
+  const players = [
+    {
+      id: crypto.randomUUID(),
+      name: "Tyga Hoodz",
+      city: "San Marcos",
+      bucket: "600+",
+      isMember: true,
+      points: 420,
+      wins: 7,
+      losses: 2,
+      themeSong: "https://youtu.be/dQw4w9WgXcQ",
+      noShows: [],
+      isBottomed: false,
+      suspendedUntil: null,
+      balance: 0,
+      penaltyReserve: 0,
+      debt: 0,
+    },
+    {
+      id: crypto.randomUUID(),
+      name: "Jesse — The Spot",
+      city: "Seguin",
+      bucket: "600+",
+      isMember: true,
+      points: 380,
+      wins: 6,
+      losses: 3,
+      themeSong: "",
+      noShows: [],
+      isBottomed: false,
+      suspendedUntil: null,
+      balance: 0,
+      penaltyReserve: 0,
+      debt: 0,
+    },
+    {
+      id: crypto.randomUUID(),
+      name: "Seguin Shark",
+      city: "Seguin",
+      bucket: "600+",
+      isMember: false,
+      points: 250,
+      wins: 4,
+      losses: 3,
+      themeSong: "",
+      noShows: [],
+      isBottomed: false,
+      suspendedUntil: null,
+      balance: 0,
+      penaltyReserve: 0,
+      debt: 0,
+    },
+    {
+      id: crypto.randomUUID(),
+      name: "New Braunfels Ninja",
+      city: "New Braunfels",
+      bucket: "599 & under",
+      isMember: false,
+      points: 190,
+      wins: 3,
+      losses: 5,
+      themeSong: "",
+      noShows: [],
+      isBottomed: false,
+      suspendedUntil: null,
+      balance: 0,
+      penaltyReserve: 0,
+      debt: 0,
+    },
+    {
+      id: crypto.randomUUID(),
+      name: "San Marcos Sniper",
+      city: "San Marcos",
+      bucket: "599 & under",
+      isMember: true,
+      points: 160,
+      wins: 2,
+      losses: 4,
+      themeSong: "",
+      noShows: [],
+      isBottomed: false,
+      suspendedUntil: null,
+      balance: 0,
+      penaltyReserve: 0,
+      debt: 0,
+    },
+    {
+      id: crypto.randomUUID(),
+      name: "Chalktopus",
+      city: "New Braunfels",
+      bucket: "599 & under",
+      isMember: false,
+      points: 120,
+      wins: 2,
+      losses: 3,
+      themeSong: "",
+      noShows: [],
+      isBottomed: false,
+      suspendedUntil: null,
+      balance: 0,
+      penaltyReserve: 0,
+      debt: 0,
+    },
+  ];
+  return {
+    players,
+    matches: [],
+    challenges: [],
+    clips: [
+      // Add your TikTok/YouTube short links here
+    ],
+    finance: { houseBalance: 0, opsBalance: 0 },
+    announcements: [
+      {
+        id: crypto.randomUUID(),
+        date: nowISO(),
+        text:
+          "Welcome to the Tri‑City Texas Billiards Ladder — Pool. Points. Pride. If you dog it, we clip it. 😈",
+      },
+    ],
+    brand: {
+      title: "🎱 Tri-City Texas Billiards Ladder",
+      subtitle: "Seguin • New Braunfels • San Marcos",
+      tagline:
+        "Pool. Points. Pride. Walk-ups got theme songs. Matches get streamed. Dog a ball? We’re clipping it.",
+    },
+    poolhalls: [
+      { id: crypto.randomUUID(), name: "The Spot", city: "Seguin", wins: 0, losses: 0, points: 0 },
+      { id: crypto.randomUUID(), name: "NB Billiards", city: "New Braunfels", wins: 0, losses: 0, points: 0 },
+      { id: crypto.randomUUID(), name: "San Marcos Cue Club", city: "San Marcos", wins: 0, losses: 0, points: 0 }
+    ],
+    hallMatches: [],
+  };
+}
+
+function withinLastDays(iso, days) {
+  return new Date(iso) >= daysAgo(days);
+}
+
+function computeSuspendedUntil(noShows) {
+  // If 2+ no‑shows in last 90 days → suspended 30 days from last no‑show
+  const recent = noShows.filter((d) => withinLastDays(d, 90));
+  if (recent.length >= 2) {
+    const last = new Date(recent[recent.length - 1]);
+    const until = new Date(last.getTime() + 30 * 86400000);
+    return until.toISOString();
+  }
+  return null;
+}
+
+function useLadderState() {
+  const [data, setData] = useState(() => loadData() || defaultData());
+
+  useEffect(() => saveData(data), [data]);
+
+  const updaters = {
+    addPlayer: (p) =>
+      setData((d) => ({ ...d, players: [...d.players, { ...p, id: crypto.randomUUID(), noShows: [], isBottomed: false, suspendedUntil: null, points: 0, wins: 0, losses: 0, balance: 0, penaltyReserve: 0, debt: 0 }] })),
+    // Add money to a player's wallet or penalty reserve
+    deposit: ({ playerId, amount, toReserve = false }) => {
+      setData((d) => {
+        const players = d.players.map((p) => ({ ...p }));
+        const P = players.find((x) => x.id === playerId);
+        if (!P) return d;
+        const amt = Math.max(0, Number(amount) || 0);
+        if (toReserve) P.penaltyReserve += amt; else P.balance += amt;
+        const note = { id: crypto.randomUUID(), date: nowISO(), text: `Deposit: ${P.name} added $${amt}${toReserve ? ' to penalty reserve' : ''}.` };
+        return { ...d, players, announcements: [note, ...d.announcements] };
+      });
+    },
+    // Cash out / refund to player (operator action)
+    refund: ({ playerId, amount }) => {
+      setData((d) => {
+        const players = d.players.map((p) => ({ ...p }));
+        const P = players.find((x) => x.id === playerId);
+        if (!P) return d;
+        const amt = Math.max(0, Number(amount) || 0);
+        const paid = Math.min(amt, P.balance);
+        P.balance -= paid;
+        const note = { id: crypto.randomUUID(), date: nowISO(), text: `Cash out: Returned $${paid} to ${P.name}.` };
+        return { ...d, players, announcements: [note, ...d.announcements] };
+      });
+    },
+    recordMatch: ({ p1Id, p2Id, winnerId, stake, gameType, streamUrl = "" }) => {
+      setData((d) => {
+        const players = d.players.map((p) => ({ ...p }));
+        const P1 = players.find((p) => p.id === p1Id);
+        const P2 = players.find((p) => p.id === p2Id);
+        if (!P1 || !P2 || P1.id === P2.id) return d;
+
+        const winner = players.find((p) => p.id === winnerId);
+        const loser = winnerId === P1.id ? P2 : P1;
+
+        // Money = Points: stake dollars → stake points to winner
+        // Commission does NOT reduce points (display only). Members 5%, non‑members 15% (split 10% house / 5% ops)
+        winner.points += Number(stake);
+        winner.wins += 1;
+        loser.losses += 1;
+
+        // Remove bottom flag from both (fresh start)
+        winner.isBottomed = false;
+        loser.isBottomed = false;
+
+        const match = {
+          id: crypto.randomUUID(),
+          date: nowISO(),
+          p1Id,
+          p2Id,
+          winnerId,
+          stake: Number(stake),
+          gameType,
+          streamUrl,
+        };
+
+        return { ...d, players, matches: [match, ...d.matches] };
+      });
+    },
+    applyNoShow: ({ flakyId, opponentId }) => {
+      setData((d) => {
+        const players = d.players.map((p) => ({ ...p }));
+        const flaky = players.find((p) => p.id === flakyId);
+        const opp = players.find((p) => p.id === opponentId);
+        if (!flaky || !opp || flaky.id === opp.id) return d;
+
+        // Opponent gets points (30), flaky pays commission and drops to bottom
+        opp.points += 30;
+        const stamp = nowISO();
+        flaky.noShows = [...flaky.noShows, stamp];
+        flaky.isBottomed = true; // push to bottom of bucket
+        flaky.suspendedUntil = computeSuspendedUntil(flaky.noShows);
+
+        const note = {
+          id: crypto.randomUUID(),
+          date: nowISO(),
+          text: `No‑Show: ${flaky.name} bought an L vs ${opp.name} (\$30 penalty → ${opp.name} gets 30 pts).`,
+        };
+
+        return { ...d, players, announcements: [note, ...d.announcements] };
+      });
+    },
+    clearBottomFlag: (id) =>
+      setData((d) => ({
+        ...d,
+        players: d.players.map((p) => (p.id === id ? { ...p, isBottomed: false } : p)),
+      })),
+    toggleMember: (id) =>
+      setData((d) => ({
+        ...d,
+        players: d.players.map((p) => (p.id === id ? { ...p, isMember: !p.isMember } : p)),
+      })),
+    addClip: (url) => setData((d) => ({ ...d, clips: [url, ...d.clips] })),
+    removeClip: (url) => setData((d) => ({ ...d, clips: d.clips.filter((c) => c !== url) })),
+    createChallenge: ({ challengerId, targetId }) =>
+      setData((d) => {
+        const challenger = d.players.find((p) => p.id === challengerId);
+        const target = d.players.find((p) => p.id === targetId);
+        if (!challenger || !target || challenger.bucket !== target.bucket) return d;
+        const ch = {
+          id: crypto.randomUUID(),
+          date: nowISO(),
+          challengerId,
+          targetId,
+          status: "Pending",
+        };
+        return { ...d, challenges: [ch, ...d.challenges] };
+      }),
+    resolveChallenge: ({ id, status }) =>
+      setData((d) => ({
+        ...d,
+        challenges: d.challenges.map((c) => (c.id === id ? { ...c, status } : c)),
+      })),
+    updateBrand: (brand) => setData((d) => ({ ...d, brand: { ...d.brand, ...brand } })),
+    addAnnouncement: (text) =>
+      setData((d) => ({
+        ...d,
+        announcements: [{ id: crypto.randomUUID(), date: nowISO(), text }, ...d.announcements],
+      })),
+    importJSON: (obj) => setData(obj),
+    addHall: (name, city) => setData(d => ({...d, poolhalls: [...d.poolhalls, { id: crypto.randomUUID(), name, city, wins:0, losses:0, points:0 }]})),
+    recordHallMatch: ({ hallAId, hallBId, winnerHallId, stake = 100, gameType = "9-Ball", streamUrl = "" }) => {
+      setData((d) => {
+        const halls = d.poolhalls?.map(h => ({...h})) || [];
+        const A = halls.find(h => h.id === hallAId);
+        const B = halls.find(h => h.id === hallBId);
+        if (!A || !B || A.id === B.id) return d;
+        const W = halls.find(h => h.id === winnerHallId);
+        const L = W && W.id === A.id ? B : A;
+        if (!W || !L) return d;
+        W.points += Number(stake);
+        W.wins += 1; L.losses += 1;
+        const match = { id: crypto.randomUUID(), date: nowISO(), hallAId, hallBId, winnerHallId, stake: Number(stake), gameType, streamUrl };
+        return { ...d, poolhalls: halls, hallMatches: [match, ...(d.hallMatches||[])] };
+      });
+    },
+  };
+
+  return [data, updaters];
+}
+
+function crown(rank) {
+  return rank === 1 ? "👑" : rank <= 3 ? "🥇" : "";
+}
+
+function Section({ title, subtitle, children, id }) {
+  return (
+    <section id={id} className="my-8">
+      <div className="flex items-end justify-between mb-3">
+        <div>
+          <h2 className="text-2xl font-bold">{title}</h2>
+          {subtitle && <p className="text-sm text-gray-500">{subtitle}</p>}
+        </div>
+        <a href="#top" className="text-xs text-gray-400 hover:text-gray-600">Back to top ↑</a>
+      </div>
+      <div className="bg-white/60 dark:bg-zinc-900/60 rounded-2xl shadow p-4">{children}</div>
+    </section>
+  );
+}
+
+function Pill({ children, tone = "default" }) {
+  const palette = {
+    default: "bg-zinc-100 text-zinc-700",
+    good: "bg-green-100 text-green-700",
+    warn: "bg-yellow-100 text-yellow-800",
+    bad: "bg-red-100 text-red-700",
+    info: "bg-blue-100 text-blue-700",
+  };
+  return <span className={`px-2 py-1 rounded-full text-xs ${palette[tone]}`}>{children}</span>;
+}
+
+function formatDateShort(iso) {
+  const d = new Date(iso);
+  return d.toLocaleString(undefined, { month: "short", day: "numeric" });
+}
+
+function useRanks(players, bucket) {
+  const list = players.filter((p) => p.bucket === bucket);
+  // Sort: non‑bottom first by points desc, then bottomed by points
+  list.sort((a, b) => {
+    if (a.isBottomed !== b.isBottomed) return a.isBottomed ? 1 : -1;
+    return b.points - a.points;
+  });
+  const withRank = list.map((p, i) => ({ ...p, rank: i + 1 }));
+  return withRank;
+}
+
+function HallStandings({ halls }) {
+  const sorted = [...(halls||[])].sort((a,b)=> b.points - a.points);
+  return (
+    <div className="overflow-x-auto">
+      <table className="min-w-full text-sm">
+        <thead>
+          <tr className="text-left text-xs uppercase text-gray-500">
+            <th className="py-1 pr-2">#</th>
+            <th className="py-1 pr-2">Poolhall</th>
+            <th className="py-1 pr-2">City</th>
+            <th className="py-1 pr-2">W-L</th>
+            <th className="py-1 pr-2">Pts</th>
+          </tr>
+        </thead>
+        <tbody>
+          {sorted.map((h,i)=> (
+            <tr key={h.id} className="border-t border-gray-100">
+              <td className="py-2 pr-2 font-mono">{i+1}</td>
+              <td className="py-2 pr-2 font-medium">{h.name}</td>
+              <td className="py-2 pr-2">{h.city}</td>
+              <td className="py-2 pr-2">{h.wins}-{h.losses}</td>
+              <td className="py-2 pr-2 font-semibold">{h.points}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function HallMatchRecorder({ halls, onRecord }) {
+  const [a, setA] = useState("");
+  const [b, setB] = useState("");
+  const [winner, setWinner] = useState("");
+  const [stake, setStake] = useState(100);
+  const [game, setGame] = useState("9-Ball");
+  const [streamUrl, setStreamUrl] = useState("");
+  const A = (halls||[]).find(h=>h.id===a); const B = (halls||[]).find(h=>h.id===b);
+  return (
+    <div className="grid md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-2 gap-2">
+        <select className="p-2 rounded border" value={a} onChange={e=>setA(e.target.value)}>
+          <option value="">Home Hall</option>
+          {(halls||[]).map(h=> <option key={h.id} value={h.id}>{h.name}</option>)}
+        </select>
+        <select className="p-2 rounded border" value={b} onChange={e=>setB(e.target.value)}>
+          <option value="">Away Hall</option>
+          {(halls||[]).map(h=> <option key={h.id} value={h.id}>{h.name}</option>)}
+        </select>
+        <input type="number" min={50} max={1000} step={10} value={stake} onChange={e=>setStake(Number(e.target.value))} className="p-2 rounded border col-span-2" placeholder="$ Stake (100 default)" />
+        <select className="p-2 rounded border col-span-2" value={game} onChange={e=>setGame(e.target.value)}>
+          {GAME_TYPES.map(g=> <option key={g} value={g}>{g}</option>)}
+        </select>
+        <input className="p-2 rounded border col-span-2" placeholder="(Optional) Stream URL" value={streamUrl} onChange={e=>setStreamUrl(e.target.value)} />
+        <select className="p-2 rounded border col-span-2" value={winner} onChange={e=>setWinner(e.target.value)}>
+          <option value="">Who won?</option>
+          {[A,B].filter(Boolean).map(h=> <option key={h.id} value={h.id}>{h.name}</option>)}
+        </select>
+        <button className="col-span-2 px-3 py-2 rounded-2xl bg-zinc-900 text-white hover:bg-black disabled:opacity-40" disabled={!A || !B || !winner || a===b} onClick={()=> onRecord({ hallAId:a, hallBId:b, winnerHallId:winner, stake, gameType:game, streamUrl })}>Record Hall Match ✅</button>
+      </div>
+      <div className="text-sm text-gray-700">
+        <p><b>Format:</b> Money = Points for halls, too. Winner hall gets stake points; W-L updates. Use this for league nights or bragging rights.</p>
+        <p className="mt-1">Tip: stream the final racks and drop the link so fans can watch.</p>
+      </div>
+    </div>
+  );
+}
+
+function Standings({ players, onToggleMember, onClearBottom }) {
+  const killers = useRanks(players, "600+");
+  const grinders = useRanks(players, "599 & under");
+
+  const Table = ({ data, title }) => (
+    <div className="w-full">
+      <h3 className="font-semibold mb-2">{title}</h3>
+      <div className="overflow-x-auto">
+        <table className="min-w-full text-sm">
+          <thead>
+            <tr className="text-left text-xs uppercase text-gray-500">
+              <th className="py-1 pr-2">#</th>
+              <th className="py-1 pr-2">Player</th>
+              <th className="py-1 pr-2">City</th>
+              <th className="py-1 pr-2">W‑L</th>
+              <th className="py-1 pr-2">Pts</th>
+              <th className="py-1 pr-2">Tags</th>
+              <th className="py-1 pr-2">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {data.map((p) => (
+              <tr key={p.id} className="border-t border-gray-100 hover:bg-gray-50">
+                <td className="py-2 pr-2 font-mono">{p.rank}</td>
+                <td className="py-2 pr-2 font-medium">
+                  <div className="flex items-center gap-2">
+                    <span>{crown(p.rank)}</span>
+                    <span>{p.name}</span>
+                  </div>
+                </td>
+                <td className="py-2 pr-2">{p.city}</td>
+                <td className="py-2 pr-2">{p.wins}-{p.losses}</td>
+                <td className="py-2 pr-2 font-semibold">{p.points}</td>
+                <td className="py-2 pr-2 flex flex-wrap gap-1">
+                  {p.isMember ? <Pill tone="good">Member</Pill> : <Pill tone="info">Guest</Pill>}
+                  {p.isBottomed && <Pill tone="bad">Bottomed</Pill>}
+                  {p.suspendedUntil && new Date(p.suspendedUntil) > new Date() && (
+                    <Pill tone="bad">Suspended to {formatDateShort(p.suspendedUntil)}</Pill>
+                  )}
+                  {p.themeSong && (
+                    <a href={p.themeSong} target="_blank" rel="noreferrer" className="text-xs underline">
+                      🎵 Theme
+                    </a>
+                  )}
+                </td>
+                <td className="py-2 pr-2">
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => onToggleMember(p.id)}
+                      className="text-xs px-2 py-1 rounded bg-zinc-800 text-white hover:bg-black"
+                    >
+                      Toggle Member
+                    </button>
+                    {p.isBottomed && (
+                      <button
+                        onClick={() => onClearBottom(p.id)}
+                        className="text-xs px-2 py-1 rounded bg-yellow-500 text-black hover:bg-yellow-600"
+                      >
+                        Clear Bottom
+                      </button>
+                    )}
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="grid md:grid-cols-2 gap-4">
+      <Table data={killers} title="600+ Killers" />
+      <Table data={grinders} title="599 & Under Grinders" />
+    </div>
+  );
+}
+
+function MatchRecorder({ players, onRecord }) {
+  const [p1, setP1] = useState("");
+  const [p2, setP2] = useState("");
+  const [stake, setStake] = useState(50);
+  const [game, setGame] = useState(GAME_TYPES[0]);
+  const [winner, setWinner] = useState("");
+  const [streamUrl, setStreamUrl] = useState("");
+
+  const sameBucket = useMemo(() => {
+    const A = players.find((x) => x.id === p1);
+    const B = players.find((x) => x.id === p2);
+    if (!A || !B) return true;
+    return A.bucket === B.bucket;
+  }, [p1, p2, players]);
+
+  const P1 = players.find((x) => x.id === p1);
+  const P2 = players.find((x) => x.id === p2);
+
+  const memberRate = (p) => (p?.isMember ? 0.05 : 0.15);
+  const comm = P1 && P2 ? Math.round(stake * (memberRate(P1) + memberRate(P2)) * 100) / 100 : 0;
+
+  return (
+    <div className="grid md:grid-cols-2 gap-4">
+      <div>
+        <div className="grid grid-cols-2 gap-2">
+          <select value={p1} onChange={(e) => setP1(e.target.value)} className="p-2 rounded border">
+            <option value="">Player A</option>
+            {players.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name} ({p.bucket})
+              </option>
+            ))}
+          </select>
+          <select value={p2} onChange={(e) => setP2(e.target.value)} className="p-2 rounded border">
+            <option value="">Player B</option>
+            {players.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name} ({p.bucket})
+              </option>
+            ))}
+          </select>
+          <input
+            type="number"
+            min={50}
+            max={300}
+            step={10}
+            value={stake}
+            onChange={(e) => setStake(Number(e.target.value))}
+            className="p-2 rounded border col-span-2"
+            placeholder="$ Stake (50–300)"
+          />
+          <select value={game} onChange={(e) => setGame(e.target.value)} className="p-2 rounded border col-span-2">
+            {GAME_TYPES.map((g) => (
+              <option key={g} value={g}>
+                {g}
+              </option>
+            ))}
+          </select>
+          <input
+            value={streamUrl}
+            onChange={(e) => setStreamUrl(e.target.value)}
+            className="p-2 rounded border col-span-2"
+            placeholder="(Optional) Stream URL"
+          />
+          <select value={winner} onChange={(e) => setWinner(e.target.value)} className="p-2 rounded border col-span-2">
+            <option value="">Who won?</option>
+            {[P1, P2].filter(Boolean).map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {!sameBucket && (
+          <div className="mt-2 text-xs text-red-700">
+            Heads‑up: Cross‑bucket matches don’t move the ladder (still earn points).
+          </div>
+        )}
+        <div className="mt-2 text-sm text-gray-700">
+          Commission preview: <b>${" "}{comm.toFixed(2)}</b> total (members 5%, guests 15%). Points = stake for the winner.
+        </div>
+
+        <button
+          className="mt-3 w-full md:w-auto px-4 py-2 rounded-2xl bg-zinc-900 text-white hover:bg-black disabled:opacity-40"
+          disabled={!P1 || !P2 || !winner || stake < 50 || stake > 300}
+          onClick={() => {
+            onRecord({ p1Id: p1, p2Id: p2, winnerId: winner, stake, gameType: game, streamUrl });
+            setWinner("");
+            setStreamUrl("");
+          }}
+        >
+          Record Match ✅
+        </button>
+      </div>
+
+      <div className="text-sm space-y-2">
+        <p>
+          <b>Savage fine print:</b> Money talks. Points walk. Lose like a legend: pay fast, learn faster. 🧾
+        </p>
+        <ul className="list-disc ml-5 text-gray-700">
+          <li>Legal stakes: $50–$300 (enough to sting, not enough to bankrupt).</li>
+          <li>Money = Points (e.g., $100 → 100 pts) — commission is separate.</li>
+          <li>Optional stream URL helps fans clip your glory… or your dog. 😂</li>
+        </ul>
+      </div>
+    </div>
+  );
+}
+
+function NoShowPanel({ players, onNoShow }) {
+  const [flaky, setFlaky] = useState("");
+  const [opp, setOpp] = useState("");
+
+  return (
+    <div className="grid md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-2 gap-2">
+        <select className="p-2 rounded border" value={flaky} onChange={(e) => setFlaky(e.target.value)}>
+          <option value="">No‑show (deadbeat)</option>
+          {players.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.name}
+            </option>
+          ))}
+        </select>
+        <select className="p-2 rounded border" value={opp} onChange={(e) => setOpp(e.target.value)}>
+          <option value="">Opponent</option>
+          {players.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.name}
+            </option>
+          ))}
+        </select>
+        <button
+          className="col-span-2 px-4 py-2 rounded-2xl bg-red-600 text-white hover:bg-red-700 disabled:opacity-40"
+          disabled={!flaky || !opp || flaky === opp}
+          onClick={() => onNoShow({ flakyId: flaky, opponentId: opp })}
+        >
+          Apply No‑Show Penalty ($30 → Opp gets 30 pts)
+        </button>
+      </div>
+      <div className="text-sm text-gray-700">
+        <p className="mb-1">
+          <b>Rule:</b> Don’t show up = you bought an L. $30 penalty + commission still owed. Opponent gets the points.
+        </p>
+        <p>
+          Two no‑shows in 90 days? <b>SUSPENDED 30 days.</b> (Bye Felicia 👋) You also get pushed to the bottom.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function ChallengePanel({ players, onCreate }) {
+  const [challenger, setChallenger] = useState("");
+  const [target, setTarget] = useState("");
+
+  const get = (id) => players.find((p) => p.id === id);
+  const C = get(challenger);
+  const T = get(target);
+
+  const legal = useMemo(() => {
+    if (!C || !T) return false;
+    if (C.id === T.id) return false;
+    if (C.bucket !== T.bucket) return false;
+    // Same rung or one above is allowed
+    const ranks = useRanks(players, C.bucket);
+    const rC = ranks.find((x) => x.id === C.id)?.rank ?? 99;
+    const rT = ranks.find((x) => x.id === T.id)?.rank ?? 99;
+    return rT <= rC + 1; // same or one above
+  }, [challenger, target, players]);
+
+  return (
+    <div className="grid md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-2 gap-2">
+        <select value={challenger} onChange={(e) => setChallenger(e.target.value)} className="p-2 rounded border">
+          <option value="">Challenger</option>
+          {players.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.name} ({p.bucket})
+            </option>
+          ))}
+        </select>
+        <select value={target} onChange={(e) => setTarget(e.target.value)} className="p-2 rounded border">
+          <option value="">Target</option>
+          {players.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.name} ({p.bucket})
+            </option>
+          ))}
+        </select>
+        <div className="col-span-2 text-sm">
+          {C && T ? (
+            C.bucket !== T.bucket ? (
+              <span className="text-yellow-700">Cross‑bucket: legal for points, does not move ladder.</span>
+            ) : legal ? (
+              <span className="text-green-700">Legal ladder challenge ✅</span>
+            ) : (
+              <span className="text-red-700">Must be same rung or one above.</span>
+            )
+          ) : (
+            <span className="text-gray-500">Pick two players to preview legality.</span>
+          )}
+        </div>
+        <button
+          className="col-span-2 px-4 py-2 rounded-2xl bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-40"
+          disabled={!C || !T}
+          onClick={() => onCreate({ challengerId: C.id, targetId: T.id })}
+        >
+          Log Challenge
+        </button>
+      </div>
+      <div className="text-sm text-gray-700">
+        <p>
+          <b>Ladder movement:</b> Winner climbs, loser drops like a bad stock pick. 📉 Cross‑bucket: points only.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function Clips({ clips, onAdd, onRemove }) {
+  const [url, setUrl] = useState("");
+  const isVideo = (u) => /youtube|youtu\.be|tiktok|facebook|instagram/.test((u || "").toLowerCase());
+
+  return (
+    <div>
+      <div className="flex gap-2 mb-3">
+        <input
+          className="flex-1 p-2 rounded border"
+          placeholder="Paste a YouTube/TikTok URL for the Clip Hall of Fame"
+          value={url}
+          onChange={(e) => setUrl(e.target.value)}
+        />
+        <button
+          className="px-3 py-2 rounded-2xl bg-zinc-900 text-white hover:bg-black disabled:opacity-40"
+          disabled={!isVideo(url)}
+          onClick={() => {
+            onAdd(url);
+            setUrl("");
+          }}
+        >
+          Add Clip
+        </button>
+      </div>
+      {clips.length === 0 ? (
+        <div className="text-sm text-gray-500">No clips yet — make a highlight and flex it. 🎥</div>
+      ) : (
+        <div className="grid md:grid-cols-3 gap-3">
+          {clips.map((c) => (
+            <div key={c} className="rounded-xl overflow-hidden bg-black/5">
+              {/* Very simple embed handling */}
+              {c.includes("youtube") || c.includes("youtu.be") ? (
+                <iframe
+                  className="w-full aspect-video"
+                  src={c.replace("watch?v=", "embed/")}
+                  title="Clip"
+                  allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                />
+              ) : (
+                <a href={c} target="_blank" rel="noreferrer" className="block p-4 hover:underline">
+                  Open clip → {c}
+                </a>
+              )}
+              <div className="p-2 flex justify-end">
+                <button onClick={() => onRemove(c)} className="text-xs text-red-600 hover:underline">
+                  Remove
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DataIO({ data, onImport }) {
+  const exportJSON = () => {
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "tctl-export.json";
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const onFile = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const obj = JSON.parse(reader.result);
+        onImport(obj);
+      } catch (err) {
+        alert("Invalid JSON");
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  return (
+    <div className="flex flex-wrap gap-2">
+      <button onClick={exportJSON} className="px-3 py-2 rounded-2xl bg-zinc-900 text-white hover:bg-black">
+        Export JSON
+      </button>
+      <label className="px-3 py-2 rounded-2xl bg-zinc-200 hover:bg-zinc-300 cursor-pointer">
+        Import JSON
+        <input type="file" className="hidden" accept="application/json" onChange={onFile} />
+      </label>
+    </div>
+  );
+}
+
+function Wallets({ players, finance, onDeposit, onRefund }) {
+  const [playerId, setPlayerId] = useState("");
+  const [amount, setAmount] = useState(30);
+  const [toReserve, setToReserve] = useState(true);
+  return (
+    <div className="grid md:grid-cols-2 gap-6">
+      <div>
+        <h4 className="font-semibold mb-2">Add Funds</h4>
+        <div className="grid grid-cols-2 gap-2">
+          <select className="p-2 rounded border" value={playerId} onChange={(e)=>setPlayerId(e.target.value)}>
+            <option value="">Select player</option>
+            {players.map(p=> <option key={p.id} value={p.id}>{p.name}</option>)}
+          </select>
+          <input className="p-2 rounded border" type="number" min={1} value={amount} onChange={(e)=>setAmount(Number(e.target.value))} />
+          <label className="col-span-2 flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={toReserve} onChange={(e)=>setToReserve(e.target.checked)} /> Deposit to penalty reserve
+          </label>
+          <button className="col-span-2 px-3 py-2 rounded-2xl bg-zinc-900 text-white hover:bg-black disabled:opacity-40" disabled={!playerId || amount<=0} onClick={()=>onDeposit({ playerId, amount, toReserve })}>Deposit</button>
+        </div>
+
+        <h4 className="font-semibold mt-6 mb-2">Cash Out</h4>
+        <div className="grid grid-cols-2 gap-2">
+          <select className="p-2 rounded border" value={playerId} onChange={(e)=>setPlayerId(e.target.value)}>
+            <option value="">Select player</option>
+            {players.map(p=> <option key={p.id} value={p.id}>{p.name}</option>)}
+          </select>
+          <input className="p-2 rounded border" type="number" min={1} value={amount} onChange={(e)=>setAmount(Number(e.target.value))} />
+          <button className="col-span-2 px-3 py-2 rounded-2xl bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-40" disabled={!playerId || amount<=0} onClick={()=>onRefund({ playerId, amount })}>Cash Out</button>
+          <p className="col-span-2 text-xs text-gray-600">Operator note: balance decreases here; issue the actual payout via Stripe/CashApp/Zelle, then click Cash Out to reflect it.</p>
+        </div>
+      </div>
+
+      <div className="text-sm">
+        <h4 className="font-semibold">Balances</h4>
+        <div className="overflow-x-auto mt-2">
+          <table className="min-w-full text-sm">
+            <thead>
+              <tr className="text-left text-xs uppercase text-gray-500">
+                <th className="py-1 pr-2">Player</th>
+                <th className="py-1 pr-2">Balance</th>
+                <th className="py-1 pr-2">Penalty Reserve</th>
+                <th className="py-1 pr-2">Debt</th>
+              </tr>
+            </thead>
+            <tbody>
+              {players.map(p=> (
+                <tr key={p.id} className="border-t border-gray-100">
+                  <td className="py-1 pr-2">{p.name}</td>
+                  <td className="py-1 pr-2">${p.balance?.toFixed ? p.balance.toFixed(2) : Number(p.balance||0).toFixed(2)}</td>
+                  <td className="py-1 pr-2">${p.penaltyReserve?.toFixed ? p.penaltyReserve.toFixed(2) : Number(p.penaltyReserve||0).toFixed(2)}</td>
+                  <td className="py-1 pr-2">${p.debt?.toFixed ? p.debt.toFixed(2) : Number(p.debt||0).toFixed(2)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <div className="mt-3 flex gap-3">
+          <Pill tone="info">House: ${finance.houseBalance.toFixed(2)}</Pill>
+          <Pill tone="info">Ops: ${finance.opsBalance.toFixed(2)}</Pill>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function App() {
+  const [data, U] = useLadderState();
+
+  const totalPlayers = data.players.length;
+  const totalMatches = data.matches.length;
+  const totalPoints = data.players.reduce((a, b) => a + b.points, 0);
+
+  const [newP, setNewP] = useState({ name: "", city: "Seguin", bucket: "599 & under", themeSong: "", isMember: false });
+
+  // 🔗 Stripe links (replace these with your real Payment Link URLs)
+  const LINKS = {
+    joinBasic: "https://example.com/stripe/basic", // e.g., https://buy.stripe.com/xxxx
+    joinPro: "https://example.com/stripe/pro",
+    walkIn: "https://example.com/stripe/walkin",
+    topUp: "https://example.com/stripe/topup" // Deposit/Reserve link (customer chooses amount)
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-zinc-50 to-zinc-100 text-zinc-900" id="top">
+      {/* HEADER */}
+      <header className="sticky top-0 z-10 backdrop-blur bg-white/70 border-b">
+        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+          <div>
+            <div className="text-xl md:text-2xl font-black tracking-tight">
+              {data.brand.title} <span className="hidden md:inline">—</span> <span className="md:ml-1">{data.brand.subtitle}</span>
+            </div>
+            <div className="text-xs md:text-sm text-zinc-600">{data.brand.tagline}</div>
+          </div>
+          <nav className="hidden md:flex gap-4 text-sm">
+            <a href="#how" className="hover:underline">How It Works</a>
+            <a href="#ladder" className="hover:underline">Standings</a>
+            <a href="#record" className="hover:underline">Record</a>
+            <a href="#halls" className="hover:underline">Halls</a>
+            <a href="#clips" className="hover:underline">Clips</a>
+            <a href="#tourney" className="hover:underline">Tournament</a>
+          </nav>
+        </div>
+      </header>
+
+      {/* HERO */}
+      <div className="max-w-6xl mx-auto px-4 pt-8">
+        <div className="rounded-3xl p-6 md:p-10 bg-[radial-gradient(ellipse_at_top_right,rgba(255,200,0,.15),transparent_40%),radial-gradient(ellipse_at_bottom_left,rgba(255,100,0,.12),transparent_40%)] border">
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+            <div>
+              <h1 className="text-3xl md:text-5xl font-extrabold leading-tight">Pool. Points. Pride.</h1>
+              <p className="mt-2 text-lg text-zinc-700 max-w-2xl">
+                Welcome to the Tri‑City Ladder — where money = points, walk‑ins got theme songs, matches get streamed,
+                and if you dog a ball… best believe we’re clipping it. 😈
+              </p>
+            </div>
+            <div className="grid grid-cols-3 gap-3 text-center">
+              <div className="bg-white rounded-2xl p-4 shadow">
+                <div className="text-2xl font-bold">{totalPlayers}</div>
+                <div className="text-xs text-zinc-500">Players</div>
+              </div>
+              <div className="bg-white rounded-2xl p-4 shadow">
+                <div className="text-2xl font-bold">{totalMatches}</div>
+                <div className="text-xs text-zinc-500">Matches</div>
+              </div>
+              <div className="bg-white rounded-2xl p-4 shadow">
+                <div className="text-2xl font-bold">{totalPoints}</div>
+                <div className="text-xs text-zinc-500">Total Pts</div>
+              </div>
+            </div>
+          </div>
+          <div className="mt-4 flex flex-wrap gap-2 text-xs">
+            <Pill tone="info">Bets: $50–$300</Pill>
+            <Pill tone="info">Money = Points</Pill>
+            <Pill tone="info">Commission: 15% guests / 5% members</Pill>
+            <Pill tone="good">Civil trash talk only</Pill>
+          </div>
+        </div>
+      </div>
+
+      <main className="max-w-6xl mx-auto px-4 pb-16">$1<Section id="wallets" title="💼 Balances & Cash Out" subtitle="Hold deposits for no-shows or refund when players quit">
+          <Wallets players={data.players} finance={data.finance} onDeposit={U.deposit} onRefund={U.refund} />
+        </Section>
+
+        <Section id="how" title="🔥 How It Works" subtitle="Games, stakes, and the gospel according to the felt">
+          <div className="grid md:grid-cols-2 gap-6 text-sm">
+            <div>
+              <h4 className="font-semibold mb-1">Games</h4>
+              <div className="flex flex-wrap gap-2 mb-3">
+                {GAME_TYPES.map((g) => (
+                  <Pill key={g}>{g}</Pill>
+                ))}
+              </div>
+              <p>
+                <b>Bets:</b> $50 min • $300 max (enough to sting, not enough to bankrupt)
+              </p>
+              <p>
+                <b>Money = Points:</b> $100 bet = 100 points for the winner. Commission separate (guests 15%, members 5%).
+              </p>
+              <p>
+                <b>Commission split:</b> Guests 15% (10% house / 5% ops) • Members 5% flat.
+              </p>
+            </div>
+            <div>
+              <h4 className="font-semibold mb-1">Sportsmanship</h4>
+              <ul className="list-disc ml-5">
+                <li>Civil trash talk ≈ encouraged. Keep it clever, not violent.</li>
+                <li>Pay when you lose — don’t be that guy.</li>
+                <li>Respect the felt. Respect the ladder. Respect the hustle.</li>
+              </ul>
+            </div>
+          </div>
+        </Section>
+
+        <Section id=\"ladder\" title=\"📊 The Ladder\" subtitle=\"Two lists: 600+ killers • 599 & under grinders\">
+          <Standings
+            players={data.players}
+            onToggleMember={U.toggleMember}
+            onClearBottom={U.clearBottomFlag}
+          />
+        </Section>
+
+        <Section id=\"balances\" title=\"💵 Player Balances\" subtitle=\"Penalty reserves roll over until cashed out\">
+          <div className=\"overflow-x-auto\">
+            <table className=\"min-w-full text-sm\">
+              <thead>
+                <tr className=\"text-left text-xs uppercase text-gray-500\">
+                  <th className=\"py-1 pr-2\">Player</th>
+                  <th className=\"py-1 pr-2\">Balance</th>
+                  <th className=\"py-1 pr-2\">Penalty Reserve</th>
+                  <th className=\"py-1 pr-2\">Debt</th>
+                  <th className=\"py-1 pr-2\">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.players.map(p => (
+                  <tr key={p.id} className=\"border-t border-gray-100\">
+                    <td className=\"py-1 pr-2\">{p.name}</td>
+                    <td className=\"py-1 pr-2\">${p.balance?.toFixed?.(2) || 0}</td>
+                    <td className=\"py-1 pr-2\">${p.penaltyReserve?.toFixed?.(2) || 0}</td>
+                    <td className=\"py-1 pr-2\">${p.debt?.toFixed?.(2) || 0}</td>
+                    <td className=\"py-1 pr-2\">
+                      <button onClick={() => U.addAnnouncement(`Cash Out: Refunded ${p.name}’s reserve.`)} className=\"text-xs underline text-blue-600\">Refund / Cash Out</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Section>
+
+        <Section id="halls" title="🏟️ Poolhall vs Poolhall" subtitle="Standings and match recorder for venue battles">
+          <div className="grid md:grid-cols-1 gap-6">
+            <HallStandings halls={data.poolhalls || []} />
+            <div>
+              <h3 className="font-semibold mb-2">Record a Hall Match</h3>
+              <HallMatchRecorder halls={data.poolhalls || []} onRecord={U.recordHallMatch} />
+            </div>
+            {data.hallMatches?.length ? (
+              <div>
+                <h3 className="font-semibold mb-2">Recent Hall Matches</h3>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full text-sm">
+                    <thead>
+                      <tr className="text-left text-xs uppercase text-gray-500">
+                        <th className="py-1 pr-2">Date</th>
+                        <th className="py-1 pr-2">Match</th>
+                        <th className="py-1 pr-2">Game</th>
+                        <th className="py-1 pr-2">Stake</th>
+                        <th className="py-1 pr-2">Winner</th>
+                        <th className="py-1 pr-2">Stream</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {data.hallMatches.map(m=> {
+                        const A = (data.poolhalls||[]).find(h=>h.id===m.hallAId)?.name || "?";
+                        const B = (data.poolhalls||[]).find(h=>h.id===m.hallBId)?.name || "?";
+                        const W = (data.poolhalls||[]).find(h=>h.id===m.winnerHallId)?.name || "?";
+                        return (
+                          <tr key={m.id} className="border-t border-gray-100">
+                            <td className="py-2 pr-2">{formatDateShort(m.date)}</td>
+                            <td className="py-2 pr-2">{A} vs {B}</td>
+                            <td className="py-2 pr-2">{m.gameType}</td>
+                            <td className="py-2 pr-2">${'{'}m.stake{'}'}</td>
+                            <td className="py-2 pr-2 font-semibold">{W}</td>
+                            <td className="py-2 pr-2">{m.streamUrl ? <a href={m.streamUrl} target="_blank" className="underline">Watch</a> : <span className="text-gray-400">—</span>}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ) : null}
+          </div>
+        </Section>
+
+        <Section id="record" title="📝 Record a Match" subtitle="Updates standings instantly (local only)">
+          <MatchRecorder players={data.players} onRecord={U.recordMatch} />
+
+          {/* Recent matches */}
+          <div className="mt-6">
+            <h3 className="font-semibold mb-2">Recent Matches</h3>
+            {data.matches.length === 0 ? (
+              <div className="text-sm text-gray-500">No matches yet. Rack ‘em.</div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-xs uppercase text-gray-500">
+                      <th className="py-1 pr-2">Date</th>
+                      <th className="py-1 pr-2">Match</th>
+                      <th className="py-1 pr-2">Game</th>
+                      <th className="py-1 pr-2">Stake</th>
+                      <th className="py-1 pr-2">Winner</th>
+                      <th className="py-1 pr-2">Stream</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.matches.map((m) => {
+                      const A = data.players.find((p) => p.id === m.p1Id)?.name || "?";
+                      const B = data.players.find((p) => p.id === m.p2Id)?.name || "?";
+                      const W = data.players.find((p) => p.id === m.winnerId)?.name || "?";
+                      return (
+                        <tr key={m.id} className="border-t border-gray-100">
+                          <td className="py-2 pr-2">{formatDateShort(m.date)}</td>
+                          <td className="py-2 pr-2">{A} vs {B}</td>
+                          <td className="py-2 pr-2">{m.gameType}</td>
+                          <td className="py-2 pr-2">${m.stake}</td>
+                          <td className="py-2 pr-2 font-semibold">{W}</td>
+                          <td className="py-2 pr-2">
+                            {m.streamUrl ? (
+                              <a href={m.streamUrl} target="_blank" className="underline">
+                                Watch
+                              </a>
+                            ) : (
+                              <span className="text-gray-400">—</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </Section>
+
+        <Section id="noshow" title="🚫 No‑Shows (Deadbeat Rule)" subtitle="Don’t be that story we tell on stream">
+          <NoShowPanel players={data.players} onNoShow={U.applyNoShow} />
+        </Section>
+
+        <Section id="challenge" title="🧗 Challenge a Rung" subtitle="Same rung or one above — earn it">
+          <ChallengePanel players={data.players} onCreate={U.createChallenge} />
+
+          {/* Challenge log */}
+          <div className="mt-4">
+            <h3 className="font-semibold mb-2">Challenge Log</h3>
+            {data.challenges.length === 0 ? (
+              <div className="text-sm text-gray-500">Empty. Who’s got heart?</div>
+            ) : (
+              <ul className="space-y-2 text-sm">
+                {data.challenges.map((c) => {
+                  const C = data.players.find((p) => p.id === c.challengerId)?.name || "?";
+                  const T = data.players.find((p) => p.id === c.targetId)?.name || "?";
+                  return (
+                    <li key={c.id} className="p-2 rounded-xl bg-white border flex items-center justify-between">
+                      <div>
+                        <b>{C}</b> → <b>{T}</b> <span className="text-xs text-gray-500">({formatDateShort(c.date)})</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Pill tone={c.status === "Accepted" ? "good" : c.status === "Declined" ? "bad" : "info"}>{c.status}</Pill>
+                        {c.status === "Pending" && (
+                          <>
+                            <button className="text-xs underline" onClick={() => U.resolveChallenge({ id: c.id, status: "Accepted" })}>
+                              Accept
+                            </button>
+                            <button className="text-xs underline" onClick={() => U.resolveChallenge({ id: c.id, status: "Declined" })}>
+                              Decline
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
+        </Section>
+
+        <Section id="clips" title="🎥 Clip Hall of Fame" subtitle="Dog it, we clip it. Run it, we replay it.">
+          <Clips clips={data.clips} onAdd={U.addClip} onRemove={U.removeClip} />
+        </Section>
+
+        <Section id="tourney" title="🏆 Quarterly Tournament" subtitle="Every 3–4 months — ladder‑only, big payouts, streamed live">
+          <div className="grid md:grid-cols-2 gap-6 text-sm">
+            <div>
+              <ul className="list-disc ml-5">
+                <li>Ladder‑only tournament (active players only — no ghosts)</li>
+                <li>Big payouts • Streamed worldwide</li>
+                <li>Format & date announced on the site + socials</li>
+              </ul>
+            </div>
+            <div>
+              <div className="flex gap-2">
+                <input
+                  className="flex-1 p-2 rounded border"
+                  placeholder="Post an announcement…"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && e.currentTarget.value.trim()) {
+                      U.addAnnouncement(e.currentTarget.value.trim());
+                      e.currentTarget.value = "";
+                    }
+                  }}
+                />
+                <DataIO data={data} onImport={U.importJSON} />
+              </div>
+              <div className="mt-3 space-y-2 max-h-48 overflow-auto">
+                {data.announcements.map((a) => (
+                  <div key={a.id} className="text-sm p-2 rounded-xl bg-white border">
+                    <span className="text-xs text-gray-500 mr-2">{formatDateShort(a.date)}:</span>
+                    {a.text}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </Section>
+
+        <Section id="admin" title="➕ Add Player" subtitle="Theme songs welcome (YouTube/Spotify links)">
+          <div className="grid md:grid-cols-4 gap-2 items-end">
+            <input className="p-2 rounded border" placeholder="Name" value={newP.name} onChange={(e) => setNewP({ ...newP, name: e.target.value })} />
+            <select className="p-2 rounded border" value={newP.city} onChange={(e) => setNewP({ ...newP, city: e.target.value })}>
+              {[
+                "Seguin",
+                "New Braunfels",
+                "San Marcos",
+                "Other",
+              ].map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+            <select className="p-2 rounded border" value={newP.bucket} onChange={(e) => setNewP({ ...newP, bucket: e.target.value })}>
+              {[
+                "600+",
+                "599 & under",
+              ].map((b) => (
+                <option key={b} value={b}>{b}</option>
+              ))}
+            </select>
+            <input className="p-2 rounded border md:col-span-2" placeholder="Theme song URL (optional)" value={newP.themeSong} onChange={(e) => setNewP({ ...newP, themeSong: e.target.value })} />
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" checked={newP.isMember} onChange={(e) => setNewP({ ...newP, isMember: e.target.checked })} />
+              Member (5% commission)
+            </label>
+            <button
+              onClick={() => {
+                if (!newP.name.trim()) return;
+                U.addPlayer(newP);
+                setNewP({ name: "", city: "Seguin", bucket: "599 & under", themeSong: "", isMember: false });
+              }}
+              className="px-4 py-2 rounded-2xl bg-emerald-600 text-white hover:bg-emerald-700"
+            >
+              Add Player
+            </button>
+          </div>
+        </Section>
+
+        <Section id="footer" title="👉 Join the Ladder" subtitle="Message the Ladder Director to claim your spot!">
+          <div className="text-sm">
+            Tri‑Cities Ladder = <b>More Action • More Money • More Respect</b>
+            <div className="mt-2 text-xs text-gray-500">All matches played on Jesse’s 9ft table at The Spot. Keep it civil, keep it fun, keep it savage just a little. 😉</div>
+          </div>
+        </Section>
+      </main>
+    </div>
+  );
+}

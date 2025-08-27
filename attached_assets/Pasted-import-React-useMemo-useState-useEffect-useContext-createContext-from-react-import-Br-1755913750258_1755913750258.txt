@@ -1,0 +1,104 @@
+import React, { useMemo, useState, useEffect, useContext, createContext } from "react";
+import { BrowserRouter, Routes, Route, NavLink, Navigate, useNavigate } from "react-router-dom";
+import Rulebook from "./Rulebook";
+import LadderStakesRule from "./LadderStakesRule";
+import MistakeLab from "./MistakeLab";
+import RatingsPairingPanel from "./RatingsPairingPanel";
+
+/* =====================================================
+ * AUTH LAYER (Players vs Operators) — demo/localStorage
+ * Replace with real backend/JWT later.
+ * ===================================================== */
+const AuthCtx = createContext(null);
+
+function AuthProvider({ children }) {
+  const [user, setUser] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("tri_auth_user") || "null"); } catch { return null; }
+  });
+  useEffect(() => { localStorage.setItem("tri_auth_user", JSON.stringify(user)); }, [user]);
+
+  const login = (role, name) => setUser({ role, name: name || (role === "operator" ? "Operator" : "Player") });
+  const logout = () => setUser(null);
+
+  const value = useMemo(() => ({ user, login, logout }), [user]);
+  return <AuthCtx.Provider value={value}>{children}</AuthCtx.Provider>;
+}
+function useAuth() { return useContext(AuthCtx); }
+
+function ProtectedRoute({ role, children }) {
+  const { user } = useAuth();
+  if (!user) return <Navigate to="/login" replace />;
+  if (role && user.role !== role) return <Navigate to="/" replace />;
+  return children;
+}
+
+/* =====================================================
+ * OPERATOR STORE — demo state persisted to localStorage
+ * players, matches, fines, settings, proposals
+ * ===================================================== */
+const StoreCtx = createContext(null);
+function useLocalState(key, fallback) {
+  const [s, setS] = useState(() => {
+    try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; } catch { return fallback; }
+  });
+  useEffect(() => { localStorage.setItem(key, JSON.stringify(s)); }, [key, s]);
+  return [s, setS];
+}
+
+function StoreProvider({ children }) {
+  const [players, setPlayers] = useLocalState("tri_players", []);
+  const [matches, setMatches] = useLocalState("tri_matches", []);
+  const [fines, setFines] = useLocalState("tri_fines", []);
+  const [proposals, setProposals] = useLocalState("tri_proposals", []);
+  const [settings, setSettings] = useLocalState("tri_ops_settings", {
+    memberRate: 0.05,
+    nonMemberRate: 0.15,
+    proDiscount: 0, // e.g. 0.02 → Pro members 3%
+    initialRating: 1200,
+    kFactor: 24,
+    bandSize: 200,
+    avoidRematchDays: 30,
+    votingMinVotes: 5,
+    votingPassRatio: 0.6,
+    votingAllowDownvotes: true,
+    rulebookBannerLookbackDays: 60,
+  });
+
+  const addPlayer = (name) => {
+    const id = uid();
+    setPlayers((p) => [{ id, name, member: true, pro: false, walkin: "", rating: settings.initialRating, notes: "" }, ...p]);
+  };
+  const updatePlayer = (id, patch) => setPlayers((ps) => ps.map((p) => (p.id === id ? { ...p, ...patch } : p)));
+  const removePlayer = (id) => setPlayers((ps) => ps.filter((p) => p.id !== id));
+
+  const addMatch = (m) => setMatches((ms) => [{ id: uid(), createdAt: Date.now(), status: "scheduled", ...m }, ...ms]);
+  const updateMatch = (id, patch) => setMatches((ms) => ms.map((m) => (m.id === id ? { ...m, ...patch } : m)));
+  const removeMatch = (id) => setMatches((ms) => ms.filter((m) => m.id !== id));
+
+  const addFine = (fine) => setFines((fs) => [{ id: uid(), date: Date.now(), ...fine }, ...fs]);
+  const removeFine = (id) => setFines((fs) => fs.filter((f) => f.id !== id));
+
+  // ===== Proposals & Voting =====
+  const addProposal = ({ title, body, type, authorName }) => {
+    const id = uid();
+    setProposals((ps) => [
+      { id, title, body, type, authorName, status: "open", createdAt: Date.now(), acceptedAt: null, votes: {}, up: 0, down: 0, comments: [] },
+      ...ps,
+    ]);
+  };
+  const updateProposal = (id, patch) => setProposals((ps) => ps.map((p) => (p.id === id ? { ...p, ...patch } : p)));
+  const removeProposal = (id) => setProposals((ps) => ps.filter((p) => p.id !== id));
+  const voteProposal = (id, voterName, value) => {
+    setProposals((ps) => ps.map((p) => {
+      if (p.id !== id || p.status !== "open") return p;
+      const prev = p.votes?.[voterName] || 0;
+      const next = value; // +1 / -1 / 0
+      if (prev === next) return p;
+      const votes = { ...(p.votes || {}) };
+      if (next === 0) delete votes[voterName]; else votes[voterName] = next;
+      const counts = Object.values(votes).reduce((acc, v) => { if (v>0) acc.up++; if (v<0) acc.down++; return acc; }, { up: 0, down: 0 });
+      let status = p.status;
+      let acceptedAt = p.acceptedAt;
+      const total = counts.up + counts.down;
+      const ratio = total ? counts.up / total : 0;
+      if (total >= settings.votingMinVotes && ratio >= settings.votingPassRatio) { status = "accepted"; a...

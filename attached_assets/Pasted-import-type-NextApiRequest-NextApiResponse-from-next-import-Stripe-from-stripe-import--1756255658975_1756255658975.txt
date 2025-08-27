@@ -1,0 +1,82 @@
+import type { NextApiRequest, NextApiResponse } from "next";
+import Stripe from "stripe";
+import { buffer } from "micro";
+
+// Tell Next to give us the raw body
+export const config = { api: { bodyParser: false } };
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: "2024-06-20" });
+const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET!; // from dashboard/CLI
+
+// TODO: replace with your DB calls
+async function setMembership(userId: string, tier: "basic" | "pro", status: string, currentPeriodEnd?: number, stripeIds?: { customer?: string; sub?: string }) {
+  // e.g., update users set role=tier, membership_status=status, customer_id=..., subscription_id=..., period_end=...
+  console.log("DB UPDATE", { userId, tier, status, currentPeriodEnd, stripeIds });
+}
+
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  if (req.method !== "POST") return res.status(405).end();
+
+  let event: Stripe.Event;
+  try {
+    const sig = req.headers["stripe-signature"] as string;
+    const buf = await buffer(req);
+    event = stripe.webhooks.constructEvent(buf, sig, endpointSecret);
+  } catch (err: any) {
+    console.error("Webhook signature verification failed.", err.message);
+    return res.status(400).send(`Webhook Error: ${err.message}`);
+  }
+
+  try {
+    switch (event.type) {
+      case "checkout.session.completed": {
+        const sess = event.data.object as Stripe.Checkout.Session;
+        const userId = (sess.client_reference_id || sess.metadata?.userId) as string;
+        const tier = (sess.metadata?.tier || "basic") as "basic" | "pro";
+        // Sub ID may be inside session
+        const subscriptionId = (sess.subscription as string) || undefined;
+        await setMembership(userId, tier, "active", undefined, {
+          customer: sess.customer as string,
+          sub: subscriptionId,
+        });
+        break;
+      }
+
+      case "customer.subscription.updated":
+      case "customer.subscription.created": {
+        const sub = event.data.object as Stripe.Subscription;
+        const tier = (sub.metadata?.tier ||
+          (sub.items.data[0]?.price.nickname?.toLowerCase().includes("pro") ? "pro" : "basic")) as "basic" | "pro";
+        const status = sub.status; // active | past_due | canceled | incomplete | ...
+        const userId = (sub.metadata?.userId || (sub.latest_invoice as any)?.metadata?.userId) as string | undefined;
+
+        if (userId) {
+          await setMembership(userId, tier, status, sub.current_period_end, {
+            customer: sub.customer as string,
+            sub: sub.id,
+          });
+        }
+        break;
+      }
+
+      case "customer.subscription.deleted": {
+        const sub = event.data.object as Stripe.Subscription;
+        const userId = sub.metadata?.userId as string | undefined;
+        if (userId) await setMembership(userId, "basic", "canceled", sub.current_period_end, { sub: sub.id });
+        break;
+      }
+
+      case "invoice.payment_failed": {
+        const inv = event.data.object as Stripe.Invoice;
+        const userId = inv.metadata?.userId as string | undefined;
+        if (userId) await setMembership(userId, "basic", "past_due");
+        break;
+      }
+    }
+
+    return res.json({ received: true });
+  } catch (err: any) {
+    console.error("Webhook handler error:", err);
+    return res.status(500).send("Webhook handler failed");
+  }
+}

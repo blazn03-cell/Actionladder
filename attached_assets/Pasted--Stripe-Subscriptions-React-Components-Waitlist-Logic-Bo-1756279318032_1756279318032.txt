@@ -1,0 +1,193 @@
+// ===============================
+// Stripe Subscriptions + React Components + Waitlist Logic + Bonus Revenue Options
+// ===============================
+
+// This file now covers:
+// 1. Base tier pricing logic (monthly vs annual)
+// 2. Add-ons and multi-hall expansion
+// 3. Stripe Checkout session creation with line_items for base + add-ons + multi-hall
+// 4. Revenue calculator + Bonus Options React component
+
+// ===============================
+// Bonus Revenue Options Config
+// ===============================
+
+export const BONUS_OPTIONS = {
+  annual: {
+    Small: { price: 1990, save: 398 },
+    Medium: { price: 2990, save: 598 },
+    Large: { price: 3990, save: 798 },
+    Mega: { price: 5490, save: 1098 },
+  },
+  addons: [
+    {
+      key: "analytics",
+      label: "Analytics Dashboard",
+      price: 50,
+      desc: "Detailed player stats, revenue trends, hot nights, growth charts.",
+    },
+    {
+      key: "branding",
+      label: "White-Label Branding",
+      price: 75,
+      desc: "Custom logo/colors/name so it looks like their own system.",
+    },
+    {
+      key: "tournament",
+      label: "Tournament Module",
+      price: 75,
+      desc: "Unlocks brackets, payouts, streamed fight nights, jackpots.",
+    },
+  ],
+  multiHall: {
+    monthly: { price: 225 }, // average of $200–$250
+    annual: { price: 2200 },
+  },
+};
+
+// ===============================
+// Revenue calc utility
+// ===============================
+export function calcOperatorBill(baseTier: "Small" | "Medium" | "Large" | "Mega", opts: { annual?: boolean; addons?: string[]; halls?: number }) {
+  let total = 0;
+  if (opts.annual) {
+    total += BONUS_OPTIONS.annual[baseTier].price;
+  } else {
+    const baseMonthly = baseTier === "Small" ? 199 : baseTier === "Medium" ? 299 : baseTier === "Large" ? 399 : 799;
+    total += baseMonthly;
+  }
+
+  if (opts.addons) {
+    for (const key of opts.addons) {
+      const addon = BONUS_OPTIONS.addons.find((a) => a.key === key);
+      if (addon) total += opts.annual ? addon.price * 12 : addon.price;
+    }
+  }
+
+  if (opts.halls && opts.halls > 1) {
+    const extra = opts.halls - 1;
+    if (opts.annual) total += BONUS_OPTIONS.multiHall.annual.price * extra;
+    else total += BONUS_OPTIONS.multiHall.monthly.price * extra;
+  }
+
+  return total;
+}
+
+// ===============================
+// Stripe Checkout Patch (supports annual, add-ons, multi-hall)
+// ===============================
+import Stripe from "stripe";
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, { apiVersion: "2024-06-20" });
+
+export async function createCheckoutSession({ hallId, operatorId, playerCount, email, baseTier, annual = false, addons = [], halls = 1 }: {
+  hallId: string;
+  operatorId: string;
+  playerCount: number;
+  email?: string;
+  baseTier: "Small" | "Medium" | "Large" | "Mega";
+  annual?: boolean;
+  addons?: string[];
+  halls?: number;
+}) {
+  const envKey = `${baseTier.toUpperCase()}_${annual ? "Y" : "M"}`;
+  const basePrice = process.env[`STRIPE_PRICE_${envKey}`];
+  if (!basePrice) throw new Error(`Missing Stripe price ID for ${envKey}`);
+
+  const line_items: Stripe.Checkout.SessionCreateParams.LineItem[] = [{ price: basePrice, quantity: 1 }];
+
+  const ADDON_MAP: Record<string, string | undefined> = {
+    analytics: process.env.STRIPE_PRICE_ADDON_ANALYTICS_M,
+    branding: process.env.STRIPE_PRICE_ADDON_BRANDING_M,
+    tournament: process.env.STRIPE_PRICE_ADDON_TOURNAMENT_M,
+  };
+
+  for (const key of addons) {
+    const p = ADDON_MAP[key];
+    if (p) line_items.push({ price: p, quantity: 1 });
+  }
+
+  const extraHalls = Math.max(0, halls - 1);
+  if (extraHalls > 0) {
+    const multiPrice = annual ? process.env.STRIPE_PRICE_MULTIHALL_Y : process.env.STRIPE_PRICE_MULTIHALL_M;
+    if (multiPrice) line_items.push({ price: multiPrice, quantity: extraHalls });
+  }
+
+  const session = await stripe.checkout.sessions.create({
+    mode: "subscription",
+    line_items,
+    customer_email: email,
+    success_url: `${process.env.APP_BASE_URL}/billing/success?session_id={CHECKOUT_SESSION_ID}`,
+    cancel_url: `${process.env.APP_BASE_URL}/billing/cancel`,
+    metadata: {
+      hallId,
+      operatorId,
+      playerCount: String(playerCount),
+      tier: baseTier,
+      billingPeriod: annual ? "annual" : "monthly",
+      addons: addons.join(","),
+      halls: String(halls),
+    },
+    subscription_data: {
+      metadata: {
+        hallId,
+        operatorId,
+        tier: baseTier,
+      },
+    },
+  });
+
+  return session;
+}
+
+// ===============================
+// React Component: BonusOptionsCalculator.tsx
+// ===============================
+import React, { useState } from "react";
+
+export function BonusOptionsCalculator() {
+  const [tier, setTier] = useState<"Small" | "Medium" | "Large" | "Mega">("Medium");
+  const [annual, setAnnual] = useState(false);
+  const [addons, setAddons] = useState<string[]>([]);
+  const [halls, setHalls] = useState(1);
+
+  const total = calcOperatorBill(tier, { annual, addons, halls });
+
+  function toggleAddon(key: string) {
+    setAddons((prev) => (prev.includes(key) ? prev.filter((a) => a !== key) : [...prev, key]));
+  }
+
+  return (
+    <div className="rounded-2xl border p-4 space-y-4">
+      <h3 className="text-lg font-bold">Bonus Options Calculator</h3>
+      <div className="flex flex-col gap-2">
+        <label>
+          Base Tier:
+          <select value={tier} onChange={(e) => setTier(e.target.value as any)} className="ml-2 border rounded">
+            <option>Small</option>
+            <option>Medium</option>
+            <option>Large</option>
+            <option>Mega</option>
+          </select>
+        </label>
+        <label>
+          <input type="checkbox" checked={annual} onChange={(e) => setAnnual(e.target.checked)} /> Annual billing (save $$)
+        </label>
+        <label>
+          Halls:
+          <input type="number" min={1} value={halls} onChange={(e) => setHalls(parseInt(e.target.value))} className="ml-2 w-16 border rounded" />
+        </label>
+      </div>
+      <div className="space-y-1">
+        {BONUS_OPTIONS.addons.map((addon) => (
+          <label key={addon.key} className="block">
+            <input type="checkbox" checked={addons.includes(addon.key)} onChange={() => toggleAddon(addon.key)} />
+            <span className="ml-2 font-medium">{addon.label} (+${addon.price}/mo)</span>
+            <p className="text-xs text-gray-500 ml-6">{addon.desc}</p>
+          </label>
+        ))}
+      </div>
+      <p className="text-lg font-semibold">Total = ${total}{annual ? "/year" : "/month"}</p>
+    </div>
+  );
+}

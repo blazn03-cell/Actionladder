@@ -1,0 +1,165 @@
+```tsx
+// ===============================
+// React Components: SubscribeButton.tsx & ManageBillingButton.tsx
+// ===============================
+
+import React from "react";
+
+interface SubscribeButtonProps {
+  hallId: string;
+  operatorId: string;
+  playerCount: number;
+  email?: string;
+}
+
+export const SubscribeButton: React.FC<SubscribeButtonProps> = ({ hallId, operatorId, playerCount, email }) => {
+  const handleSubscribe = async () => {
+    try {
+      const res = await fetch("/api/billing/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ hallId, operatorId, playerCount, email }),
+      });
+
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url; // Stripe Checkout
+      } else {
+        alert(data.error || "Checkout failed");
+      }
+    } catch (err: any) {
+      console.error("Subscribe error", err);
+      alert("Something went wrong starting checkout.");
+    }
+  };
+
+  return (
+    <button
+      onClick={handleSubscribe}
+      className="px-4 py-2 rounded-xl bg-blue-600 text-white font-semibold shadow-md hover:bg-blue-700"
+    >
+      Subscribe Now
+    </button>
+  );
+};
+
+// -------------------------------
+// ManageBillingButton: opens Stripe Customer Portal
+// -------------------------------
+interface ManageBillingButtonProps {
+  customerId: string; // Stripe Customer ID stored in your DB after checkout
+}
+
+export const ManageBillingButton: React.FC<ManageBillingButtonProps> = ({ customerId }) => {
+  const handleManage = async () => {
+    try {
+      const res = await fetch(`/api/billing/portal?customer_id=${customerId}`);
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url; // Stripe Customer Portal
+      } else {
+        alert(data.error || "Failed to open billing portal");
+      }
+    } catch (err: any) {
+      console.error("Manage billing error", err);
+      alert("Something went wrong opening billing portal.");
+    }
+  };
+
+  return (
+    <button
+      onClick={handleManage}
+      className="px-4 py-2 rounded-xl bg-gray-700 text-white font-semibold shadow-md hover:bg-gray-800"
+    >
+      Manage Billing
+    </button>
+  );
+};
+
+// ===============================
+// Usage Example (React Page)
+// ===============================
+// import { SubscribeButton, ManageBillingButton } from "./SubscribeButton";
+//
+// function PricingPage() {
+//   return (
+//     <div className="space-y-4">
+//       <h1>Choose Your Subscription</h1>
+//       <SubscribeButton hallId="hall123" operatorId="op123" playerCount={20} email="owner@email.com" />
+//       <ManageBillingButton customerId="cus_12345" />
+//     </div>
+//   );
+// }
+//
+// export default PricingPage;
+
+// ===============================
+// Notes:
+// 1) `SubscribeButton` → Stripe Checkout subscription flow.
+// 2) `ManageBillingButton` → Stripe Customer Portal for upgrades/downgrades, card updates, cancel.
+// 3) Both call backend endpoints from your Express routes in billing.ts.
+// 4) Customer ID is returned from Stripe when the subscription is created; store it in your DB.
+```
+
+
+// ===============================
+// React Component: ManageBillingButton.tsx (Stripe Customer Portal)
+// ===============================
+
+import React from "react";
+
+interface ManageBillingButtonProps {
+  /** The Stripe customer id, e.g. "cus_123". Store this after checkout.session.completed. */
+  customerId: string;
+  className?: string;
+  label?: string;
+}
+
+export const ManageBillingButton: React.FC<ManageBillingButtonProps> = ({ customerId, className = "", label = "Manage Billing" }) => {
+  const openPortal = async () => {
+    try {
+      const url = new URL(`/api/billing/portal`, window.location.origin);
+      url.searchParams.set("customer_id", customerId);
+
+      const res = await fetch(url.toString(), { method: "GET" });
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url; // Redirect to Stripe Customer Portal
+      } else {
+        alert(data.error || "Could not open billing portal.");
+      }
+    } catch (err) {
+      console.error("Portal error", err);
+      alert("Something went wrong opening the billing portal.");
+    }
+  };
+
+  return (
+    <button
+      onClick={openPortal}
+      className={`px-4 py-2 rounded-xl bg-gray-900 text-white font-semibold shadow-md hover:bg-black ${className}`}
+    >
+      {label}
+    </button>
+  );
+};
+
+// ===============================
+// Usage Example (Account/Billing Page)
+// ===============================
+// import { ManageBillingButton } from "./ManageBillingButton";
+//
+// function BillingSettings({ customerId }: { customerId: string }) {
+//   return (
+//     <div className="space-y-4">
+//       <h2 className="text-lg font-bold">Billing</h2>
+//       <p className="text-sm text-gray-600">Update card, view invoices, upgrade/downgrade, or cancel.</p>
+//       <ManageBillingButton customerId={customerId} />
+//     </div>
+//   );
+// }
+//
+// Notes:
+// - The backend route `/api/billing/portal` (already provided) must return `{ url }` from `stripe.billingPortal.sessions.create`.
+// - Save the Stripe `customer` id from `checkout.session.completed` and associate it with the hall/operator so you can pass it here.
+// - Upgrades/downgrades & proration are handled by Stripe in the Customer Portal automatically.

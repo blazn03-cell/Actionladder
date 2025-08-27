@@ -1,0 +1,99 @@
+// db.js
+const Database = require("better-sqlite3");
+
+// persisted file next to your code
+const db = new Database(process.env.DB_PATH || "./ladder.db");
+
+// --- schema ---
+db.exec(`
+PRAGMA journal_mode = WAL;
+
+CREATE TABLE IF NOT EXISTS users (
+  id TEXT PRIMARY KEY,
+  email TEXT UNIQUE,
+  display_name TEXT,
+  role TEXT DEFAULT 'nonmember',              -- nonmember | basic | pro
+  membership_status TEXT DEFAULT 'none',      -- active | past_due | canceled | trialing | none
+  stripe_customer_id TEXT,
+  stripe_subscription_id TEXT,
+  current_period_end INTEGER                  -- unix epoch seconds
+);
+
+CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+`);
+
+// --- helpers ---
+function upsertUser({ id, email, display_name }) {
+  const existing = db.prepare("SELECT id FROM users WHERE id = ?").get(id);
+  if (existing) {
+    db.prepare("UPDATE users SET email = COALESCE(?, email), display_name = COALESCE(?, display_name) WHERE id = ?")
+      .run(email || null, display_name || null, id);
+  } else {
+    db.prepare("INSERT INTO users (id, email, display_name) VALUES (?, ?, ?)").run(id, email || null, display_name || null);
+  }
+}
+
+function getUserById(id) {
+  return db.prepare("SELECT * FROM users WHERE id = ?").get(id);
+}
+
+function setStripeIds(id, { customerId, subscriptionId }) {
+  upsertUser({ id });
+  db.prepare(`
+    UPDATE users
+    SET stripe_customer_id = COALESCE(?, stripe_customer_id),
+        stripe_subscription_id = COALESCE(?, stripe_subscription_id)
+    WHERE id = ?
+  `).run(customerId || null, subscriptionId || null, id);
+}
+
+function setMembership(id, tier, status, currentPeriodEnd, ids = {}) {
+  upsertUser({ id });
+  // Decide visible app role
+  let role = "nonmember";
+  if (status === "active" || status === "trialing") role = tier; // basic | pro
+  if (status === "past_due" || status === "canceled" || status === "unpaid") role = "nonmember";
+
+  db.prepare(`
+    UPDATE users
+    SET role = ?,
+        membership_status = ?,
+        current_period_end = ?,
+        stripe_customer_id = COALESCE(?, stripe_customer_id),
+        stripe_subscription_id = COALESCE(?, stripe_subscription_id)
+    WHERE id = ?
+  `).run(role, status || "none", currentPeriodEnd || null, ids.customer || null, ids.sub || null, id);
+}
+
+function getStripeCustomerIdForUser(id) {
+  const row = getUserById(id);
+  return row?.stripe_customer_id || null;
+}
+
+function getMembershipStatus(id) {
+  const u = getUserById(id);
+  if (!u) return null;
+  return {
+    userId: u.id,
+    email: u.email,
+    role: u.role,                                // nonmember | basic | pro
+    status: u.membership_status,                 // active | past_due | canceled | trialing | none
+    currentPeriodEnd: u.current_period_end,      // epoch seconds
+    stripeCustomerId: u.stripe_customer_id || null,
+    stripeSubscriptionId: u.stripe_subscription_id || null,
+    // handy flags for your UI
+    perks: {
+      freeTournaments: u.role === "pro",
+      commissionRate: u.role === "pro" || u.role === "basic" ? 0.05 : 0.15
+    }
+  };
+}
+
+module.exports = {
+  upsertUser,
+  getUserById,
+  getStripeCustomerIdForUser,
+  setStripeIds,
+  setMembership,
+  getMembershipStatus,
+};

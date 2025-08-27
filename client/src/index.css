@@ -1,0 +1,177 @@
+@import 'tailwindcss/base';
+@import 'tailwindcss/components';
+@import 'tailwindcss/utilities';
+
+:root {
+  /* Dark Billiards Theme - Green Felt & Cash Money */
+  --background: 0 0% 3.9%; /* Deep black background */
+  --foreground: 120 100% 25%; /* Bright green text */
+  
+  --card: 120 10% 8%; /* Dark green card backgrounds */
+  --card-foreground: 120 50% 70%;
+  
+  --popover: 120 10% 8%;
+  --popover-foreground: 120 50% 70%;
+  
+  --primary: 120 100% 25%; /* Billiards green */
+  --primary-foreground: 0 0% 0%;
+  
+  --secondary: 60 100% 25%; /* Gold accents */
+  --secondary-foreground: 0 0% 0%;
+  
+  --muted: 120 10% 15%;
+  --muted-foreground: 120 20% 50%;
+  
+  --accent: 120 50% 15%;
+  --accent-foreground: 120 50% 70%;
+  
+  --destructive: 0 84.2% 60.2%;
+  --destructive-foreground: 0 0% 98%;
+  
+  --border: 120 20% 20%;
+  --input: 120 20% 15%;
+  --ring: 120 100% 25%;
+  
+  --radius: 0.5rem;
+}
+
+body {
+  font-family: 'Courier New', monospace;
+  background: linear-gradient(135deg, hsl(0, 0%, 3.9%) 0%, hsl(120, 20%, 8%) 100%);
+  min-height: 100vh;
+  color: hsl(var(--foreground));
+}
+
+/* Custom scrollbar for dark theme */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: hsl(var(--background));
+}
+
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--border));
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--accent));
+}
+
+/* Gritty texture overlay */
+.gritty-texture::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image: 
+    radial-gradient(circle at 20% 50%, transparent 20%, rgba(0, 255, 0, 0.02) 21%, rgba(0, 255, 0, 0.02) 34%, transparent 35%, transparent),
+    linear-gradient(0deg, rgba(0, 0, 0, 0.1) 50%, transparent 50%);
+  pointer-events: none;
+}
+
+/* Glowing green effects for active elements */
+.neon-glow {
+  text-shadow: 0 0 5px hsl(120, 100%, 25%), 0 0 10px hsl(120, 100%, 25%), 0 0 15px hsl(120, 100%, 25%);
+}
+
+.cash-glow {
+  text-shadow: 0 0 5px hsl(60, 100%, 50%), 0 0 10px hsl(60, 100%, 50%), 0 0 15px hsl(60, 100%, 50%);
+}
+
+/* Button hover effects */
+.btn-gritty {
+  @apply bg-green-800/20 border border-green-600/50 text-green-400 px-4 py-2 rounded transition-all duration-200 hover:bg-green-700/30 hover:border-green-500 hover:text-green-300 hover:shadow-lg hover:shadow-green-500/20;
+}
+
+.btn-danger {
+  @apply bg-red-800/20 border border-red-600/50 text-red-400 px-4 py-2 rounded transition-all duration-200 hover:bg-red-700/30 hover:border-red-500 hover:text-red-300 hover:shadow-lg hover:shadow-red-500/20;
+}
+
+.btn-gold {
+  @apply bg-yellow-800/20 border border-yellow-600/50 text-yellow-400 px-4 py-2 rounded transition-all duration-200 hover:bg-yellow-700/30 hover:border-yellow-500 hover:text-yellow-300 hover:shadow-lg hover:shadow-yellow-500/20;
+}
+
+/* Felt table effect */
+.felt-bg {
+  background: 
+    radial-gradient(ellipse at center, hsl(120, 30%, 15%) 0%, hsl(120, 20%, 8%) 100%),
+    linear-gradient(45deg, transparent 24%, hsl(120, 15%, 10%) 25%, hsl(120, 15%, 10%) 26%, transparent 27%);
+  background-size: 100% 100%, 4px 4px;
+}
+
+/* Table styles with dark green theme */
+.table-dark {
+  @apply bg-green-900/10 border border-green-700/30 rounded-lg overflow-hidden;
+}
+
+.table-dark th {
+  @apply bg-green-800/30 text-green-300 font-bold py-3 px-4 text-left border-b border-green-700/30;
+}
+
+.table-dark td {
+  @apply py-3 px-4 border-b border-green-700/10 text-green-400;
+}
+
+.table-dark tr:hover td {
+  @apply bg-green-800/10;
+}
+
+/* Live indicator pulse animation */
+.live-pulse {
+  animation: pulse-red 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse-red {
+  0%, 100% {
+    opacity: 1;
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+  }
+  50% {
+    opacity: 0.8;
+    box-shadow: 0 0 0 10px rgba(239, 68, 68, 0);
+  }
+}
+
+/* Money counter animation */
+.cash-counter {
+  font-feature-settings: 'tnum';
+  font-variant-numeric: tabular-nums;
+}
+
+/* Special event badges */
+.badge-birthday {
+  @apply bg-pink-800/30 text-pink-300 border border-pink-600/50 px-2 py-1 rounded-full text-xs;
+}
+
+.badge-charity {
+  @apply bg-blue-800/30 text-blue-300 border border-blue-600/50 px-2 py-1 rounded-full text-xs;
+}
+
+.badge-support {
+  @apply bg-purple-800/30 text-purple-300 border border-purple-600/50 px-2 py-1 rounded-full text-xs;
+}
+
+.badge-respect {
+  @apply bg-yellow-800/30 text-yellow-300 border border-yellow-600/50 px-2 py-1 rounded-full text-xs;
+}
+
+/* Rank badges */
+.rank-1 {
+  @apply text-yellow-400;
+  text-shadow: 0 0 10px hsl(60, 100%, 50%);
+}
+
+.rank-2 {
+  @apply text-gray-300;
+  text-shadow: 0 0 5px hsl(0, 0%, 75%);
+}
+
+.rank-3 {
+  @apply text-amber-600;
+  text-shadow: 0 0 5px hsl(30, 100%, 50%);
+}

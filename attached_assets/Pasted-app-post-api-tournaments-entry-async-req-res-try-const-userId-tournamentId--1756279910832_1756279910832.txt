@@ -1,0 +1,56 @@
+app.post("/api/tournaments/entry", async (req, res) => {
+  try {
+    const { userId, tournamentId, userEmail, joinWaitlistIfFull } = req.body || {};
+    if (!userId || !tournamentId) return res.status(400).json({ error: "userId and tournamentId required" });
+
+    let t = getTournament(tournamentId);
+    if (!t) {
+      upsertTournament({ id: tournamentId, max_slots: Number(process.env.TOURNAMENT_DEFAULT_CAP) || 32, is_open: 1 });
+      t = getTournament(tournamentId);
+    }
+
+    const already = getEntry(tournamentId, userId);
+    if (already) return res.json({ alreadyRegistered: true, entry: already });
+
+    // capacity check
+    const current = countConfirmedEntries(tournamentId);
+    if (!t.is_open || current >= t.max_slots) {
+      setTournamentOpen(tournamentId, false);
+      if (joinWaitlistIfFull) {
+        const row = addToWaitlist({ tournamentId, userId });
+        return res.status(202).json({ waitlisted: true, row });
+      }
+      return res.status(409).json({ capacity_full: true, maxSlots: t.max_slots, current, waitlistAvailable: true });
+    }
+
+    const status = getMembershipStatus(userId);
+    const amountCents = computeTournamentFeeCents(status?.role || "nonmember", t.hall_id || null);
+
+    if (amountCents === 0) {
+      const entry = recordTournamentEntry({ tournamentId, userId, amountCents: 0, status: "comped" });
+      const newCount = countConfirmedEntries(tournamentId);
+      if (newCount >= t.max_slots) setTournamentOpen(tournamentId, false);
+      return res.json({ comped: true, entry });
+    }
+
+    const session = await stripe.checkout.sessions.create({
+      mode: "payment",
+      customer_email: userEmail || status?.email || undefined,
+      line_items: [{
+        price_data: { currency: "usd", unit_amount: amountCents, product_data: { name: `Tournament Entry – ${tournamentId}` } },
+        quantity: 1,
+      }],
+      success_url: `${process.env.APP_URL}/tournaments/${tournamentId}/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${process.env.APP_URL}/tournaments/${tournamentId}/cancel`,
+      client_reference_id: `${userId}:${tournamentId}`,
+      metadata: { type: "tournament_entry", userId, tournamentId, amountCents: String(amountCents) },
+      payment_intent_data: { metadata: { type: "tournament_entry", userId, tournamentId } },
+      allow_promotion_codes: false,
+    });
+
+    res.json({ url: session.url, amountCents });
+  } catch (e) {
+    console.error(e);
+    res.status(400).json({ error: e.message });
+  }
+});

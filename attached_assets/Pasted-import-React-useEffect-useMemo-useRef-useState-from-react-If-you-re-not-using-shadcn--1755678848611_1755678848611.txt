@@ -1,0 +1,485 @@
+import React, { useEffect, useMemo, useRef, useState } from "react";
+// If you're not using shadcn/ui yet, you can replace these with plain HTML elements.
+// To add shadcn/ui later: https://ui.shadcn.com
+// import { Button } from "@/components/ui/button";
+// import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+// import { Input } from "@/components/ui/input";
+// import { Textarea } from "@/components/ui/textarea";
+// import { Badge } from "@/components/ui/badge";
+
+const DEFAULT_CATEGORIES = [
+  "Shot Selection",
+  "Aiming",
+  "Stroke Mechanics",
+  "Cue Ball Control",
+  "Speed Control",
+  "Position Play",
+  "Safeties",
+  "Kicking & Banking",
+  "Break",
+  "Pattern Play",
+  "Mental Game",
+  "Pre‑Shot Routine",
+];
+
+const DRILL_LIBRARY = {
+  "Shot Selection": [
+    "3-ball line: choose highest-% path and play 10 racks vs ghost.",
+    "Half-table patterns: work A→B→C with two-rail routes only.",
+  ],
+  Aiming: [
+    "Ghost-ball coin drill: coin marks impact point; pocket 50 reps.",
+    "Center-to-edge ladder: 10 reps each pocket, slow pace.",
+  ],
+  "Stroke Mechanics": [
+    "Stop-shot ladder: 6, 12, 18, 24, 30 in. from pocket.",
+    "Closed-bridge straight-in: 100 reps, pause-at-cue-ball.",
+  ],
+  "Cue Ball Control": [
+    "Draw/Follow 5-spot: park cue ball on each diamond in order.",
+    "Stun-runout: 6 balls, stun only, no roll.",
+  ],
+  "Speed Control": [
+    "Rail speed drill: roll to stop on tape strip; 10/10/10 reps.",
+    "Lag wars: beat your last distance by <6 inches, 20 reps.",
+  ],
+  "Position Play": [
+    "L-Drill: 5 balls in L shape, 3 patterns to clear.",
+    "Two-rail shape carousel: repeat until 3 perfect runs.",
+  ],
+  Safeties: [
+    "Hook & hide: leave object ball on rail, cue behind blocker.",
+    "Containment safety ladder: 10 safeties without leaving a shot.",
+  ],
+  "Kicking & Banking": [
+    "3-rail diamond system to corner, 20 reps logging error.",
+    "Bank line: 5 cross-banks, 5 straight-backs, mark leaves.",
+  ],
+  Break: [
+    "Controlled 9/10-ball break: cue ball stop-on-dime, 30 reps.",
+    "8-ball second-ball break: vary rack gaps, log results.",
+  ],
+  "Pattern Play": [
+    "No-rail route: run 6 using only one-rail position.",
+    "Odd-even rule practice: plan 3 ahead before every shot.",
+  ],
+  "Mental Game": [
+    "Box breathing 4×4×4×4 before every rack.",
+    "Between-shots routine: look→decide→commit, 20-rack audit.",
+  ],
+  "Pre‑Shot Routine": [
+    "3-count set: feet, tip, pause; pull only when picture is clear.",
+    "Feather-5 rule: 5 feathers max, same cadence every time.",
+  ],
+};
+
+function uid() {
+  return Math.random().toString(36).slice(2) + Date.now().toString(36);
+}
+
+function formatTime(t) {
+  if (!isFinite(t)) return "0:00";
+  const m = Math.floor(t / 60);
+  const s = Math.floor(t % 60).toString().padStart(2, "0");
+  return `${m}:${s}`;
+}
+
+export default function MistakeLab() {
+  const videoRef = useRef(null);
+  const [videoURL, setVideoURL] = useState("");
+  const [fileName, setFileName] = useState("");
+  const [entries, setEntries] = useState(() => {
+    try {
+      const saved = localStorage.getItem("mistake_lab_entries");
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
+  });
+  const [filter, setFilter] = useState({ q: "", category: "All", unresolvedOnly: false });
+
+  useEffect(() => {
+    localStorage.setItem("mistake_lab_entries", JSON.stringify(entries));
+  }, [entries]);
+
+  function onPickFile(e) {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    const url = URL.createObjectURL(f);
+    setVideoURL(url);
+    setFileName(f.name);
+  }
+
+  function onSetURL(e) {
+    setVideoURL(e.target.value);
+    setFileName("");
+  }
+
+  function addEntryAtCurrentTime() {
+    const t = videoRef.current ? videoRef.current.currentTime : 0;
+    const base = {
+      id: uid(),
+      time: Math.round(t),
+      category: DEFAULT_CATEGORIES[0],
+      whatHappened: "",
+      rootCause: "",
+      fix: "",
+      drill: "",
+      severity: 3,
+      resolved: false,
+      tags: "",
+      createdAt: Date.now(),
+    };
+    // Auto-suggest a drill for the default category
+    const d = DRILL_LIBRARY[base.category]?.[0] ?? "Pick a drill.";
+    base.drill = d;
+    setEntries((prev) => [base, ...prev]);
+  }
+
+  function updateEntry(id, patch) {
+    setEntries((prev) => prev.map((e) => (e.id === id ? { ...e, ...patch } : e)));
+  }
+
+  function deleteEntry(id) {
+    setEntries((prev) => prev.filter((e) => e.id !== id));
+  }
+
+  function exportJSON() {
+    const blob = new Blob([JSON.stringify(entries, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `mistake-lab-${new Date().toISOString().slice(0,10)}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  function exportCSV() {
+    const cols = [
+      "time",
+      "category",
+      "severity",
+      "whatHappened",
+      "rootCause",
+      "fix",
+      "drill",
+      "tags",
+      "resolved",
+    ];
+    const rows = [cols.join(",")].concat(
+      entries.map((e) =>
+        cols
+          .map((c) => {
+            const v = e[c];
+            const s = typeof v === "string" ? v.replace(/"/g, '""') : String(v);
+            return `"${s}"`;
+          })
+          .join(",")
+      )
+    );
+    const blob = new Blob([rows.join("\n")], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `mistake-lab-${new Date().toISOString().slice(0,10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  const filtered = useMemo(() => {
+    return entries.filter((e) => {
+      const matchesQ = [e.whatHappened, e.rootCause, e.fix, e.drill, e.tags]
+        .join(" ")
+        .toLowerCase()
+        .includes(filter.q.toLowerCase());
+      const matchesCat = filter.category === "All" || e.category === filter.category;
+      const matchesResolved = !filter.unresolvedOnly || !e.resolved;
+      return matchesQ && matchesCat && matchesResolved;
+    });
+  }, [entries, filter]);
+
+  const stats = useMemo(() => {
+    const byCat = {};
+    let unresolved = 0;
+    let total = entries.length;
+    for (const e of entries) {
+      byCat[e.category] = (byCat[e.category] || 0) + 1;
+      if (!e.resolved) unresolved++;
+    }
+    return { byCat, unresolved, total };
+  }, [entries]);
+
+  return (
+    <div className="w-full p-4 md:p-6 lg:p-8 mx-auto max-w-7xl">
+      {/* Header */}
+      <div className="mb-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Mistake Lab 🧪</h1>
+          <p className="text-sm text-muted-foreground max-w-prose">
+            Timestamp your misses, write the why, assign a fix, then drill it. Money games make legends, but the Lab makes killers.
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <button onClick={exportCSV} className="px-3 py-2 rounded-xl bg-black text-white hover:opacity-90">Export CSV</button>
+          <button onClick={exportJSON} className="px-3 py-2 rounded-xl border">Export JSON</button>
+        </div>
+      </div>
+
+      {/* Top Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Video Panel */}
+        <div className="lg:col-span-2">
+          <div className="rounded-2xl border p-4 shadow-sm">
+            <div className="flex flex-col md:flex-row gap-3 md:items-center md:justify-between">
+              <div className="flex items-center gap-2">
+                <label className="text-sm font-medium">Match video:</label>
+                <input type="file" accept="video/*" onChange={onPickFile} className="text-sm" />
+              </div>
+              <div className="flex items-center gap-2 w-full md:w-auto">
+                <input
+                  type="url"
+                  placeholder="Paste a video URL (mp4/m3u8)"
+                  value={videoURL}
+                  onChange={onSetURL}
+                  className="w-full md:w-96 border rounded-xl px-3 py-2"
+                />
+                <button onClick={addEntryAtCurrentTime} className="px-3 py-2 rounded-xl bg-emerald-600 text-white hover:opacity-90">
+                  + Mistake @ time
+                </button>
+              </div>
+            </div>
+            <div className="mt-3 text-xs text-muted-foreground truncate">
+              {fileName ? `Loaded: ${fileName}` : videoURL ? `URL: ${videoURL}` : "No video selected"}
+            </div>
+            <div className="mt-4 aspect-video w-full rounded-xl overflow-hidden bg-black">
+              {/* For HLS (.m3u8) you might need hls.js; keeping it simple for mp4 */}
+              {videoURL ? (
+                <video ref={videoRef} className="w-full h-full" controls src={videoURL} />
+              ) : (
+                <div className="w-full h-full grid place-items-center text-white/70 text-sm">Choose a file or paste a video URL</div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Stats & Filters */}
+        <div className="lg:col-span-1">
+          <div className="rounded-2xl border p-4 shadow-sm space-y-4">
+            <h2 className="font-semibold">Quick Stats</h2>
+            <div className="grid grid-cols-3 gap-3 text-center">
+              <div className="rounded-xl border p-3">
+                <div className="text-2xl font-bold">{stats.total}</div>
+                <div className="text-xs text-muted-foreground">Total Notes</div>
+              </div>
+              <div className="rounded-xl border p-3">
+                <div className="text-2xl font-bold">{stats.unresolved}</div>
+                <div className="text-xs text-muted-foreground">Unresolved</div>
+              </div>
+              <div className="rounded-xl border p-3">
+                <div className="text-2xl font-bold">{Object.keys(stats.byCat).length}</div>
+                <div className="text-xs text-muted-foreground">Categories</div>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <input
+                type="text"
+                placeholder="Search notes, tags, drills…"
+                value={filter.q}
+                onChange={(e) => setFilter({ ...filter, q: e.target.value })}
+                className="w-full border rounded-xl px-3 py-2"
+              />
+              <div className="flex gap-2">
+                <select
+                  className="flex-1 border rounded-xl px-3 py-2"
+                  value={filter.category}
+                  onChange={(e) => setFilter({ ...filter, category: e.target.value })}
+                >
+                  <option>All</option>
+                  {DEFAULT_CATEGORIES.map((c) => (
+                    <option key={c}>{c}</option>
+                  ))}
+                </select>
+                <label className="flex items-center gap-2 text-sm border rounded-xl px-3">
+                  <input
+                    type="checkbox"
+                    checked={filter.unresolvedOnly}
+                    onChange={(e) => setFilter({ ...filter, unresolvedOnly: e.target.checked })}
+                  />
+                  Unresolved only
+                </label>
+              </div>
+            </div>
+            <div className="text-xs text-muted-foreground">
+              Tip: each note should end with a drill you will do this week. If there’s no drill, it’s just a complaint. 😉
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Entries Table */}
+      <div className="mt-6 rounded-2xl border overflow-hidden shadow-sm">
+        <table className="w-full text-sm">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="text-left px-3 py-2 w-[70px]">Time</th>
+              <th className="text-left px-3 py-2">Category</th>
+              <th className="text-left px-3 py-2 w-[120px]">Severity</th>
+              <th className="text-left px-3 py-2">What happened</th>
+              <th className="text-left px-3 py-2">Why / root cause</th>
+              <th className="text-left px-3 py-2">Fix (one-liner)</th>
+              <th className="text-left px-3 py-2">Drill</th>
+              <th className="text-left px-3 py-2 w-[120px]">Tags</th>
+              <th className="text-left px-3 py-2 w-[110px]">Status</th>
+              <th className="px-3 py-2 w-[60px]"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.length === 0 && (
+              <tr>
+                <td colSpan={10} className="text-center py-8 text-muted-foreground">
+                  No notes yet. Load a video and hit “+ Mistake @ time”.
+                </td>
+              </tr>
+            )}
+            {filtered.map((e) => (
+              <tr key={e.id} className="border-t align-top">
+                <td className="px-3 py-2 whitespace-nowrap">
+                  <button
+                    className="underline text-blue-600"
+                    onClick={() => {
+                      if (videoRef.current) {
+                        videoRef.current.currentTime = e.time;
+                        videoRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+                      }
+                    }}
+                    title="Jump to time"
+                  >
+                    {formatTime(e.time)}
+                  </button>
+                </td>
+                <td className="px-3 py-2">
+                  <select
+                    className="border rounded-lg px-2 py-1"
+                    value={e.category}
+                    onChange={(ev) => {
+                      const category = ev.target.value;
+                      const suggestion = DRILL_LIBRARY[category]?.[0] || e.drill;
+                      updateEntry(e.id, { category, drill: suggestion });
+                    }}
+                  >
+                    {DEFAULT_CATEGORIES.map((c) => (
+                      <option key={c}>{c}</option>
+                    ))}
+                  </select>
+                </td>
+                <td className="px-3 py-2">
+                  <input
+                    type="range"
+                    min={1}
+                    max={5}
+                    value={e.severity}
+                    onChange={(ev) => updateEntry(e.id, { severity: Number(ev.target.value) })}
+                  />
+                  <div className="text-xs text-muted-foreground">{e.severity} / 5</div>
+                </td>
+                <td className="px-3 py-2">
+                  <textarea
+                    className="w-full min-w-[240px] border rounded-lg px-2 py-1"
+                    placeholder="Missed thin cut, over-spun cue ball…"
+                    value={e.whatHappened}
+                    onChange={(ev) => updateEntry(e.id, { whatHappened: ev.target.value })}
+                  />
+                </td>
+                <td className="px-3 py-2">
+                  <textarea
+                    className="w-full min-w-[240px] border rounded-lg px-2 py-1"
+                    placeholder="Peeked on final stroke; aimed outside contact point…"
+                    value={e.rootCause}
+                    onChange={(ev) => updateEntry(e.id, { rootCause: ev.target.value })}
+                  />
+                </td>
+                <td className="px-3 py-2">
+                  <input
+                    className="w-full border rounded-lg px-2 py-1"
+                    placeholder="Pause longer; aim through the ghost ball…"
+                    value={e.fix}
+                    onChange={(ev) => updateEntry(e.id, { fix: ev.target.value })}
+                  />
+                </td>
+                <td className="px-3 py-2">
+                  <textarea
+                    className="w-full min-w-[240px] border rounded-lg px-2 py-1"
+                    placeholder="Name the drill you’ll run and reps."
+                    value={e.drill}
+                    onChange={(ev) => updateEntry(e.id, { drill: ev.target.value })}
+                  />
+                  <div className="mt-1 flex gap-2 text-xs">
+                    <button
+                      className="px-2 py-1 rounded-lg border"
+                      onClick={() => {
+                        const list = DRILL_LIBRARY[e.category] || [];
+                        const next = list[(list.indexOf(e.drill) + 1) % Math.max(1, list.length)] || e.drill;
+                        updateEntry(e.id, { drill: next });
+                      }}
+                    >
+                      Suggest another
+                    </button>
+                    <button
+                      className="px-2 py-1 rounded-lg border"
+                      onClick={() => updateEntry(e.id, { drill: "" })}
+                    >
+                      Clear
+                    </button>
+                  </div>
+                </td>
+                <td className="px-3 py-2">
+                  <input
+                    className="w-full border rounded-lg px-2 py-1"
+                    placeholder="eg. barbox, league, tired"
+                    value={e.tags}
+                    onChange={(ev) => updateEntry(e.id, { tags: ev.target.value })}
+                  />
+                </td>
+                <td className="px-3 py-2">
+                  <select
+                    className="border rounded-lg px-2 py-1"
+                    value={e.resolved ? "Resolved" : "Open"}
+                    onChange={(ev) => updateEntry(e.id, { resolved: ev.target.value === "Resolved" })}
+                  >
+                    <option>Open</option>
+                    <option>Resolved</option>
+                  </select>
+                  <div className="text-[10px] text-muted-foreground mt-1">
+                    Added {new Date(e.createdAt).toLocaleDateString()}
+                  </div>
+                </td>
+                <td className="px-3 py-2 text-right">
+                  <button className="px-2 py-1 rounded-lg border hover:bg-red-50" onClick={() => deleteEntry(e.id)}>
+                    Delete
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* AAR Template */}
+      <div className="mt-8 rounded-2xl border p-4 shadow-sm space-y-2">
+        <h3 className="font-semibold">After-Action Review (AAR) — use on every match</h3>
+        <ol className="list-decimal pl-5 text-sm space-y-1">
+          <li>What happened? (score, pressure moments, table conditions)</li>
+          <li>Why did key mistakes happen? (one root cause per note)</li>
+          <li>What’s the correction? (simple, controllable, repeatable)</li>
+          <li>Which drill will I do, how many reps, and by when?</li>
+          <li>Next-match commitment (one sentence you’ll live by)</li>
+        </ol>
+        <p className="text-xs text-muted-foreground">Savage truth only: excuses get benched, fixes get reps.</p>
+      </div>
+    </div>
+  );
+}

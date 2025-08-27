@@ -1,0 +1,256 @@
+0) New env vars (.env)
+# invite token lifetime
+INVITE_TTL_HOURS=168          # 7 days default
+
+# operator license price (already added earlier)
+OPERATOR_PRICE_ID=price_operator_license_********
+
+# admin key (already in use)
+ADMIN_API_KEY=change_this_to_a_long_random_string
+
+1) DB: applications + invites
+In db.js — add tables
+
+Append beneath your current schema:
+
+db.exec(`
+CREATE TABLE IF NOT EXISTS operator_applications (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  hall_id TEXT NOT NULL,
+  operator_user_id TEXT,                     -- can be pre-created or null at apply time
+  name TEXT,
+  email TEXT,
+  phone TEXT,
+  message TEXT,
+  status TEXT NOT NULL DEFAULT 'pending',    -- pending | approved | rejected
+  created_at INTEGER NOT NULL DEFAULT (strftime('%s','now')),
+  decided_at INTEGER,
+  decided_by TEXT
+);
+
+CREATE TABLE IF NOT EXISTS operator_invites (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  token TEXT UNIQUE NOT NULL,
+  hall_id TEXT NOT NULL,
+  operator_user_id TEXT NOT NULL,
+  email TEXT,
+  status TEXT NOT NULL DEFAULT 'issued',     -- issued | used | revoked
+  expires_at INTEGER NOT NULL,
+  created_at INTEGER NOT NULL DEFAULT (strftime('%s','now'))
+);
+`);
+
+In db.js — add helpers (append near other helpers)
+function createOperatorApplication({ hallId, operatorUserId, name, email, phone, message }) {
+  const stmt = db.prepare(`
+    INSERT INTO operator_applications (hall_id, operator_user_id, name, email, phone, message)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `);
+  const info = stmt.run(hallId, operatorUserId || null, name || null, email || null, phone || null, message || null);
+  return db.prepare("SELECT * FROM operator_applications WHERE id = ?").get(info.lastInsertRowid);
+}
+
+function listOperatorApplications({ status } = {}) {
+  let sql = "SELECT * FROM operator_applications WHERE 1=1";
+  const args = [];
+  if (status) { sql += " AND status = ?"; args.push(status); }
+  sql += " ORDER BY created_at DESC";
+  return db.prepare(sql).all(...args);
+}
+
+function setOperatorApplicationStatus({ id, status, decidedBy }) {
+  db.prepare(`UPDATE operator_applications SET status=?, decided_at=strftime('%s','now'), decided_by=? WHERE id=?`)
+    .run(status, decidedBy || null, id);
+  return db.prepare("SELECT * FROM operator_applications WHERE id=?").get(id);
+}
+
+function createOperatorInvite({ token, hallId, operatorUserId, email, expiresAt }) {
+  db.prepare(`
+    INSERT INTO operator_invites (token, hall_id, operator_user_id, email, expires_at)
+    VALUES (?, ?, ?, ?, ?)
+  `).run(token, hallId, operatorUserId, email || null, expiresAt);
+  return db.prepare("SELECT * FROM operator_invites WHERE token=?").get(token);
+}
+
+function getOperatorInvite(token) {
+  return db.prepare("SELECT * FROM operator_invites WHERE token=?").get(token);
+}
+
+function markOperatorInviteUsed(token) {
+  db.prepare("UPDATE operator_invites SET status='used' WHERE token=?").run(token);
+}
+
+function revokeOperatorInvite(token) {
+  db.prepare("UPDATE operator_invites SET status='revoked' WHERE token=?").run(token);
+}
+
+function listOperatorInvites({ status } = {}) {
+  let sql = "SELECT * FROM operator_invites WHERE 1=1";
+  const args = [];
+  if (status) { sql += " AND status = ?"; args.push(status); }
+  sql += " ORDER BY created_at DESC";
+  return db.prepare(sql).all(...args);
+}
+
+Export them at the bottom
+module.exports = {
+  // existing exports...
+  upsertUser, getUserById, getStripeCustomerIdForUser, setStripeIds, setMembership, getMembershipStatus,
+  getEntry, recordTournamentEntry, listMembers, membersToCSV,
+  upsertHall, upsertTournament, getTournament, setTournamentOpen, countConfirmedEntries, listEntries,
+  setOperatorLicense, getOperatorLicense,
+  // NEW:
+  createOperatorApplication, listOperatorApplications, setOperatorApplicationStatus,
+  createOperatorInvite, getOperatorInvite, markOperatorInviteUsed, revokeOperatorInvite, listOperatorInvites,
+};
+
+2) Server: public apply → admin approve → invite → gated checkout
+In server.js — imports & utils (top of file)
+const crypto = require("crypto");
+
+const INVITE_TTL_HOURS = Number(process.env.INVITE_TTL_HOURS || 168);
+function makeToken() { return crypto.randomBytes(24).toString("hex"); }
+function nowEpoch() { return Math.floor(Date.now() / 1000); }
+function plusHoursEpoch(h) { return nowEpoch() + Math.round(h * 3600); }
+
+
+Import new DB helpers:
+
+const {
+  // ...existing
+  createOperatorApplication, listOperatorApplications, setOperatorApplicationStatus,
+  createOperatorInvite, getOperatorInvite, markOperatorInviteUsed, revokeOperatorInvite, listOperatorInvites,
+} = require("./db");
+
+A) Public: Apply to be Operator
+app.post("/api/operators/apply", (req, res) => {
+  const { hallId, operatorUserId, name, email, phone, message } = req.body || {};
+  if (!hallId || !email) return res.status(400).json({ error: "hallId and email required" });
+
+  // Optional: create user record so you can track later
+  if (operatorUserId) upsertUser({ id: operatorUserId, email, display_name: name });
+
+  const appRow = createOperatorApplication({ hallId, operatorUserId, name, email, phone, message });
+  // You can notify yourself via email/SMS outside this API if you want.
+  res.json({ ok: true, application: appRow });
+});
+
+B) Admin: Review queue & approve/reject
+// List applications
+app.get("/api/admin/operators/applications", requireAdmin, (req, res) => {
+  const { status } = req.query; // pending | approved | rejected
+  const rows = listOperatorApplications({ status });
+  res.json({ count: rows.length, rows });
+});
+
+// Approve -> generate one-time invite token (returns invite URL)
+app.post("/api/admin/operators/applications/:id/approve", requireAdmin, (req, res) => {
+  const id = Number(req.params.id);
+  const decidedBy = "admin";
+  const appRow = setOperatorApplicationStatus({ id, status: "approved", decidedBy });
+  if (!appRow) return res.status(404).json({ error: "application not found" });
+
+  // ensure hall & user exist
+  upsertHall({ id: appRow.hall_id, name: appRow.hall_id });
+  if (appRow.operator_user_id) upsertUser({ id: appRow.operator_user_id, email: appRow.email, display_name: appRow.name });
+
+  // create invite
+  const token = makeToken();
+  const expiresAt = plusHoursEpoch(INVITE_TTL_HOURS);
+  const operatorUserId = appRow.operator_user_id || (`OP_${crypto.randomBytes(6).toString("hex")}`);
+  const invite = createOperatorInvite({
+    token, hallId: appRow.hall_id, operatorUserId, email: appRow.email, expiresAt
+  });
+
+  const inviteUrl = `${process.env.APP_URL}/operators/onboard?token=${token}`;
+  res.json({ ok: true, application: appRow, invite, inviteUrl });
+});
+
+// Reject
+app.post("/api/admin/operators/applications/:id/reject", requireAdmin, (req, res) => {
+  const id = Number(req.params.id);
+  const decidedBy = "admin";
+  const appRow = setOperatorApplicationStatus({ id, status: "rejected", decidedBy });
+  if (!appRow) return res.status(404).json({ error: "application not found" });
+  res.json({ ok: true, application: appRow });
+});
+
+C) Admin: Invite management
+app.get("/api/admin/operators/invites", requireAdmin, (req, res) => {
+  const { status } = req.query; // issued | used | revoked
+  const rows = listOperatorInvites({ status });
+  res.json({ count: rows.length, rows });
+});
+
+app.post("/api/admin/operators/invites/:token/revoke", requireAdmin, (req, res) => {
+  revokeOperatorInvite(req.params.token);
+  res.json({ ok: true });
+});
+
+D) Gate the Operator License Checkout (requires valid token)
+
+Replace your existing /api/operators/license/checkout with this version:
+
+app.post("/api/operators/license/checkout", async (req, res) => {
+  try {
+    const { token, email } = req.body || {};
+    if (!token) return res.status(400).json({ error: "token required" });
+    if (!process.env.OPERATOR_PRICE_ID) return res.status(400).json({ error: "OPERATOR_PRICE_ID missing" });
+
+    const inv = getOperatorInvite(token);
+    if (!inv) return res.status(404).json({ error: "invalid token" });
+    if (inv.status !== "issued") return res.status(409).json({ error: `token ${inv.status}` });
+    if (nowEpoch() > inv.expires_at) return res.status(410).json({ error: "token expired" });
+
+    // Ensure records
+    upsertHall({ id: inv.hall_id, name: inv.hall_id });
+    upsertUser({ id: inv.operator_user_id, email });
+
+    const existingCustomer = await getStripeCustomerIdForUser(inv.operator_user_id);
+
+    const session = await stripe.checkout.sessions.create({
+      mode: "subscription",
+      line_items: [{ price: process.env.OPERATOR_PRICE_ID, quantity: 1 }],
+      ...(existingCustomer ? { customer: existingCustomer } : { customer_email: email }),
+      success_url: `${process.env.APP_URL}/operators/${inv.hall_id}/license/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${process.env.APP_URL}/operators/${inv.hall_id}/license/cancel`,
+      client_reference_id: `${inv.operator_user_id}:${inv.hall_id}`,
+      metadata: { type: "operator_license", hallId: inv.hall_id, operatorUserId: inv.operator_user_id, inviteToken: token },
+      subscription_data: {
+        metadata: { type: "operator_license", hallId: inv.hall_id, operatorUserId: inv.operator_user_id, inviteToken: token, priceId: process.env.OPERATOR_PRICE_ID },
+      },
+      allow_promotion_codes: false,
+      automatic_tax: { enabled: false },
+    });
+
+    res.json({ url: session.url });
+  } catch (e) {
+    console.error(e);
+    res.status(400).json({ error: e.message });
+  }
+});
+
+E) Webhook: mark invite used on success
+
+In your existing checkout.session.completed handler, inside the Operator License branch, add:
+
+// Operator License branch (inside checkout.session.completed)
+if (sess.mode === "subscription" && (sess.metadata?.type === "operator_license")) {
+  const operatorUserId = sess.metadata.operatorUserId;
+  const hallId = sess.metadata.hallId;
+  const token = sess.metadata.inviteToken;
+  const subscriptionId = sess.subscription || undefined;
+
+  setOperatorLicense({
+    hallId,
+    operatorUserId,
+    status: "active",
+    currentPeriodEnd: undefined,
+    customerId: sess.customer,
+    subscriptionId,
+    priceId: process.env.OPERATOR_PRICE_ID,
+  });
+
+  if (token) markOperatorInviteUsed(token);   // ✅ one-time use token
+  break;
+}
