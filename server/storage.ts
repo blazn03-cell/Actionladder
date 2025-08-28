@@ -270,6 +270,15 @@ export class MemStorage implements IStorage {
   async createPlayer(insertPlayer: InsertPlayer): Promise<Player> {
     const id = randomUUID();
     const player: Player = {
+      rating: 500,
+      city: null,
+      member: null,
+      theme: null,
+      points: 800,
+      streak: null,
+      respectPoints: null,
+      birthday: null,
+      stripeCustomerId: null,
       ...insertPlayer,
       id,
       createdAt: new Date(),
@@ -303,6 +312,11 @@ export class MemStorage implements IStorage {
   async createMatch(insertMatch: InsertMatch): Promise<Match> {
     const id = randomUUID();
     const match: Match = {
+      notes: null,
+      status: "scheduled",
+      winner: null,
+      commission: null,
+      bountyAward: null,
       ...insertMatch,
       id,
       createdAt: new Date(),
@@ -333,6 +347,9 @@ export class MemStorage implements IStorage {
   async createTournament(insertTournament: InsertTournament): Promise<Tournament> {
     const id = randomUUID();
     const tournament: Tournament = {
+      status: null,
+      currentPlayers: null,
+      stripeProductId: null,
       ...insertTournament,
       id,
       createdAt: new Date(),
@@ -362,6 +379,10 @@ export class MemStorage implements IStorage {
   async createKellyPool(insertKellyPool: InsertKellyPool): Promise<KellyPool> {
     const id = randomUUID();
     const kellyPool: KellyPool = {
+      status: null,
+      table: null,
+      currentPlayers: null,
+      balls: null,
       ...insertKellyPool,
       id,
       createdAt: new Date(),
@@ -391,6 +412,10 @@ export class MemStorage implements IStorage {
   async createBounty(insertBounty: InsertBounty): Promise<Bounty> {
     const id = randomUUID();
     const bounty: Bounty = {
+      rank: null,
+      targetId: null,
+      active: null,
+      description: null,
       ...insertBounty,
       id,
       createdAt: new Date(),
@@ -420,6 +445,10 @@ export class MemStorage implements IStorage {
   async createCharityEvent(insertCharityEvent: InsertCharityEvent): Promise<CharityEvent> {
     const id = randomUUID();
     const charityEvent: CharityEvent = {
+      active: null,
+      description: null,
+      raised: null,
+      percentage: null,
       ...insertCharityEvent,
       id,
       createdAt: new Date(),
@@ -449,6 +478,9 @@ export class MemStorage implements IStorage {
   async createSupportRequest(insertSupportRequest: InsertSupportRequest): Promise<SupportRequest> {
     const id = randomUUID();
     const supportRequest: SupportRequest = {
+      status: null,
+      description: null,
+      amount: null,
       ...insertSupportRequest,
       id,
       createdAt: new Date(),
@@ -478,6 +510,10 @@ export class MemStorage implements IStorage {
   async createLiveStream(insertLiveStream: InsertLiveStream): Promise<LiveStream> {
     const id = randomUUID();
     const liveStream: LiveStream = {
+      title: null,
+      isLive: null,
+      viewerCount: null,
+      matchId: null,
       ...insertLiveStream,
       id,
       createdAt: new Date(),
