@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -47,6 +47,12 @@ export default function AdminDashboard() {
   // Get payout history
   const { data: payoutsData, isLoading: loadingPayouts } = useQuery({
     queryKey: ["/api/admin/payouts"],
+    enabled: true
+  });
+
+  // Get organizations
+  const { data: orgData, isLoading: loadingOrgs } = useQuery({
+    queryKey: ["/api/admin/organizations"],
     enabled: true
   });
 
@@ -124,8 +130,9 @@ export default function AdminDashboard() {
     });
   };
 
-  const staff: User[] = staffData?.staff || [];
-  const transfers: PayoutTransfer[] = payoutsData?.transfers || [];
+  const staff: User[] = (staffData as any)?.staff || [];
+  const transfers: PayoutTransfer[] = (payoutsData as any)?.transfers || [];
+  const organizations: any[] = (orgData as any)?.organizations || [];
 
   // Calculate total payouts by user
   const payoutsByUser = transfers.reduce((acc: any, transfer: PayoutTransfer) => {
@@ -144,10 +151,14 @@ export default function AdminDashboard() {
       </div>
 
       <Tabs defaultValue="staff" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3 bg-black/40">
+        <TabsList className="grid w-full grid-cols-4 bg-black/40">
           <TabsTrigger value="staff" className="data-[state=active]:bg-green-600">
             <Users className="w-4 h-4 mr-2" />
             Staff Management
+          </TabsTrigger>
+          <TabsTrigger value="organizations" className="data-[state=active]:bg-green-600">
+            <Shield className="w-4 h-4 mr-2" />
+            Organizations
           </TabsTrigger>
           <TabsTrigger value="payouts" className="data-[state=active]:bg-green-600">
             <DollarSign className="w-4 h-4 mr-2" />
@@ -276,6 +287,32 @@ export default function AdminDashboard() {
                         <div className="text-sm text-gray-400">Share</div>
                       </div>
                     </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="organizations" className="space-y-6">
+          <Card className="bg-black/60 border-green-600/30">
+            <CardHeader>
+              <CardTitle className="text-green-400">Organization Management</CardTitle>
+              <CardDescription className="text-gray-300">
+                Manage customer subscriptions and seat allocations
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {loadingOrgs ? (
+                <p className="text-gray-400">Loading organizations...</p>
+              ) : organizations.length === 0 ? (
+                <p className="text-gray-400">No organizations found.</p>
+              ) : (
+                <div className="space-y-4">
+                  {organizations.map((org: any) => (
+                    <OrganizationCard key={org.id} organization={org} onUpdate={() => {
+                      queryClient.invalidateQueries({ queryKey: ["/api/admin/organizations"] });
+                    }} />
                   ))}
                 </div>
               )}
@@ -415,6 +452,157 @@ export default function AdminDashboard() {
           </Card>
         </TabsContent>
       </Tabs>
+    </div>
+  );
+}
+
+// Organization card component for seat management
+function OrganizationCard({ organization, onUpdate }: { organization: any; onUpdate: () => void }) {
+  const [newQuantity, setNewQuantity] = useState(organization.seatLimit?.toString() || "1");
+  const [subscription, setSubscription] = useState<any>(null);
+  const [loadingSubscription, setLoadingSubscription] = useState(false);
+  const { toast } = useToast();
+
+  // Load subscription details
+  useEffect(() => {
+    const loadSubscription = async () => {
+      if (!organization.stripeSubscriptionId) return;
+      
+      setLoadingSubscription(true);
+      try {
+        const response = await apiRequest("GET", `/api/admin/organizations/${organization.id}/subscription`);
+        const data = await response.json();
+        if (data.status === "active") {
+          setSubscription(data.subscription);
+          setNewQuantity(data.subscription.quantity?.toString() || "1");
+        }
+      } catch (error) {
+        console.error("Failed to load subscription:", error);
+      } finally {
+        setLoadingSubscription(false);
+      }
+    };
+
+    loadSubscription();
+  }, [organization.id, organization.stripeSubscriptionId]);
+
+  const updateSeats = async () => {
+    const quantity = Number(newQuantity);
+    if (quantity < 1 || isNaN(quantity)) {
+      toast({
+        title: "Invalid Quantity",
+        description: "Please enter a valid number of seats (minimum 1)",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const response = await apiRequest("POST", `/api/admin/organizations/${organization.id}/seats`, {
+        quantity
+      });
+      const result = await response.json();
+      
+      toast({
+        title: "Seats Updated",
+        description: result.message,
+      });
+      
+      onUpdate();
+      
+      // Reload subscription info
+      const subResponse = await apiRequest("GET", `/api/admin/organizations/${organization.id}/subscription`);
+      const subData = await subResponse.json();
+      if (subData.status === "active") {
+        setSubscription(subData.subscription);
+      }
+    } catch (error: any) {
+      toast({
+        title: "Update Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  return (
+    <div className="p-4 bg-black/40 rounded-lg border border-green-600/20">
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h3 className="font-semibold text-green-400">{organization.name}</h3>
+          <p className="text-sm text-gray-400">
+            Current limit: {organization.seatLimit} seats
+          </p>
+          {organization.stripeCustomerId && (
+            <p className="text-xs text-gray-500">
+              Customer ID: {organization.stripeCustomerId}
+            </p>
+          )}
+        </div>
+        <Badge 
+          className={
+            organization.stripeSubscriptionId 
+              ? "bg-green-600 text-black" 
+              : "bg-gray-600 text-white"
+          }
+        >
+          {organization.stripeSubscriptionId ? "Active" : "No Subscription"}
+        </Badge>
+      </div>
+
+      {loadingSubscription ? (
+        <p className="text-gray-400 text-sm">Loading subscription details...</p>
+      ) : subscription ? (
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            <div>
+              <span className="text-gray-400">Status:</span>
+              <span className="ml-2 text-green-400 capitalize">{subscription.status}</span>
+            </div>
+            <div>
+              <span className="text-gray-400">Current Seats:</span>
+              <span className="ml-2 text-green-400">{subscription.quantity}</span>
+            </div>
+            <div>
+              <span className="text-gray-400">Monthly Cost:</span>
+              <span className="ml-2 text-green-400">
+                ${((subscription.amount * subscription.quantity) / 100).toFixed(2)} {subscription.currency?.toUpperCase()}
+              </span>
+            </div>
+            <div>
+              <span className="text-gray-400">Billing Cycle:</span>
+              <span className="ml-2 text-green-400 capitalize">{subscription.interval}ly</span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3 pt-3 border-t border-green-600/20">
+            <Label htmlFor={`seats-${organization.id}`} className="text-gray-300">
+              Update Seats:
+            </Label>
+            <Input
+              id={`seats-${organization.id}`}
+              type="number"
+              min="1"
+              value={newQuantity}
+              onChange={(e) => setNewQuantity(e.target.value)}
+              className="w-20 bg-black/40 border-green-600/50"
+              data-testid={`input-seats-${organization.id}`}
+            />
+            <Button
+              onClick={updateSeats}
+              size="sm"
+              className="bg-green-600 hover:bg-green-700 text-black font-semibold"
+              data-testid={`button-update-seats-${organization.id}`}
+            >
+              Update
+            </Button>
+          </div>
+        </div>
+      ) : organization.stripeSubscriptionId ? (
+        <p className="text-yellow-400 text-sm">Subscription found but details unavailable</p>
+      ) : (
+        <p className="text-gray-400 text-sm">No active subscription</p>
+      )}
     </div>
   );
 }

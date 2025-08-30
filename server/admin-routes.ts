@@ -8,7 +8,7 @@ if (!process.env.STRIPE_SECRET_KEY) {
 }
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-  apiVersion: "2023-10-16",
+  apiVersion: "2024-12-18.acacia",
 });
 
 // Middleware to check if user is OWNER
@@ -171,7 +171,7 @@ export function registerAdminRoutes(app: Express) {
       const { userId } = req.params;
       const user = await storage.getUser(userId);
       
-      if (!user || !user.stripeConnectId) {
+      if (!user?.stripeConnectId) {
         return res.json({ status: "not_connected" });
       }
 
@@ -187,6 +187,115 @@ export function registerAdminRoutes(app: Express) {
       });
     } catch (error: any) {
       console.error("Connect status error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Update subscription seat quantity
+  // POST /api/admin/organizations/:orgId/seats { quantity }
+  app.post("/api/admin/organizations/:orgId/seats", requireOwner, async (req, res) => {
+    try {
+      const { orgId } = req.params;
+      const { quantity } = req.body;
+
+      if (!quantity || quantity < 1) {
+        return res.status(400).json({ error: "Valid quantity required (minimum 1)" });
+      }
+
+      const org = await storage.getOrganization(orgId);
+      if (!org) {
+        return res.status(404).json({ error: "Organization not found" });
+      }
+
+      if (!org.stripeSubscriptionId) {
+        return res.status(400).json({ error: "Organization has no active subscription" });
+      }
+
+      // Get current subscription
+      const subscription = await stripe.subscriptions.retrieve(org.stripeSubscriptionId);
+      if (!subscription || subscription.items.data.length === 0) {
+        return res.status(400).json({ error: "Invalid subscription" });
+      }
+
+      // Update the first subscription item with new quantity
+      const subscriptionItem = subscription.items.data[0];
+      await stripe.subscriptions.update(org.stripeSubscriptionId, {
+        items: [{
+          id: subscriptionItem.id,
+          quantity: Number(quantity)
+        }],
+        proration_behavior: 'create_prorations'
+      });
+
+      // Update organization seat limit
+      const updatedOrg = await storage.updateOrganization(orgId, {
+        seatLimit: Number(quantity)
+      });
+
+      return res.json({
+        success: true,
+        organization: updatedOrg,
+        newQuantity: Number(quantity),
+        message: `Subscription updated to ${quantity} seats`
+      });
+
+    } catch (error: any) {
+      console.error("Seat update error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get organization subscription details
+  // GET /api/admin/organizations/:orgId/subscription
+  app.get("/api/admin/organizations/:orgId/subscription", requireOwner, async (req, res) => {
+    try {
+      const { orgId } = req.params;
+      const org = await storage.getOrganization(orgId);
+      
+      if (!org) {
+        return res.status(404).json({ error: "Organization not found" });
+      }
+
+      if (!org.stripeSubscriptionId) {
+        return res.json({ 
+          status: "no_subscription",
+          organization: org 
+        });
+      }
+
+      const subscription = await stripe.subscriptions.retrieve(org.stripeSubscriptionId, {
+        expand: ['latest_invoice', 'items.data.price']
+      });
+
+      return res.json({
+        status: "active",
+        organization: org,
+        subscription: {
+          id: subscription.id,
+          status: subscription.status,
+          currentPeriodEnd: (subscription as any).current_period_end || 0,
+          quantity: subscription.items.data[0]?.quantity || 1,
+          priceId: subscription.items.data[0]?.price?.id,
+          amount: subscription.items.data[0]?.price?.unit_amount,
+          currency: subscription.items.data[0]?.price?.currency,
+          interval: subscription.items.data[0]?.price?.recurring?.interval
+        }
+      });
+
+    } catch (error: any) {
+      console.error("Subscription details error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get all organizations
+  // GET /api/admin/organizations
+  app.get("/api/admin/organizations", requireOwner, async (req, res) => {
+    try {
+      const organizations = await storage.getAllOrganizations();
+      return res.json({ organizations });
+    } catch (error: any) {
+      console.error("Get organizations error:", error);
       res.status(500).json({ error: error.message });
     }
   });

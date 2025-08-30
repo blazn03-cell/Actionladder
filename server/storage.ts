@@ -295,6 +295,25 @@ export class MemStorage implements IStorage {
     };
     this.users.set(ownerId, ownerUser);
 
+    // Initialize test organizations for demonstration
+    const testOrg1: Organization = {
+      id: randomUUID(),
+      name: "Seguin Winners Pool Hall",
+      stripeCustomerId: "cus_test_seguin123",
+      stripeSubscriptionId: "sub_test_seguin123",
+      seatLimit: 25,
+      createdAt: new Date(),
+    };
+    this.organizations.set(testOrg1.id, testOrg1);
+
+    const testOrg2: Organization = {
+      id: randomUUID(),
+      name: "San Marcos Sharks",
+      seatLimit: 5,
+      createdAt: new Date(),
+    };
+    this.organizations.set(testOrg2.id, testOrg2);
+
     // Seed players
     const seedPlayers: Player[] = [
       {
