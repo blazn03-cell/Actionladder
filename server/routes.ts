@@ -364,6 +364,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Health check endpoint
+  app.get("/healthz", (req, res) => {
+    res.status(200).send("ok");
+  });
+
   // QR Code generation endpoint
   app.get("/api/qr-code", async (req, res) => {
     try {

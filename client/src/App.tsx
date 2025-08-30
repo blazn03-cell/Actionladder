@@ -12,6 +12,10 @@ import Charity from "@/components/charity";
 import LiveStream from "@/components/live-stream";
 import AIDashboard from "@/pages/AIDashboard";
 import Checkout from "@/pages/checkout";
+import Terms from "@/pages/Terms";
+import Privacy from "@/pages/Privacy";
+import Refund from "@/pages/Refund";
+import AcceptableUse from "@/pages/AcceptableUse";
 import NotFound from "@/pages/not-found";
 
 const queryClient = new QueryClient();
@@ -102,6 +106,18 @@ function App() {
             <Route path="/checkout">
               <Checkout />
             </Route>
+            <Route path="/terms">
+              <Terms />
+            </Route>
+            <Route path="/privacy">
+              <Privacy />
+            </Route>
+            <Route path="/refund">
+              <Refund />
+            </Route>
+            <Route path="/acceptable-use">
+              <AcceptableUse />
+            </Route>
             <Route>
               {/* Hero Banner */}
               <section className="bg-gradient-to-r from-felt-green/50 to-transparent py-8">
@@ -134,6 +150,20 @@ function App() {
         </main>
         
         <Toaster />
+        
+        {/* Footer with Policy Links */}
+        <footer className="relative z-10 bg-black/80 border-t border-neon-green/20 py-8 mt-16">
+          <div className="container mx-auto px-4">
+            <div className="flex flex-wrap justify-center items-center space-x-6 text-sm text-gray-400">
+              <a href="/terms" className="hover:text-neon-green transition-colors">Terms of Service</a>
+              <a href="/privacy" className="hover:text-neon-green transition-colors">Privacy Policy</a>
+              <a href="/refund" className="hover:text-neon-green transition-colors">Refund Policy</a>
+              <a href="/acceptable-use" className="hover:text-neon-green transition-colors">Acceptable Use</a>
+              <span className="text-neon-green">•</span>
+              <span>© 2025 Tri-City Texas Ladder</span>
+            </div>
+          </div>
+        </footer>
       </div>
     </QueryClientProvider>
   );

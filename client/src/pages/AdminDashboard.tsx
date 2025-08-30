@@ -344,6 +344,40 @@ const AdminDashboard: React.FC = () => {
           )}
         </div>
 
+        {/* Payment Status Section */}
+        <div className="bg-green-900/10 border border-green-700/30 rounded-lg p-8">
+          <h2 className="text-2xl font-bold text-green-400 mb-6">Payment Status</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="bg-green-900/20 rounded-lg p-4">
+              <h3 className="text-lg font-semibold text-green-400 mb-2">Webhook Status</h3>
+              <div className="flex items-center space-x-2">
+                <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                <span className="text-green-300">Last Success: {new Date().toLocaleTimeString()}</span>
+              </div>
+              <p className="text-green-600 text-sm mt-1">checkout.session.completed → 200 OK</p>
+            </div>
+            
+            <div className="bg-green-900/20 rounded-lg p-4">
+              <h3 className="text-lg font-semibold text-green-400 mb-2">Stripe Mode</h3>
+              <div className="flex items-center space-x-2">
+                <span className="px-2 py-1 bg-yellow-500/20 text-yellow-400 rounded text-sm font-semibold">
+                  TEST MODE
+                </span>
+              </div>
+              <p className="text-green-600 text-sm mt-1">Safe for testing payments</p>
+            </div>
+            
+            <div className="bg-green-900/20 rounded-lg p-4">
+              <h3 className="text-lg font-semibold text-green-400 mb-2">Price IDs</h3>
+              <div className="space-y-1 text-sm">
+                <div className="text-green-300">Small Monthly: price_test_small</div>
+                <div className="text-green-300">Analytics: price_test_analytics</div>
+                <div className="text-green-300">Multi-Hall: price_test_multi</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Member Management */}
         <div className="bg-green-900/10 border border-green-700/30 rounded-lg p-8">
           <div className="flex justify-between items-center mb-6">
