@@ -1,4 +1,5 @@
-import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -6,6 +7,7 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { generateQRCodeUrl, generateJoinUrl } from "@/lib/qr-generator";
 import { generateFightNightPoster } from "@/lib/poster-generator";
 import { useToast } from "@/hooks/use-toast";
+import { Brain, TrendingUp, Zap } from "lucide-react";
 import type { Player, Match, Tournament, CharityEvent, KellyPool } from "@shared/schema";
 
 function StatsCard({ title, value, subtitle, icon }: { title: string; value: string | number; subtitle: string; icon: string }) {
@@ -15,6 +17,132 @@ function StatsCard({ title, value, subtitle, icon }: { title: string; value: str
       <div className="text-2xl font-bold text-neon-green">{value}</div>
       <div className="text-sm text-gray-400">{subtitle}</div>
     </div>
+  );
+}
+
+function AIInsightsSection({ players, matches }: { players: Player[]; matches: Match[] }) {
+  const [aiInsights, setAiInsights] = useState<string | null>(null);
+  const [ladderAdvice, setLadderAdvice] = useState<string | null>(null);
+  const { toast } = useToast();
+
+  const getAIInsightsMutation = useMutation({
+    mutationFn: () =>
+      fetch('/api/ai/community-chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          question: "Analyze the current ladder trends, player activity, and provide insights about the overall state of competition in the Tri-City Texas Billiards Ladder." 
+        })
+      }).then(res => res.json()),
+    onSuccess: (data) => {
+      setAiInsights(data.answer);
+      toast({ 
+        title: "AI Insights Generated!", 
+        description: "Current ladder analysis is ready." 
+      });
+    },
+    onError: () => {
+      toast({ 
+        title: "Analysis Failed", 
+        description: "Unable to generate insights at this time.",
+        variant: "destructive"
+      });
+    }
+  });
+
+  const getLadderAdviceMutation = useMutation({
+    mutationFn: () =>
+      fetch('/api/ai/community-chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          question: "What strategies should players use to climb the ladder effectively? Consider rating differences, match selection, and tournament participation." 
+        })
+      }).then(res => res.json()),
+    onSuccess: (data) => {
+      setLadderAdvice(data.answer);
+      toast({ 
+        title: "Strategy Guide Ready!", 
+        description: "AI ladder climbing advice generated." 
+      });
+    },
+    onError: () => {
+      toast({ 
+        title: "Strategy Failed", 
+        description: "Unable to generate strategy at this time.",
+        variant: "destructive"
+      });
+    }
+  });
+
+  return (
+    <Card className="bg-black/60 backdrop-blur-sm border border-green-500/30 shadow-felt">
+      <CardHeader>
+        <CardTitle className="text-2xl font-bold text-white flex items-center">
+          <Brain className="mr-3 text-green-400" />
+          AI Ladder Intelligence
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Button
+            onClick={() => getAIInsightsMutation.mutate()}
+            disabled={getAIInsightsMutation.isPending}
+            className="bg-green-600 hover:bg-green-700 text-white"
+            data-testid="button-ai-insights"
+          >
+            {getAIInsightsMutation.isPending ? (
+              <LoadingSpinner size="sm" />
+            ) : (
+              <>
+                <TrendingUp className="w-4 h-4 mr-2" />
+                Get Ladder Insights
+              </>
+            )}
+          </Button>
+          <Button
+            onClick={() => getLadderAdviceMutation.mutate()}
+            disabled={getLadderAdviceMutation.isPending}
+            className="bg-green-600 hover:bg-green-700 text-white"
+            data-testid="button-ladder-advice"
+          >
+            {getLadderAdviceMutation.isPending ? (
+              <LoadingSpinner size="sm" />
+            ) : (
+              <>
+                <Zap className="w-4 h-4 mr-2" />
+                Climbing Strategy
+              </>
+            )}
+          </Button>
+        </div>
+
+        {/* AI Insights Display */}
+        {aiInsights && (
+          <div className="bg-gray-900/50 border border-green-500/20 rounded-lg p-4">
+            <h4 className="text-green-400 font-semibold mb-2 flex items-center">
+              <TrendingUp className="w-4 h-4 mr-1" />
+              Current Ladder Analysis
+            </h4>
+            <div className="text-sm text-gray-300 whitespace-pre-wrap">
+              {aiInsights}
+            </div>
+          </div>
+        )}
+
+        {ladderAdvice && (
+          <div className="bg-gray-900/50 border border-green-500/20 rounded-lg p-4">
+            <h4 className="text-green-400 font-semibold mb-2 flex items-center">
+              <Zap className="w-4 h-4 mr-1" />
+              AI Strategy Guide
+            </h4>
+            <div className="text-sm text-gray-300 whitespace-pre-wrap">
+              {ladderAdvice}
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
@@ -337,6 +465,9 @@ export default function Dashboard() {
         <KingsOfTheHill players={players} />
         <QRCodeSection />
       </div>
+
+      {/* AI Insights Section */}
+      <AIInsightsSection players={players} matches={matches} />
 
       {/* Recent Activity */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

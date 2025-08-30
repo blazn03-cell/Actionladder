@@ -1,11 +1,13 @@
 import { useStripe, Elements, PaymentElement, useElements } from '@stripe/react-stripe-js';
 import { loadStripe } from '@stripe/stripe-js';
 import { useEffect, useState } from 'react';
+import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import { Brain, TrendingUp, Target } from "lucide-react";
 
 // Make sure to call `loadStripe` outside of a component's render to avoid
 // recreating the `Stripe` object on every render.
@@ -77,6 +79,79 @@ const CheckoutForm = () => {
     </Card>
   );
 };
+
+function AIPaymentInsights({ paymentInfo }: { paymentInfo: { type: string; amount: number; description: string } }) {
+  const [insights, setInsights] = useState<string | null>(null);
+  const [showInsights, setShowInsights] = useState(false);
+  const { toast } = useToast();
+
+  const getPaymentInsightsMutation = useMutation({
+    mutationFn: () =>
+      fetch('/api/ai/community-chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          question: `Analyze this payment: ${paymentInfo.description} for $${paymentInfo.amount}. Provide insights about value, competitive analysis, and strategic recommendations for this type of investment in the Tri-City billiards scene.` 
+        })
+      }).then(res => res.json()),
+    onSuccess: (data) => {
+      setInsights(data.answer);
+      setShowInsights(true);
+      toast({ 
+        title: "Payment Analysis Ready!", 
+        description: "AI insights about your investment generated." 
+      });
+    },
+    onError: () => {
+      toast({ 
+        title: "Analysis Failed", 
+        description: "Unable to generate payment insights.",
+        variant: "destructive"
+      });
+    }
+  });
+
+  return (
+    <Card className="bg-black/60 backdrop-blur-sm border border-green-500/30 shadow-felt max-w-md mx-auto mt-6">
+      <CardHeader>
+        <CardTitle className="text-xl font-bold text-white flex items-center justify-center">
+          <Brain className="mr-2 text-green-400" />
+          AI Payment Insights
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <Button
+          onClick={() => getPaymentInsightsMutation.mutate()}
+          disabled={getPaymentInsightsMutation.isPending}
+          className="w-full bg-green-600 hover:bg-green-700 text-white"
+          data-testid="button-payment-insights"
+        >
+          {getPaymentInsightsMutation.isPending ? (
+            <LoadingSpinner size="sm" />
+          ) : (
+            <>
+              <TrendingUp className="w-4 h-4 mr-2" />
+              Get Investment Analysis
+            </>
+          )}
+        </Button>
+
+        {/* AI Insights Display */}
+        {showInsights && insights && (
+          <div className="bg-gray-900/50 border border-green-500/20 rounded-lg p-4">
+            <h4 className="text-green-400 font-semibold mb-2 flex items-center">
+              <Target className="w-4 h-4 mr-1" />
+              AI Strategic Analysis
+            </h4>
+            <div className="text-sm text-gray-300 whitespace-pre-wrap">
+              {insights}
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
 
 export default function Checkout() {
   const [clientSecret, setClientSecret] = useState("");
@@ -182,6 +257,9 @@ export default function Checkout() {
           <Elements stripe={stripePromise} options={{ clientSecret }}>
             <CheckoutForm />
           </Elements>
+
+          {/* AI Payment Insights */}
+          <AIPaymentInsights paymentInfo={paymentInfo} />
 
           {/* Security Notice */}
           <div className="text-center mt-6 text-sm text-gray-400">

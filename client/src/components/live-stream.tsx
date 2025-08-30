@@ -13,6 +13,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { Brain, Mic, BarChart3 } from "lucide-react";
 import type { LiveStream, InsertLiveStream, Match, Player } from "@shared/schema";
 
 const liveStreamSchema = z.object({
@@ -214,6 +215,74 @@ function CreateStreamDialog() {
   );
 }
 
+function AIStreamCommentary({ stream }: { stream: LiveStream }) {
+  const [commentary, setCommentary] = useState<string | null>(null);
+  const [showCommentary, setShowCommentary] = useState(false);
+  const { toast } = useToast();
+
+  const generateCommentaryMutation = useMutation({
+    mutationFn: () =>
+      fetch('/api/ai/match-commentary', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          challengerId: "player1", // Would be actual player from match
+          opponentId: "player2" 
+        })
+      }).then(res => res.json()),
+    onSuccess: (data) => {
+      setCommentary(data.commentary);
+      setShowCommentary(true);
+      toast({ 
+        title: "AI Commentary Ready!", 
+        description: "Live match commentary generated." 
+      });
+    },
+    onError: () => {
+      toast({ 
+        title: "Commentary Failed", 
+        description: "Unable to generate live commentary.",
+        variant: "destructive"
+      });
+    }
+  });
+
+  return (
+    <div className="border-t border-green-500/20 pt-3 mt-3">
+      <Button
+        onClick={() => generateCommentaryMutation.mutate()}
+        disabled={generateCommentaryMutation.isPending}
+        size="sm"
+        variant="outline"
+        className="w-full border-green-500/30 text-green-400 hover:bg-green-500/10"
+        data-testid={`button-ai-commentary-${stream.id}`}
+      >
+        {generateCommentaryMutation.isPending ? (
+          <LoadingSpinner size="sm" />
+        ) : (
+          <>
+            <Brain className="w-4 h-4 mr-2" />
+            AI Live Commentary
+          </>
+        )}
+      </Button>
+
+      {/* AI Commentary Display */}
+      {showCommentary && commentary && (
+        <div className="bg-gray-900/50 border border-green-500/20 rounded-lg p-3 mt-3">
+          <h4 className="text-green-400 font-semibold mb-2 flex items-center">
+            <Mic className="w-4 h-4 mr-1" />
+            AI Match Commentary
+          </h4>
+          <div className="text-xs text-gray-300 whitespace-pre-wrap">
+            {commentary}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function StreamCard({ stream, players }: { stream: LiveStream; players: Player[] }) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -348,6 +417,9 @@ function StreamCard({ stream, players }: { stream: LiveStream; players: Player[]
               Watch on {platform?.label}
             </Button>
           </div>
+
+          {/* AI Commentary Section */}
+          {stream.isLive && <AIStreamCommentary stream={stream} />}
         </div>
       </CardContent>
     </Card>
@@ -394,7 +466,7 @@ function StreamingGuidelines() {
 
 function StreamStats({ streams }: { streams: LiveStream[] }) {
   const liveStreams = streams.filter(s => s.isLive);
-  const totalViewers = liveStreams.reduce((sum, stream) => sum + stream.viewerCount, 0);
+  const totalViewers = liveStreams.reduce((sum, stream) => sum + (stream.viewerCount || 0), 0);
   const popularPlatform = streams.reduce((acc, stream) => {
     acc[stream.platform] = (acc[stream.platform] || 0) + 1;
     return acc;

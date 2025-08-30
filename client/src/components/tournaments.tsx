@@ -13,6 +13,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { Brain, Trophy } from "lucide-react";
 import type { Tournament, InsertTournament } from "@shared/schema";
 
 const tournamentSchema = z.object({
@@ -232,6 +233,8 @@ function CreateTournamentDialog() {
 
 function TournamentCard({ tournament }: { tournament: Tournament }) {
   const { toast } = useToast();
+  const [aiPrediction, setAiPrediction] = useState<string | null>(null);
+  const [showAiContent, setShowAiContent] = useState(false);
 
   const handleJoinTournament = async () => {
     toast({
@@ -242,6 +245,32 @@ function TournamentCard({ tournament }: { tournament: Tournament }) {
     // This would normally create a Stripe payment intent and redirect
     window.location.href = `/checkout?type=tournament&id=${tournament.id}&amount=${tournament.entry}`;
   };
+
+  const getTournamentPredictionMutation = useMutation({
+    mutationFn: () =>
+      fetch('/api/ai/community-chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          question: `Analyze this tournament: ${tournament.name} (${tournament.format} ${tournament.game}). Entry: $${tournament.entry}, Max Players: ${tournament.maxPlayers}, Current: ${tournament.currentPlayers || 0}. Predict likely winners, bracket outcomes, and key factors that will determine success.` 
+        })
+      }).then(res => res.json()),
+    onSuccess: (data) => {
+      setAiPrediction(data.answer);
+      setShowAiContent(true);
+      toast({ 
+        title: "Tournament Analysis Ready!", 
+        description: "AI predictions and insights generated." 
+      });
+    },
+    onError: () => {
+      toast({ 
+        title: "Prediction Failed", 
+        description: "Unable to generate tournament analysis.",
+        variant: "destructive"
+      });
+    }
+  });
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -257,7 +286,7 @@ function TournamentCard({ tournament }: { tournament: Tournament }) {
   };
 
   const progressPercentage = tournament.maxPlayers > 0 
-    ? (tournament.currentPlayers / tournament.maxPlayers) * 100 
+    ? ((tournament.currentPlayers || 0) / tournament.maxPlayers) * 100 
     : 0;
 
   return (
@@ -265,7 +294,7 @@ function TournamentCard({ tournament }: { tournament: Tournament }) {
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle className="text-white">{tournament.name}</CardTitle>
-          <Badge className={getStatusColor(tournament.status)}>
+          <Badge className={getStatusColor(tournament.status || 'open')}>
             {tournament.status === "open" ? `$${tournament.entry} Entry` : tournament.status}
           </Badge>
         </div>
@@ -281,7 +310,7 @@ function TournamentCard({ tournament }: { tournament: Tournament }) {
             <div className="flex justify-between text-sm mb-2">
               <span className="text-gray-400">Players:</span>
               <span className="text-neon-green font-semibold">
-                {tournament.currentPlayers}/{tournament.maxPlayers}
+                {tournament.currentPlayers || 0}/{tournament.maxPlayers}
               </span>
             </div>
             <div className="w-full bg-gray-700 rounded-full h-2">
@@ -313,6 +342,40 @@ function TournamentCard({ tournament }: { tournament: Tournament }) {
               Tournament Completed
             </div>
           )}
+
+          {/* AI Tournament Analysis */}
+          <div className="border-t border-green-500/20 pt-3 mt-3">
+            <Button
+              onClick={() => getTournamentPredictionMutation.mutate()}
+              disabled={getTournamentPredictionMutation.isPending}
+              size="sm"
+              variant="outline"
+              className="w-full border-green-500/30 text-green-400 hover:bg-green-500/10"
+              data-testid={`button-ai-tournament-${tournament.id}`}
+            >
+              {getTournamentPredictionMutation.isPending ? (
+                <LoadingSpinner size="sm" />
+              ) : (
+                <>
+                  <Brain className="w-4 h-4 mr-2" />
+                  AI Tournament Analysis
+                </>
+              )}
+            </Button>
+
+            {/* AI Prediction Display */}
+            {showAiContent && aiPrediction && (
+              <div className="bg-gray-900/50 border border-green-500/20 rounded-lg p-3 mt-3">
+                <h4 className="text-green-400 font-semibold mb-2 flex items-center">
+                  <Trophy className="w-4 h-4 mr-1" />
+                  AI Tournament Predictions
+                </h4>
+                <div className="text-xs text-gray-300 whitespace-pre-wrap">
+                  {aiPrediction}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </CardContent>
     </Card>

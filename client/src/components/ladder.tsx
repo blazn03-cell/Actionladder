@@ -1,7 +1,11 @@
-import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import { useToast } from "@/hooks/use-toast";
+import { Brain, Target, Users } from "lucide-react";
 import type { Player } from "@shared/schema";
 
 interface LadderTableProps {
@@ -153,6 +157,132 @@ function LadderRules() {
   );
 }
 
+function AILadderSection({ players }: { players: Player[] }) {
+  const [matchmakingAdvice, setMatchmakingAdvice] = useState<string | null>(null);
+  const [climbingStrategy, setClimbingStrategy] = useState<string | null>(null);
+  const { toast } = useToast();
+
+  const getMatchmakingAdviceMutation = useMutation({
+    mutationFn: () =>
+      fetch('/api/ai/community-chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          question: `Analyze the current ladder standings and provide smart matchmaking suggestions. Consider player ratings, recent performance, and optimal challenge targets for advancing in the rankings.` 
+        })
+      }).then(res => res.json()),
+    onSuccess: (data) => {
+      setMatchmakingAdvice(data.answer);
+      toast({ 
+        title: "Matchmaking Analysis Ready!", 
+        description: "AI has analyzed the ladder for optimal matches." 
+      });
+    },
+    onError: () => {
+      toast({ 
+        title: "Analysis Failed", 
+        description: "Unable to generate matchmaking advice.",
+        variant: "destructive"
+      });
+    }
+  });
+
+  const getClimbingStrategyMutation = useMutation({
+    mutationFn: () =>
+      fetch('/api/ai/community-chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          question: `What are the best strategies for players to climb the Tri-City ladder effectively? Consider rating gaps, point systems, streak bonuses, and optimal challenge patterns.` 
+        })
+      }).then(res => res.json()),
+    onSuccess: (data) => {
+      setClimbingStrategy(data.answer);
+      toast({ 
+        title: "Strategy Guide Ready!", 
+        description: "AI climbing strategies generated." 
+      });
+    },
+    onError: () => {
+      toast({ 
+        title: "Strategy Failed", 
+        description: "Unable to generate climbing strategies.",
+        variant: "destructive"
+      });
+    }
+  });
+
+  return (
+    <Card className="bg-black/60 backdrop-blur-sm border border-green-500/30 shadow-felt">
+      <CardHeader>
+        <CardTitle className="text-2xl font-bold text-white flex items-center">
+          <Brain className="mr-3 text-green-400" />
+          AI Ladder Strategy
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Button
+            onClick={() => getMatchmakingAdviceMutation.mutate()}
+            disabled={getMatchmakingAdviceMutation.isPending}
+            className="bg-green-600 hover:bg-green-700 text-white"
+            data-testid="button-ladder-matchmaking"
+          >
+            {getMatchmakingAdviceMutation.isPending ? (
+              <LoadingSpinner size="sm" />
+            ) : (
+              <>
+                <Users className="w-4 h-4 mr-2" />
+                Smart Matchmaking
+              </>
+            )}
+          </Button>
+          <Button
+            onClick={() => getClimbingStrategyMutation.mutate()}
+            disabled={getClimbingStrategyMutation.isPending}
+            className="bg-green-600 hover:bg-green-700 text-white"
+            data-testid="button-climbing-strategy"
+          >
+            {getClimbingStrategyMutation.isPending ? (
+              <LoadingSpinner size="sm" />
+            ) : (
+              <>
+                <Target className="w-4 h-4 mr-2" />
+                Climbing Guide
+              </>
+            )}
+          </Button>
+        </div>
+
+        {/* AI Advice Display */}
+        {matchmakingAdvice && (
+          <div className="bg-gray-900/50 border border-green-500/20 rounded-lg p-4">
+            <h4 className="text-green-400 font-semibold mb-2 flex items-center">
+              <Users className="w-4 h-4 mr-1" />
+              Smart Matchmaking Analysis
+            </h4>
+            <div className="text-sm text-gray-300 whitespace-pre-wrap">
+              {matchmakingAdvice}
+            </div>
+          </div>
+        )}
+
+        {climbingStrategy && (
+          <div className="bg-gray-900/50 border border-green-500/20 rounded-lg p-4">
+            <h4 className="text-green-400 font-semibold mb-2 flex items-center">
+              <Target className="w-4 h-4 mr-1" />
+              AI Climbing Strategy
+            </h4>
+            <div className="text-sm text-gray-300 whitespace-pre-wrap">
+              {climbingStrategy}
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 function DivisionStats({ players }: { players: Player[] }) {
   const hiDivision = players.filter(p => p.rating >= 600);
   const loDivision = players.filter(p => p.rating < 600);
@@ -233,6 +363,9 @@ export default function Ladder() {
 
   return (
     <div className="space-y-6">
+      {/* AI Strategy Section */}
+      <AILadderSection players={players} />
+
       {/* Division Stats */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <DivisionStats players={players} />
