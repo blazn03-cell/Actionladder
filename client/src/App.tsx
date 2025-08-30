@@ -10,6 +10,7 @@ import Players from "@/components/players";
 import Bounties from "@/components/bounties";
 import Charity from "@/components/charity";
 import LiveStream from "@/components/live-stream";
+import HallBattles from "@/components/hall-battles";
 import AIDashboard from "@/pages/AIDashboard";
 import AdminDashboard from "@/pages/AdminDashboard";
 import Checkout from "@/pages/checkout";
@@ -25,6 +26,7 @@ function Navigation({ activeTab, setActiveTab }: { activeTab: string; setActiveT
   const tabs = [
     { id: "dashboard", label: "Dashboard" },
     { id: "ladder", label: "Ladder" },
+    { id: "hall-battles", label: "Hall Battles" },
     { id: "live-stream", label: "Live Stream" },
     { id: "ai-features", label: "AI Features" },
     { id: "admin", label: "Admin" },
@@ -138,6 +140,7 @@ function App() {
               <div className="container mx-auto px-4 py-8">
                 {activeTab === "dashboard" && <Dashboard />}
                 {activeTab === "ladder" && <Ladder />}
+                {activeTab === "hall-battles" && <HallBattles />}
                 {activeTab === "live-stream" && <LiveStream />}
                 {activeTab === "ai-features" && <AIDashboard />}
                 {activeTab === "admin" && <AdminDashboard />}

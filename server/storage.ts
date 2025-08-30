@@ -8,6 +8,9 @@ import {
   type SupportRequest, type InsertSupportRequest,
   type LiveStream, type InsertLiveStream,
   type WebhookEvent, type InsertWebhookEvent,
+  type PoolHall, type InsertPoolHall,
+  type HallMatch, type InsertHallMatch,
+  type HallRoster, type InsertHallRoster,
   type GlobalRole,
   insertUserSchema,
   insertOrganizationSchema,
@@ -144,6 +147,27 @@ export interface IStorage {
   getAllLiveStreams(): Promise<LiveStream[]>;
   createLiveStream(stream: InsertLiveStream): Promise<LiveStream>;
   updateLiveStream(id: string, updates: Partial<LiveStream>): Promise<LiveStream | undefined>;
+
+  // Pool Halls
+  getPoolHall(id: string): Promise<PoolHall | undefined>;
+  getAllPoolHalls(): Promise<PoolHall[]>;
+  createPoolHall(poolHall: InsertPoolHall): Promise<PoolHall>;
+  updatePoolHall(id: string, updates: Partial<PoolHall>): Promise<PoolHall | undefined>;
+
+  // Hall Matches
+  getHallMatch(id: string): Promise<HallMatch | undefined>;
+  getAllHallMatches(): Promise<HallMatch[]>;
+  getHallMatchesByHall(hallId: string): Promise<HallMatch[]>;
+  createHallMatch(hallMatch: InsertHallMatch): Promise<HallMatch>;
+  updateHallMatch(id: string, updates: Partial<HallMatch>): Promise<HallMatch | undefined>;
+
+  // Hall Rosters
+  getHallRoster(id: string): Promise<HallRoster | undefined>;
+  getAllHallRosters(): Promise<HallRoster[]>;
+  getRosterByHall(hallId: string): Promise<HallRoster[]>;
+  getRosterByPlayer(playerId: string): Promise<HallRoster[]>;
+  createHallRoster(roster: InsertHallRoster): Promise<HallRoster>;
+  updateHallRoster(id: string, updates: Partial<HallRoster>): Promise<HallRoster | undefined>;
   
   // Webhook Events
   getWebhookEvent(stripeEventId: string): Promise<WebhookEvent | undefined>;
@@ -162,6 +186,9 @@ export class MemStorage implements IStorage {
   private charityEvents = new Map<string, CharityEvent>();
   private supportRequests = new Map<string, SupportRequest>();
   private liveStreams = new Map<string, LiveStream>();
+  private poolHalls = new Map<string, PoolHall>();
+  private hallMatches = new Map<string, HallMatch>();
+  private hallRosters = new Map<string, HallRoster>();
   private webhookEvents = new Map<string, WebhookEvent>();
 
   constructor() {
@@ -313,6 +340,89 @@ export class MemStorage implements IStorage {
       createdAt: new Date(),
     };
     this.organizations.set(testOrg2.id, testOrg2);
+
+    // Initialize Tri-City pool halls
+    const seguin: PoolHall = {
+      id: "hall-seguin",
+      name: "Seguin Winners Pool Hall",
+      city: "Seguin",
+      wins: 12,
+      losses: 8,
+      points: 1200,
+      description: "Home of the champions, where legends are made on felt",
+      address: "123 Main St, Seguin, TX",
+      phone: "(830) 555-0123",
+      active: true,
+      createdAt: new Date(),
+    };
+    this.poolHalls.set(seguin.id, seguin);
+
+    const newBraunfels: PoolHall = {
+      id: "hall-new-braunfels",
+      name: "New Braunfels Sharks",
+      city: "New Braunfels",
+      wins: 10,
+      losses: 7,
+      points: 1050,
+      description: "Sharp shooters with precision game play",
+      address: "456 River Rd, New Braunfels, TX",
+      phone: "(830) 555-0456",
+      active: true,
+      createdAt: new Date(),
+    };
+    this.poolHalls.set(newBraunfels.id, newBraunfels);
+
+    const sanMarcos: PoolHall = {
+      id: "hall-san-marcos",
+      name: "San Marcos Hustlers",
+      city: "San Marcos",
+      wins: 8,
+      losses: 12,
+      points: 850,
+      description: "Underdogs with heart and hustle",
+      address: "789 University Dr, San Marcos, TX",
+      phone: "(512) 555-0789",
+      active: true,
+      createdAt: new Date(),
+    };
+    this.poolHalls.set(sanMarcos.id, sanMarcos);
+
+    // Initialize some hall matches for demonstration
+    const hallMatch1: HallMatch = {
+      id: "match-1",
+      homeHallId: seguin.id,
+      awayHallId: newBraunfels.id,
+      format: "team_9ball",
+      totalRacks: 9,
+      homeScore: 5,
+      awayScore: 4,
+      status: "completed",
+      winnerHallId: seguin.id,
+      scheduledDate: new Date("2024-01-15"),
+      completedAt: new Date("2024-01-15T21:30:00"),
+      notes: "Intense match, came down to the final rack",
+      stake: 50000, // $500 per team
+      createdAt: new Date("2024-01-10"),
+    };
+    this.hallMatches.set(hallMatch1.id, hallMatch1);
+
+    const hallMatch2: HallMatch = {
+      id: "match-2",
+      homeHallId: sanMarcos.id,
+      awayHallId: seguin.id,
+      format: "team_8ball",
+      totalRacks: 7,
+      homeScore: 2,
+      awayScore: 5,
+      status: "completed",
+      winnerHallId: seguin.id,
+      scheduledDate: new Date("2024-01-20"),
+      completedAt: new Date("2024-01-20T20:45:00"),
+      notes: "Seguin dominated with solid fundamentals",
+      stake: 30000, // $300 per team
+      createdAt: new Date("2024-01-18"),
+    };
+    this.hallMatches.set(hallMatch2.id, hallMatch2);
 
     // Seed players
     const seedPlayers: Player[] = [
@@ -782,6 +892,128 @@ export class MemStorage implements IStorage {
     };
     this.webhookEvents.set(id, webhookEvent);
     return webhookEvent;
+  }
+
+  // Pool Hall methods
+  async getPoolHall(id: string): Promise<PoolHall | undefined> {
+    return this.poolHalls.get(id);
+  }
+
+  async getAllPoolHalls(): Promise<PoolHall[]> {
+    return Array.from(this.poolHalls.values());
+  }
+
+  async createPoolHall(insertPoolHall: InsertPoolHall): Promise<PoolHall> {
+    const id = randomUUID();
+    const poolHall: PoolHall = {
+      id,
+      ...insertPoolHall,
+      createdAt: new Date(),
+    };
+    this.poolHalls.set(id, poolHall);
+    return poolHall;
+  }
+
+  async updatePoolHall(id: string, updates: Partial<PoolHall>): Promise<PoolHall | undefined> {
+    const poolHall = this.poolHalls.get(id);
+    if (!poolHall) return undefined;
+    
+    const updated = { ...poolHall, ...updates };
+    this.poolHalls.set(id, updated);
+    return updated;
+  }
+
+  // Hall Match methods
+  async getHallMatch(id: string): Promise<HallMatch | undefined> {
+    return this.hallMatches.get(id);
+  }
+
+  async getAllHallMatches(): Promise<HallMatch[]> {
+    return Array.from(this.hallMatches.values());
+  }
+
+  async getHallMatchesByHall(hallId: string): Promise<HallMatch[]> {
+    return Array.from(this.hallMatches.values()).filter(
+      match => match.homeHallId === hallId || match.awayHallId === hallId
+    );
+  }
+
+  async createHallMatch(insertHallMatch: InsertHallMatch): Promise<HallMatch> {
+    const id = randomUUID();
+    const hallMatch: HallMatch = {
+      id,
+      ...insertHallMatch,
+      createdAt: new Date(),
+    };
+    this.hallMatches.set(id, hallMatch);
+    return hallMatch;
+  }
+
+  async updateHallMatch(id: string, updates: Partial<HallMatch>): Promise<HallMatch | undefined> {
+    const hallMatch = this.hallMatches.get(id);
+    if (!hallMatch) return undefined;
+    
+    const updated = { ...hallMatch, ...updates };
+    
+    // If completing a match, update hall standings
+    if (updates.status === "completed" && updates.winnerHallId && !hallMatch.winnerHallId) {
+      const homeHall = await this.getPoolHall(hallMatch.homeHallId);
+      const awayHall = await this.getPoolHall(hallMatch.awayHallId);
+      
+      if (homeHall && awayHall) {
+        if (updates.winnerHallId === hallMatch.homeHallId) {
+          await this.updatePoolHall(homeHall.id, { wins: homeHall.wins + 1, points: homeHall.points + 100 });
+          await this.updatePoolHall(awayHall.id, { losses: awayHall.losses + 1, points: Math.max(0, awayHall.points - 50) });
+        } else {
+          await this.updatePoolHall(awayHall.id, { wins: awayHall.wins + 1, points: awayHall.points + 100 });
+          await this.updatePoolHall(homeHall.id, { losses: homeHall.losses + 1, points: Math.max(0, homeHall.points - 50) });
+        }
+      }
+    }
+    
+    this.hallMatches.set(id, updated);
+    return updated;
+  }
+
+  // Hall Roster methods
+  async getHallRoster(id: string): Promise<HallRoster | undefined> {
+    return this.hallRosters.get(id);
+  }
+
+  async getAllHallRosters(): Promise<HallRoster[]> {
+    return Array.from(this.hallRosters.values());
+  }
+
+  async getRosterByHall(hallId: string): Promise<HallRoster[]> {
+    return Array.from(this.hallRosters.values()).filter(
+      roster => roster.hallId === hallId && roster.isActive
+    );
+  }
+
+  async getRosterByPlayer(playerId: string): Promise<HallRoster[]> {
+    return Array.from(this.hallRosters.values()).filter(
+      roster => roster.playerId === playerId && roster.isActive
+    );
+  }
+
+  async createHallRoster(insertHallRoster: InsertHallRoster): Promise<HallRoster> {
+    const id = randomUUID();
+    const hallRoster: HallRoster = {
+      id,
+      ...insertHallRoster,
+      joinedAt: new Date(),
+    };
+    this.hallRosters.set(id, hallRoster);
+    return hallRoster;
+  }
+
+  async updateHallRoster(id: string, updates: Partial<HallRoster>): Promise<HallRoster | undefined> {
+    const hallRoster = this.hallRosters.get(id);
+    if (!hallRoster) return undefined;
+    
+    const updated = { ...hallRoster, ...updates };
+    this.hallRosters.set(id, updated);
+    return updated;
   }
 }
 

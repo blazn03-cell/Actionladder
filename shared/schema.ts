@@ -131,6 +131,46 @@ export const supportRequests = pgTable("support_requests", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+export const poolHalls = pgTable("pool_halls", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  city: text("city").notNull(),
+  wins: integer("wins").notNull().default(0),
+  losses: integer("losses").notNull().default(0),
+  points: integer("points").notNull().default(0),
+  description: text("description"),
+  address: text("address"),
+  phone: text("phone"),
+  active: boolean("active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const hallMatches = pgTable("hall_matches", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  homeHallId: text("home_hall_id").notNull(),
+  awayHallId: text("away_hall_id").notNull(),
+  format: text("format").notNull(), // "team_9ball", "team_8ball", "mixed_format"
+  totalRacks: integer("total_racks").notNull().default(9), // First to X racks
+  homeScore: integer("home_score").default(0),
+  awayScore: integer("away_score").default(0),
+  status: text("status").notNull().default("scheduled"), // "scheduled", "in_progress", "completed"
+  winnerHallId: text("winner_hall_id"),
+  scheduledDate: timestamp("scheduled_date"),
+  completedAt: timestamp("completed_at"),
+  notes: text("notes"),
+  stake: integer("stake").default(0), // Venue entry or prize pool
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const hallRosters = pgTable("hall_rosters", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  hallId: text("hall_id").notNull(),
+  playerId: text("player_id").notNull(),
+  position: text("position"), // "captain", "player", "substitute"
+  isActive: boolean("is_active").default(true),
+  joinedAt: timestamp("joined_at").defaultNow(),
+});
+
 export const liveStreams = pgTable("live_streams", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   platform: text("platform").notNull(), // "twitch", "youtube", "facebook", "tiktok"
@@ -139,6 +179,7 @@ export const liveStreams = pgTable("live_streams", {
   isLive: boolean("is_live").default(false),
   viewerCount: integer("viewer_count").default(0),
   matchId: text("match_id"),
+  hallMatchId: text("hall_match_id"), // Link to inter-hall matches
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -202,6 +243,22 @@ export const insertSupportRequestSchema = createInsertSchema(supportRequests).om
   createdAt: true,
 });
 
+export const insertPoolHallSchema = createInsertSchema(poolHalls).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertHallMatchSchema = createInsertSchema(hallMatches).omit({
+  id: true,
+  createdAt: true,
+  completedAt: true,
+});
+
+export const insertHallRosterSchema = createInsertSchema(hallRosters).omit({
+  id: true,
+  joinedAt: true,
+});
+
 export const insertLiveStreamSchema = createInsertSchema(liveStreams).omit({
   id: true,
   createdAt: true,
@@ -227,6 +284,12 @@ export type CharityEvent = typeof charityEvents.$inferSelect;
 export type InsertCharityEvent = z.infer<typeof insertCharityEventSchema>;
 export type SupportRequest = typeof supportRequests.$inferSelect;
 export type InsertSupportRequest = z.infer<typeof insertSupportRequestSchema>;
+export type PoolHall = typeof poolHalls.$inferSelect;
+export type InsertPoolHall = z.infer<typeof insertPoolHallSchema>;
+export type HallMatch = typeof hallMatches.$inferSelect;
+export type InsertHallMatch = z.infer<typeof insertHallMatchSchema>;
+export type HallRoster = typeof hallRosters.$inferSelect;
+export type InsertHallRoster = z.infer<typeof insertHallRosterSchema>;
 export type LiveStream = typeof liveStreams.$inferSelect;
 export type InsertLiveStream = z.infer<typeof insertLiveStreamSchema>;
 export type WebhookEvent = typeof webhookEvents.$inferSelect;

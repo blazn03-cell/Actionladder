@@ -4,6 +4,7 @@ import Stripe from "stripe";
 import { storage } from "./storage";
 import { AIService } from "./ai-service";
 import { registerAdminRoutes, payStaffFromInvoice } from "./admin-routes";
+import { registerHallRoutes } from "./hall-routes";
 import { 
   insertPlayerSchema, insertMatchSchema, insertTournamentSchema,
   insertKellyPoolSchema, insertBountySchema, insertCharityEventSchema,
@@ -15,13 +16,16 @@ if (!process.env.STRIPE_SECRET_KEY) {
 }
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-  apiVersion: "2025-07-30.basil",
+  apiVersion: "2025-08-27.basil",
 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
   
   // Register admin routes for staff management and payouts
   registerAdminRoutes(app);
+  
+  // Register hall vs hall match routes
+  registerHallRoutes(app);
   
   // Player routes
   app.get("/api/players", async (req, res) => {
