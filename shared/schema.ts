@@ -106,6 +106,14 @@ export const liveStreams = pgTable("live_streams", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+export const webhookEvents = pgTable("webhook_events", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  stripeEventId: text("stripe_event_id").notNull().unique(),
+  eventType: text("event_type").notNull(),
+  processedAt: timestamp("processed_at").defaultNow(),
+  payloadJson: text("payload_json").notNull(),
+});
+
 // Insert schemas
 export const insertPlayerSchema = createInsertSchema(players).omit({
   id: true,
@@ -148,6 +156,11 @@ export const insertLiveStreamSchema = createInsertSchema(liveStreams).omit({
   createdAt: true,
 });
 
+export const insertWebhookEventSchema = createInsertSchema(webhookEvents).omit({
+  id: true,
+  processedAt: true,
+});
+
 // Types
 export type Player = typeof players.$inferSelect;
 export type InsertPlayer = z.infer<typeof insertPlayerSchema>;
@@ -165,3 +178,5 @@ export type SupportRequest = typeof supportRequests.$inferSelect;
 export type InsertSupportRequest = z.infer<typeof insertSupportRequestSchema>;
 export type LiveStream = typeof liveStreams.$inferSelect;
 export type InsertLiveStream = z.infer<typeof insertLiveStreamSchema>;
+export type WebhookEvent = typeof webhookEvents.$inferSelect;
+export type InsertWebhookEvent = z.infer<typeof insertWebhookEventSchema>;

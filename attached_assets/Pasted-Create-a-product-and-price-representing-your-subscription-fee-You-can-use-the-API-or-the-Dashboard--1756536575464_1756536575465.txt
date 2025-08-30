@@ -1,0 +1,129 @@
+Create a product and price representing your subscription fee. You can use the API or the Dashboard.
+
+
+API
+
+Dashboard
+Create a Product and define the default price as a recurring charge. Return the price information by including default_price in the expand parameter.
+
+Command Line
+Select a language
+Select a language
+cURL
+
+
+
+
+curl https://api.stripe.com/v1/products \
+  -u "sk_test_51RzCXFDc2BliYufwtBAh31fJ7jXYX3vk3PNoCQcXYp86BeGkvPXwV32wXXClGsj2z4LjPyxqE65y9wlkIdFaulsf00TB6KmqPt:" \
+  -d name="Connected account subscription fee" \
+  -d "default_price_data[unit_amount]"=1000 \
+  -d "default_price_data[currency]"=usd \
+  -d "default_price_data[recurring][interval]"=month \
+  -d "expand[]"=default_price
+Record the price ID (price_xxxxxxxxxxxxxx) to use later when you create a subscription.
+
+Regional considerations
+If you accept balance payments in multiple currencies, create a separate price in each currency for each product. For example, if you create a product with a USD price, and want to charge a connected account for it in EUR, add a price for that product in EUR.
+
+2. Create subscriptions to charge your connected accounts
+You can collect SaaS subscription fees directly from a connected account’s Stripe balance. The connected account must meet the following requirements:
+
+It must have both the merchant and customer configurations.
+Its merchant configuration’s card_payments capability must be active.
+Its available balance must have sufficient funds to make a full payment.
+
+Use SetupIntents
+
+Use Embedded Checkout
+To implement a custom process for your connected account owners to purchase subscriptions, use a SetupIntent to attach a PaymentMethod to their Account object.
+
+To attach payment from the account’s Stripe balance as the payment method when creating a SetupIntent, specify the following values:
+
+Command Line
+Select a language
+Select a language
+cURL
+
+
+
+
+curl https://api.stripe.com/v1/setup_intents \
+  -u "sk_test_51RzCXFDc2BliYufwtBAh31fJ7jXYX3vk3PNoCQcXYp86BeGkvPXwV32wXXClGsj2z4LjPyxqE65y9wlkIdFaulsf00TB6KmqPt:" \
+  -H "Stripe-Version: 2025-04-30.preview" \
+  -d "payment_method_types[]"=stripe_balance \
+  -d confirm=true \
+  -d customer_account=acct_xxxxxxxxxxxxxx \
+  -d usage=off_session \
+  -d "payment_method_data[type]"=stripe_balance
+Successful creation of the SetupIntent returns data similar to the following:
+
+
+
+
+{
+  "id": "seti_123",
+  "object": "setup_intent",
+  "customer": "cus_xxxxxxxxxxxxxx",
+  "customer_account": "acct_xxxxxxxxxxxxxx",
+  "payment_method": "pm_xxxxxxxxxxxxxx",
+  "status": "succeeded"
+}
+You can then create Subscriptions using the account’s attached PaymentMethod by passing the Account ID as the customer_account.
+
+To create a subscription that collects payments from the account’s Stripe balance, set the payment method type explicitly, as in the following example.
+
+Command Line
+Select a language
+Select a language
+cURL
+
+
+
+
+curl https://api.stripe.com/v1/subscriptions \
+  -u "sk_test_51RzCXFDc2BliYufwtBAh31fJ7jXYX3vk3PNoCQcXYp86BeGkvPXwV32wXXClGsj2z4LjPyxqE65y9wlkIdFaulsf00TB6KmqPt:" \
+  -H "Stripe-Version: 2025-04-30.preview" \
+  -d customer_account=acct_xxxxxxxxxxxxxx \
+  -d default_payment_method=pm_xxxxxxxxxxxxxx \
+  -d "items[0][price]"=price_xxxxxxxxxxxxxx \
+  -d "items[0][quantity]"=1 \
+  -d "payment_settings[payment_method_types][0]"=stripe_balance
+Configure your integration to manage Stripe balance payment failures
+When you collect a payment from a connected account’s Stripe balance, the account’s available balance must have sufficient funds to make the full payment. Otherwise, the payment fails. If you plan to collect payments directly from your connected accounts’ Stripe balances, we recommend configuring your integration to manage balance-related payment failures.
+
+Avoid balance payment failures
+Because payments from a connected account’s Stripe balance rely on its available funds, you can avoid payment failures by taking steps to maximize your connected accounts’ balances.
+
+Tailor connected account payout schedules
+Coordinate your payout schedules with your subscription billing cycles. For example, if you charge subscription fees on the first day of each month, and schedule weekly payouts on Mondays, then months with more Mondays have more payouts. Those months have lower available balances than months with fewer payouts, making payment failures more likely.
+
+Another way to avoid payment failures due to payouts is to change to manual payouts before a subscription payment. At a set time before each subscription payment, if a connected account has sufficient available funds, switch it to manual payouts so the subscription payment gets paid before the automatic payout clears the account. After the subscription payment, resume automatic payouts.
+
+Set a minimum balance on connected accounts
+You can prevent automatic payouts from reducing a connected account’s available balance below a certain amount by defining a minimum balance for that account.
+
+Find the account in your Dashboard.
+From the account’s overflow menu (), select View Dashboard as….
+Click the gear icon and select Settings.
+Under Account Settings, click Business.
+Select the External payout accounts and scheduling tab.
+Turn on Keep a minimum amount in your payments balance and enter an amount.
+You must manually set the minimum balance for each connected account.
+
+Handle balance payment failures
+Set up webhooks and event destinations to receive notifications about subscription payments. Identify payment failures by listening for the invoice.payment_failed event. When a payment fails:
+
+The PaymentIntent status changes to requires_action.
+The Subscription status remains incomplete for the current invoice.
+The Subscription continues to generate invoices, which remain in draft status.
+Note
+Payments from Stripe balances don’t support smart retries.
+
+If a payment from a Stripe balance fails due to insufficient available funds, you can retry it by following these steps:
+
+Set the connected account’s payout schedule interval to manual.
+Listen for the next payment that comes into the connected account, then check the account’s available balance.
+If the available balance is equal to or greater than the subscription fee, set the unpaid invoice’s payment method to stripe_balance and retry it. Otherwise, continue listening for payments until the available balance is enough to pay the invoice.
+If the payment succeeds, restore the connected account’s normal payout schedule.
+Instead of retrying a failed payment from a Stripe balance, you can try using a different payment method by specifying it directly on the invoice. You can also implement a flow that allows connected accounts to update their own subscription payment methods.

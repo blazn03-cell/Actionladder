@@ -433,6 +433,96 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Webhook idempotency functions
+  async function alreadyProcessed(eventId: string): Promise<boolean> {
+    const existingEvent = await storage.getWebhookEvent(eventId);
+    return !!existingEvent;
+  }
+
+  async function markProcessed(eventId: string, eventType: string, payload: any): Promise<void> {
+    await storage.createWebhookEvent({
+      stripeEventId: eventId,
+      eventType,
+      payloadJson: JSON.stringify(payload)
+    });
+  }
+
+  // Webhook event handlers
+  async function handleCheckoutCompleted(session: any): Promise<void> {
+    const userId = session.client_reference_id || session.metadata?.userId;
+    
+    if (session.mode === 'payment') {
+      // Handle one-time payments (tournament entries, kelly pool, etc.)
+      if (session.metadata?.tournamentId) {
+        const tournamentId = session.metadata.tournamentId;
+        const tournament = await storage.getTournament(tournamentId);
+        if (tournament) {
+          await storage.updateTournament(tournamentId, {
+            currentPlayers: (tournament.currentPlayers || 0) + 1
+          });
+        }
+      }
+      
+      if (session.metadata?.kellyPoolId) {
+        const kellyPoolId = session.metadata.kellyPoolId;
+        const kellyPool = await storage.getKellyPool(kellyPoolId);
+        if (kellyPool) {
+          await storage.updateKellyPool(kellyPoolId, {
+            currentPlayers: (kellyPool.currentPlayers || 0) + 1
+          });
+        }
+      }
+    } else if (session.mode === 'subscription') {
+      // Handle membership subscriptions
+      if (userId) {
+        await storage.updatePlayer(userId, {
+          member: true,
+          stripeCustomerId: session.customer as string
+        });
+      }
+    }
+  }
+
+  async function handleSubscription(subscription: any): Promise<void> {
+    if (subscription.metadata?.userId) {
+      const isActive = subscription.status === 'active';
+      await storage.updatePlayer(subscription.metadata.userId, {
+        member: isActive
+      });
+    }
+  }
+
+  async function handleInvoicePaid(invoice: any): Promise<void> {
+    if (invoice.subscription) {
+      const subscription = await stripe.subscriptions.retrieve(invoice.subscription);
+      if (subscription.metadata?.userId) {
+        await storage.updatePlayer(subscription.metadata.userId, {
+          member: true
+        });
+      }
+    }
+  }
+
+  async function handleInvoiceFailed(invoice: any): Promise<void> {
+    if (invoice.subscription) {
+      const subscription = await stripe.subscriptions.retrieve(invoice.subscription);
+      if (subscription.metadata?.userId) {
+        console.log(`Payment failed for user: ${subscription.metadata.userId}`);
+        // Could implement email notification or account flagging here
+      }
+    }
+  }
+
+  async function handleOneTime(paymentIntent: any): Promise<void> {
+    // Handle one-time payments not through Checkout
+    console.log(`One-time payment succeeded: ${paymentIntent.id}`);
+  }
+
+  async function handleRefund(charge: any): Promise<void> {
+    // Handle refunds
+    console.log(`Charge refunded: ${charge.id}`);
+  }
+
   // Stripe Webhook Handler
   app.post("/api/stripe/webhook", express.raw({ type: 'application/json' }), async (req, res) => {
     const sig = req.headers['stripe-signature'] as string;
@@ -448,96 +538,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
         sig,
         process.env.STRIPE_WEBHOOK_SECRET
       );
-    } catch (err: any) {
-      console.error('Webhook signature verification failed:', err.message);
-      return res.status(400).json({ message: `Webhook Error: ${err.message}` });
+    } catch (e: any) {
+      return res.status(400).send(`Webhook Error: ${e.message}`);
     }
+
+    if (await alreadyProcessed(event.id)) return res.sendStatus(200);
 
     try {
       switch (event.type) {
-        case 'checkout.session.completed': {
-          const session = event.data.object;
-          const userId = session.client_reference_id || session.metadata?.userId;
-          
-          if (session.mode === 'payment') {
-            // Handle one-time payments (tournament entries, kelly pool, etc.)
-            if (session.metadata?.tournamentId) {
-              // Update tournament participant count and player status
-              const tournamentId = session.metadata.tournamentId;
-              const tournament = await storage.getTournament(tournamentId);
-              if (tournament) {
-                await storage.updateTournament(tournamentId, {
-                  currentPlayers: (tournament.currentPlayers || 0) + 1
-                });
-              }
-            }
-            
-            if (session.metadata?.kellyPoolId) {
-              // Update kelly pool participant count
-              const kellyPoolId = session.metadata.kellyPoolId;
-              const kellyPool = await storage.getKellyPool(kellyPoolId);
-              if (kellyPool) {
-                await storage.updateKellyPool(kellyPoolId, {
-                  currentPlayers: (kellyPool.currentPlayers || 0) + 1
-                });
-              }
-            }
-          } else if (session.mode === 'subscription') {
-            // Handle membership subscriptions
-            if (userId) {
-              await storage.updatePlayer(userId, {
-                member: true,
-                stripeCustomerId: session.customer as string
-              });
-            }
-          }
+        case 'checkout.session.completed':
+          await handleCheckoutCompleted(event.data.object);
           break;
-        }
-        
-        case 'invoice.paid': {
-          // Ensure subscription remains active
-          const invoice = event.data.object;
-          if (invoice.subscription) {
-            const subscription = await stripe.subscriptions.retrieve(invoice.subscription);
-            if (subscription.metadata?.userId) {
-              await storage.updatePlayer(subscription.metadata.userId, {
-                member: true
-              });
-            }
-          }
-          break;
-        }
-        
-        case 'invoice.payment_failed': {
-          // Flag account for payment failure
-          const invoice = event.data.object;
-          if (invoice.subscription) {
-            const subscription = await stripe.subscriptions.retrieve(invoice.subscription);
-            if (subscription.metadata?.userId) {
-              // Could implement email notification or account flagging here
-              console.log(`Payment failed for user: ${subscription.metadata.userId}`);
-            }
-          }
-          break;
-        }
-        
+        case 'customer.subscription.created':
         case 'customer.subscription.updated':
-        case 'customer.subscription.deleted': {
-          const subscription = event.data.object;
-          if (subscription.metadata?.userId) {
-            const isActive = subscription.status === 'active';
-            await storage.updatePlayer(subscription.metadata.userId, {
-              member: isActive
-            });
-          }
+        case 'customer.subscription.deleted':
+          await handleSubscription(event.data.object);
           break;
-        }
-        
+        case 'invoice.paid':
+          await handleInvoicePaid(event.data.object);
+          break;
+        case 'invoice.payment_failed':
+          await handleInvoiceFailed(event.data.object);
+          break;
+        case 'payment_intent.succeeded':
+          await handleOneTime(event.data.object);
+          break;
+        case 'charge.refunded':
+          await handleRefund(event.data.object);
+          break;
         default:
           console.log(`Unhandled event type: ${event.type}`);
       }
-      
-      res.json({ received: true });
+
+      await markProcessed(event.id, event.type, event.data.object);
+      res.sendStatus(200);
     } catch (error: any) {
       console.error('Webhook handler error:', error);
       res.status(500).json({ message: error.message });

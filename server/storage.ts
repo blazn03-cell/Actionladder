@@ -6,7 +6,8 @@ import {
   type Bounty, type InsertBounty,
   type CharityEvent, type InsertCharityEvent,
   type SupportRequest, type InsertSupportRequest,
-  type LiveStream, type InsertLiveStream
+  type LiveStream, type InsertLiveStream,
+  type WebhookEvent, type InsertWebhookEvent
 } from "@shared/schema";
 import { randomUUID } from "crypto";
 
@@ -59,6 +60,10 @@ export interface IStorage {
   getAllLiveStreams(): Promise<LiveStream[]>;
   createLiveStream(stream: InsertLiveStream): Promise<LiveStream>;
   updateLiveStream(id: string, updates: Partial<LiveStream>): Promise<LiveStream | undefined>;
+  
+  // Webhook Events
+  getWebhookEvent(stripeEventId: string): Promise<WebhookEvent | undefined>;
+  createWebhookEvent(event: InsertWebhookEvent): Promise<WebhookEvent>;
 }
 
 export class MemStorage implements IStorage {
@@ -70,6 +75,7 @@ export class MemStorage implements IStorage {
   private charityEvents = new Map<string, CharityEvent>();
   private supportRequests = new Map<string, SupportRequest>();
   private liveStreams = new Map<string, LiveStream>();
+  private webhookEvents = new Map<string, WebhookEvent>();
 
   constructor() {
     // Initialize with seed data for demonstration
@@ -529,6 +535,22 @@ export class MemStorage implements IStorage {
     const updatedLiveStream = { ...liveStream, ...updates };
     this.liveStreams.set(id, updatedLiveStream);
     return updatedLiveStream;
+  }
+
+  // Webhook Event methods
+  async getWebhookEvent(stripeEventId: string): Promise<WebhookEvent | undefined> {
+    return Array.from(this.webhookEvents.values()).find(event => event.stripeEventId === stripeEventId);
+  }
+
+  async createWebhookEvent(insertWebhookEvent: InsertWebhookEvent): Promise<WebhookEvent> {
+    const id = randomUUID();
+    const webhookEvent: WebhookEvent = {
+      ...insertWebhookEvent,
+      id,
+      processedAt: new Date(),
+    };
+    this.webhookEvents.set(id, webhookEvent);
+    return webhookEvent;
   }
 }
 
