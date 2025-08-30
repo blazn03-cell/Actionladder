@@ -313,6 +313,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Enhanced Stripe Checkout Session for Subscriptions and One-time Payments
+  app.post("/api/billing/checkout", async (req, res) => {
+    try {
+      const { priceIds = [], mode = 'subscription', quantities = [], metadata = {}, userId } = req.body;
+      
+      const line_items = priceIds.map((priceId: string, i: number) => ({
+        price: priceId,
+        quantity: quantities[i] ?? 1,
+      }));
+
+      const session = await stripe.checkout.sessions.create({
+        mode, // 'subscription' or 'payment'
+        line_items,
+        success_url: `${process.env.APP_BASE_URL || 'http://localhost:5000'}/billing/success?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${process.env.APP_BASE_URL || 'http://localhost:5000'}/billing/cancel`,
+        allow_promotion_codes: true,
+        automatic_tax: { enabled: false },
+        client_reference_id: userId,
+        metadata: {
+          userId: userId || "",
+          ...metadata
+        }
+      });
+
+      res.json({ url: session.url });
+    } catch (error: any) {
+      res.status(500).json({ message: "Error creating checkout session: " + error.message });
+    }
+  });
+
+  // Stripe Customer Portal for Subscription Management
+  app.post("/api/billing/portal", async (req, res) => {
+    try {
+      const { customerId } = req.body;
+      
+      if (!customerId) {
+        return res.status(400).json({ message: "Customer ID required" });
+      }
+
+      const portalSession = await stripe.billingPortal.sessions.create({
+        customer: customerId,
+        return_url: `${process.env.APP_BASE_URL || 'http://localhost:5000'}/dashboard`,
+      });
+
+      res.json({ url: portalSession.url });
+    } catch (error: any) {
+      res.status(500).json({ message: "Error creating portal session: " + error.message });
+    }
+  });
+
   // QR Code generation endpoint
   app.get("/api/qr-code", async (req, res) => {
     try {
@@ -379,6 +429,117 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.json(birthdayPlayers);
     } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Stripe Webhook Handler
+  app.post("/api/stripe/webhook", express.raw({ type: 'application/json' }), async (req, res) => {
+    const sig = req.headers['stripe-signature'] as string;
+    
+    if (!process.env.STRIPE_WEBHOOK_SECRET) {
+      return res.status(400).json({ message: "Missing webhook secret" });
+    }
+
+    let event: any;
+    try {
+      event = stripe.webhooks.constructEvent(
+        req.body,
+        sig,
+        process.env.STRIPE_WEBHOOK_SECRET
+      );
+    } catch (err: any) {
+      console.error('Webhook signature verification failed:', err.message);
+      return res.status(400).json({ message: `Webhook Error: ${err.message}` });
+    }
+
+    try {
+      switch (event.type) {
+        case 'checkout.session.completed': {
+          const session = event.data.object;
+          const userId = session.client_reference_id || session.metadata?.userId;
+          
+          if (session.mode === 'payment') {
+            // Handle one-time payments (tournament entries, kelly pool, etc.)
+            if (session.metadata?.tournamentId) {
+              // Update tournament participant count and player status
+              const tournamentId = session.metadata.tournamentId;
+              const tournament = await storage.getTournament(tournamentId);
+              if (tournament) {
+                await storage.updateTournament(tournamentId, {
+                  currentPlayers: (tournament.currentPlayers || 0) + 1
+                });
+              }
+            }
+            
+            if (session.metadata?.kellyPoolId) {
+              // Update kelly pool participant count
+              const kellyPoolId = session.metadata.kellyPoolId;
+              const kellyPool = await storage.getKellyPool(kellyPoolId);
+              if (kellyPool) {
+                await storage.updateKellyPool(kellyPoolId, {
+                  currentPlayers: (kellyPool.currentPlayers || 0) + 1
+                });
+              }
+            }
+          } else if (session.mode === 'subscription') {
+            // Handle membership subscriptions
+            if (userId) {
+              await storage.updatePlayer(userId, {
+                member: true,
+                stripeCustomerId: session.customer as string
+              });
+            }
+          }
+          break;
+        }
+        
+        case 'invoice.paid': {
+          // Ensure subscription remains active
+          const invoice = event.data.object;
+          if (invoice.subscription) {
+            const subscription = await stripe.subscriptions.retrieve(invoice.subscription);
+            if (subscription.metadata?.userId) {
+              await storage.updatePlayer(subscription.metadata.userId, {
+                member: true
+              });
+            }
+          }
+          break;
+        }
+        
+        case 'invoice.payment_failed': {
+          // Flag account for payment failure
+          const invoice = event.data.object;
+          if (invoice.subscription) {
+            const subscription = await stripe.subscriptions.retrieve(invoice.subscription);
+            if (subscription.metadata?.userId) {
+              // Could implement email notification or account flagging here
+              console.log(`Payment failed for user: ${subscription.metadata.userId}`);
+            }
+          }
+          break;
+        }
+        
+        case 'customer.subscription.updated':
+        case 'customer.subscription.deleted': {
+          const subscription = event.data.object;
+          if (subscription.metadata?.userId) {
+            const isActive = subscription.status === 'active';
+            await storage.updatePlayer(subscription.metadata.userId, {
+              member: isActive
+            });
+          }
+          break;
+        }
+        
+        default:
+          console.log(`Unhandled event type: ${event.type}`);
+      }
+      
+      res.json({ received: true });
+    } catch (error: any) {
+      console.error('Webhook handler error:', error);
       res.status(500).json({ message: error.message });
     }
   });
