@@ -367,7 +367,7 @@ export default function Dashboard() {
           
           <div className="mt-6 text-center">
             <div className="text-sm text-gray-400 mb-2">Pool. Points. Pride.</div>
-            <div className="text-xs text-gray-500">Walk‑ups got theme songs. Matches get streamed. Dog a ball? We're clipping it. 😈</div>
+            <div className="text-xs text-gray-500">In here, respect is earned in racks, not words</div>
           </div>
         </CardContent>
       </Card>

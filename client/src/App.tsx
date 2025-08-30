@@ -109,7 +109,7 @@ function App() {
                       POOL. POINTS. PRIDE.
                     </h2>
                     <p className="text-lg text-gray-300 mb-6">
-                      Walk‑ups got theme songs. Matches get streamed. Dog a ball? We're clipping it. 😈
+                      In here, respect is earned in racks, not words
                     </p>
                   </div>
                 </div>

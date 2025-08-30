@@ -13,7 +13,7 @@ Dark, gritty billiards tournament ladder system with live streaming integration,
 - **Respect Points System**: Community recognition beyond just winning
 
 ## Theme & Branding
-- **Slogan**: "First rule of the hustle: You don't tell 'em where the bread came from. just eat"
+- **Slogan**: "In here, respect is earned in racks, not words"
 - **Aesthetic**: Dark, gritty green theme representing pool hall atmosphere
 - **Color Scheme**: Black backgrounds with bright green (#00ff00) accents
 - **Typography**: Monospace fonts for that underground tech feel
