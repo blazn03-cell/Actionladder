@@ -15,6 +15,7 @@ import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import type { Player, InsertPlayer } from "@shared/schema";
+import { Brain, Target } from "lucide-react";
 
 const playerSchema = z.object({
   name: z.string().min(1, "Player name is required"),
@@ -256,6 +257,9 @@ function CreatePlayerDialog() {
 function PlayerCard({ player }: { player: Player }) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [aiAnalysis, setAiAnalysis] = useState<string | null>(null);
+  const [aiAdvice, setAiAdvice] = useState<string | null>(null);
+  const [showAiContent, setShowAiContent] = useState(false);
 
   const deletePlayerMutation = useMutation({
     mutationFn: (id: string) => apiRequest("DELETE", `/api/players/${id}`),
@@ -273,6 +277,50 @@ function PlayerCard({ player }: { player: Player }) {
         variant: "destructive",
       });
     },
+  });
+
+  const analyzePerformanceMutation = useMutation({
+    mutationFn: (playerId: string) => 
+      fetch(`/api/ai/performance-analysis/${playerId}`).then(res => res.json()),
+    onSuccess: (data) => {
+      setAiAnalysis(data.analysis);
+      setShowAiContent(true);
+      toast({ 
+        title: "AI Analysis Complete!", 
+        description: "Performance insights are ready." 
+      });
+    },
+    onError: () => {
+      toast({ 
+        title: "Analysis Failed", 
+        description: "Unable to generate AI analysis at this time.",
+        variant: "destructive"
+      });
+    }
+  });
+
+  const getCoachingAdviceMutation = useMutation({
+    mutationFn: (playerId: string) =>
+      fetch('/api/ai/coaching', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ playerId })
+      }).then(res => res.json()),
+    onSuccess: (data) => {
+      setAiAdvice(data.advice);
+      setShowAiContent(true);
+      toast({ 
+        title: "AI Coaching Ready!", 
+        description: "Personalized advice is available." 
+      });
+    },
+    onError: () => {
+      toast({ 
+        title: "Coaching Failed", 
+        description: "Unable to generate coaching advice at this time.",
+        variant: "destructive"
+      });
+    }
   });
 
   const handleRemovePlayer = () => {
@@ -382,6 +430,74 @@ function PlayerCard({ player }: { player: Player }) {
               </div>
             </div>
           )}
+
+          {/* AI Features */}
+          <div className="border-t border-green-500/20 pt-3 mt-3">
+            <div className="flex space-x-2 mb-3">
+              <Button
+                onClick={() => analyzePerformanceMutation.mutate(player.id)}
+                disabled={analyzePerformanceMutation.isPending}
+                size="sm"
+                variant="outline"
+                className="flex-1 border-green-500/30 text-green-400 hover:bg-green-500/10"
+                data-testid={`button-ai-analysis-${player.id}`}
+              >
+                {analyzePerformanceMutation.isPending ? (
+                  <LoadingSpinner size="sm" />
+                ) : (
+                  <>
+                    <Brain className="w-4 h-4 mr-1" />
+                    AI Analysis
+                  </>
+                )}
+              </Button>
+              <Button
+                onClick={() => getCoachingAdviceMutation.mutate(player.id)}
+                disabled={getCoachingAdviceMutation.isPending}
+                size="sm"
+                variant="outline"
+                className="flex-1 border-green-500/30 text-green-400 hover:bg-green-500/10"
+                data-testid={`button-ai-coaching-${player.id}`}
+              >
+                {getCoachingAdviceMutation.isPending ? (
+                  <LoadingSpinner size="sm" />
+                ) : (
+                  <>
+                    <Target className="w-4 h-4 mr-1" />
+                    AI Coach
+                  </>
+                )}
+              </Button>
+            </div>
+
+            {/* AI Analysis Results */}
+            {showAiContent && (aiAnalysis || aiAdvice) && (
+              <div className="space-y-3">
+                {aiAnalysis && (
+                  <div className="bg-gray-900/50 border border-green-500/20 rounded-lg p-3">
+                    <h4 className="text-green-400 font-semibold mb-2 flex items-center">
+                      <Brain className="w-4 h-4 mr-1" />
+                      AI Performance Analysis
+                    </h4>
+                    <div className="text-xs text-gray-300 whitespace-pre-wrap">
+                      {aiAnalysis}
+                    </div>
+                  </div>
+                )}
+                {aiAdvice && (
+                  <div className="bg-gray-900/50 border border-green-500/20 rounded-lg p-3">
+                    <h4 className="text-green-400 font-semibold mb-2 flex items-center">
+                      <Target className="w-4 h-4 mr-1" />
+                      AI Coaching Advice
+                    </h4>
+                    <div className="text-xs text-gray-300 whitespace-pre-wrap">
+                      {aiAdvice}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </CardContent>
     </Card>

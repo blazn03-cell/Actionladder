@@ -10,6 +10,7 @@ import Players from "@/components/players";
 import Bounties from "@/components/bounties";
 import Charity from "@/components/charity";
 import LiveStream from "@/components/live-stream";
+import AIDashboard from "@/pages/AIDashboard";
 import Checkout from "@/pages/checkout";
 import NotFound from "@/pages/not-found";
 
@@ -20,6 +21,7 @@ function Navigation({ activeTab, setActiveTab }: { activeTab: string; setActiveT
     { id: "dashboard", label: "Dashboard" },
     { id: "ladder", label: "Ladder" },
     { id: "live-stream", label: "Live Stream" },
+    { id: "ai-features", label: "AI Features" },
     { id: "tournaments", label: "Tournaments" },
     { id: "kelly-pool", label: "Kelly Pool" },
     { id: "players", label: "Players" },
@@ -119,6 +121,7 @@ function App() {
                 {activeTab === "dashboard" && <Dashboard />}
                 {activeTab === "ladder" && <Ladder />}
                 {activeTab === "live-stream" && <LiveStream />}
+                {activeTab === "ai-features" && <AIDashboard />}
                 {activeTab === "tournaments" && <Tournaments />}
                 {activeTab === "kelly-pool" && <KellyPool />}
                 {activeTab === "players" && <Players />}

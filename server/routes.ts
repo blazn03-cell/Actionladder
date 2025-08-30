@@ -2,6 +2,7 @@ import express, { type Express } from "express";
 import { createServer, type Server } from "http";
 import Stripe from "stripe";
 import { storage } from "./storage";
+import { AIService } from "./ai-service";
 import { 
   insertPlayerSchema, insertMatchSchema, insertTournamentSchema,
   insertKellyPoolSchema, insertBountySchema, insertCharityEventSchema,
@@ -428,6 +429,83 @@ export async function registerRoutes(app: Express): Promise<Server> {
       );
       
       res.json(birthdayPlayers);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // AI-powered endpoints
+  app.post("/api/ai/match-commentary", async (req, res) => {
+    try {
+      const { matchData } = req.body;
+      if (!matchData) {
+        return res.status(400).json({ message: "Match data is required" });
+      }
+      
+      const commentary = await AIService.generateMatchCommentary(matchData);
+      res.json({ commentary });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/ai/opponent-suggestions/:playerId", async (req, res) => {
+    try {
+      const { playerId } = req.params;
+      const suggestions = await AIService.suggestOpponents(playerId);
+      res.json({ suggestions });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/ai/performance-analysis/:playerId", async (req, res) => {
+    try {
+      const { playerId } = req.params;
+      const analysis = await AIService.analyzePlayerPerformance(playerId);
+      res.json({ analysis });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/ai/match-prediction", async (req, res) => {
+    try {
+      const { challengerId, opponentId, gameType } = req.body;
+      if (!challengerId || !opponentId || !gameType) {
+        return res.status(400).json({ message: "Challenger ID, opponent ID, and game type are required" });
+      }
+      
+      const prediction = await AIService.predictMatchOutcome(challengerId, opponentId, gameType);
+      res.json({ prediction });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/ai/coaching", async (req, res) => {
+    try {
+      const { playerId, topic } = req.body;
+      if (!playerId) {
+        return res.status(400).json({ message: "Player ID is required" });
+      }
+      
+      const advice = await AIService.getCoachingAdvice(playerId, topic);
+      res.json({ advice });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/ai/community-chat", async (req, res) => {
+    try {
+      const { question } = req.body;
+      if (!question) {
+        return res.status(400).json({ message: "Question is required" });
+      }
+      
+      const answer = await AIService.answerCommunityQuestion(question);
+      res.json({ answer });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
