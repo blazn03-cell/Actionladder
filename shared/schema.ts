@@ -3,6 +3,41 @@ import { pgTable, text, varchar, integer, boolean, real, timestamp } from "drizz
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
+// Global user roles for platform management
+export const globalRoles = ["OWNER", "STAFF", "OPERATOR", "CREATOR", "PLAYER"] as const;
+export type GlobalRole = typeof globalRoles[number];
+
+export const users = pgTable("users", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  email: text("email").notNull().unique(),
+  name: text("name"),
+  globalRole: text("global_role").notNull().default("PLAYER"),
+  stripeCustomerId: text("stripe_customer_id"),
+  stripeConnectId: text("stripe_connect_id").unique(),
+  payoutShareBps: integer("payout_share_bps"), // basis points (100 bps = 1%)
+  onboardingComplete: boolean("onboarding_complete").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const organizations = pgTable("organizations", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  stripeCustomerId: text("stripe_customer_id").unique(),
+  stripeSubscriptionId: text("stripe_subscription_id"),
+  seatLimit: integer("seat_limit").default(5),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const payoutTransfers = pgTable("payout_transfers", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  invoiceId: text("invoice_id").notNull(),
+  stripeTransferId: text("stripe_transfer_id").notNull(),
+  recipientUserId: text("recipient_user_id").notNull(),
+  amount: integer("amount").notNull(), // cents
+  shareType: text("share_type").notNull(), // "OWNER" | "STAFF"
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 export const players = pgTable("players", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
@@ -15,6 +50,7 @@ export const players = pgTable("players", {
   respectPoints: integer("respect_points").default(0),
   birthday: text("birthday"), // MM-DD format
   stripeCustomerId: text("stripe_customer_id"),
+  userId: text("user_id"), // link to users table
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -115,6 +151,21 @@ export const webhookEvents = pgTable("webhook_events", {
 });
 
 // Insert schemas
+export const insertUserSchema = createInsertSchema(users).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertOrganizationSchema = createInsertSchema(organizations).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertPayoutTransferSchema = createInsertSchema(payoutTransfers).omit({
+  id: true,
+  createdAt: true,
+});
+
 export const insertPlayerSchema = createInsertSchema(players).omit({
   id: true,
   createdAt: true,

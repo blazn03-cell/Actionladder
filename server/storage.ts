@@ -7,11 +7,95 @@ import {
   type CharityEvent, type InsertCharityEvent,
   type SupportRequest, type InsertSupportRequest,
   type LiveStream, type InsertLiveStream,
-  type WebhookEvent, type InsertWebhookEvent
+  type WebhookEvent, type InsertWebhookEvent,
+  type GlobalRole,
+  insertUserSchema,
+  insertOrganizationSchema,
+  insertPayoutTransferSchema
 } from "@shared/schema";
+
+// New types for user management and payouts
+export interface User {
+  id: string;
+  email: string;
+  name?: string;
+  globalRole: GlobalRole;
+  stripeCustomerId?: string;
+  stripeConnectId?: string;
+  payoutShareBps?: number;
+  onboardingComplete: boolean;
+  createdAt: Date;
+}
+
+export interface Organization {
+  id: string;
+  name: string;
+  stripeCustomerId?: string;
+  stripeSubscriptionId?: string;
+  seatLimit: number;
+  createdAt: Date;
+}
+
+export interface PayoutTransfer {
+  id: string;
+  invoiceId: string;
+  stripeTransferId: string;
+  recipientUserId: string;
+  amount: number;
+  shareType: string;
+  createdAt: Date;
+}
+
+export type InsertUser = {
+  email: string;
+  name?: string;
+  globalRole: GlobalRole;
+  stripeCustomerId?: string;
+  stripeConnectId?: string;
+  payoutShareBps?: number;
+  onboardingComplete?: boolean;
+};
+
+export type InsertOrganization = {
+  name: string;
+  stripeCustomerId?: string;
+  stripeSubscriptionId?: string;
+  seatLimit?: number;
+};
+
+export type InsertPayoutTransfer = {
+  invoiceId: string;
+  stripeTransferId: string;
+  recipientUserId: string;
+  amount: number;
+  shareType: string;
+};
+
 import { randomUUID } from "crypto";
 
 export interface IStorage {
+  // Users (for platform management)
+  getUser(id: string): Promise<User | undefined>;
+  getUserByEmail(email: string): Promise<User | undefined>;
+  getUserByStripeConnectId(stripeConnectId: string): Promise<User | undefined>;
+  getAllUsers(): Promise<User[]>;
+  getStaffUsers(): Promise<User[]>;
+  createUser(user: InsertUser): Promise<User>;
+  updateUser(id: string, updates: Partial<User>): Promise<User | undefined>;
+  deleteUser(id: string): Promise<boolean>;
+  
+  // Organizations
+  getOrganization(id: string): Promise<Organization | undefined>;
+  getAllOrganizations(): Promise<Organization[]>;
+  createOrganization(org: InsertOrganization): Promise<Organization>;
+  updateOrganization(id: string, updates: Partial<Organization>): Promise<Organization | undefined>;
+  
+  // Payout Transfers
+  getPayoutTransfer(id: string): Promise<PayoutTransfer | undefined>;
+  getPayoutTransfersByInvoice(invoiceId: string): Promise<PayoutTransfer[]>;
+  getAllPayoutTransfers(): Promise<PayoutTransfer[]>;
+  createPayoutTransfer(transfer: InsertPayoutTransfer): Promise<PayoutTransfer>;
+  
   // Players
   getPlayer(id: string): Promise<Player | undefined>;
   getAllPlayers(): Promise<Player[]>;
@@ -67,6 +151,9 @@ export interface IStorage {
 }
 
 export class MemStorage implements IStorage {
+  private users = new Map<string, User>();
+  private organizations = new Map<string, Organization>();
+  private payoutTransfers = new Map<string, PayoutTransfer>();
   private players = new Map<string, Player>();
   private matches = new Map<string, Match>();
   private tournaments = new Map<string, Tournament>();
@@ -82,7 +169,132 @@ export class MemStorage implements IStorage {
     this.initializeSeedData();
   }
 
+  // User Management Methods
+  async getUser(id: string): Promise<User | undefined> {
+    return this.users.get(id);
+  }
+
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    return Array.from(this.users.values()).find(user => user.email === email);
+  }
+
+  async getUserByStripeConnectId(stripeConnectId: string): Promise<User | undefined> {
+    return Array.from(this.users.values()).find(user => user.stripeConnectId === stripeConnectId);
+  }
+
+  async getAllUsers(): Promise<User[]> {
+    return Array.from(this.users.values());
+  }
+
+  async getStaffUsers(): Promise<User[]> {
+    return Array.from(this.users.values()).filter(user => 
+      user.globalRole === "STAFF" || user.globalRole === "OWNER"
+    );
+  }
+
+  async createUser(data: InsertUser): Promise<User> {
+    const user: User = {
+      id: randomUUID(),
+      email: data.email,
+      name: data.name,
+      globalRole: data.globalRole,
+      stripeCustomerId: data.stripeCustomerId,
+      stripeConnectId: data.stripeConnectId,
+      payoutShareBps: data.payoutShareBps,
+      onboardingComplete: data.onboardingComplete || false,
+      createdAt: new Date(),
+    };
+    this.users.set(user.id, user);
+    return user;
+  }
+
+  async updateUser(id: string, updates: Partial<User>): Promise<User | undefined> {
+    const user = this.users.get(id);
+    if (!user) return undefined;
+    
+    const updatedUser = { ...user, ...updates };
+    this.users.set(id, updatedUser);
+    return updatedUser;
+  }
+
+  async deleteUser(id: string): Promise<boolean> {
+    return this.users.delete(id);
+  }
+
+  // Organization Methods
+  async getOrganization(id: string): Promise<Organization | undefined> {
+    return this.organizations.get(id);
+  }
+
+  async getAllOrganizations(): Promise<Organization[]> {
+    return Array.from(this.organizations.values());
+  }
+
+  async createOrganization(data: InsertOrganization): Promise<Organization> {
+    const org: Organization = {
+      id: randomUUID(),
+      name: data.name,
+      stripeCustomerId: data.stripeCustomerId,
+      stripeSubscriptionId: data.stripeSubscriptionId,
+      seatLimit: data.seatLimit || 5,
+      createdAt: new Date(),
+    };
+    this.organizations.set(org.id, org);
+    return org;
+  }
+
+  async updateOrganization(id: string, updates: Partial<Organization>): Promise<Organization | undefined> {
+    const org = this.organizations.get(id);
+    if (!org) return undefined;
+    
+    const updatedOrg = { ...org, ...updates };
+    this.organizations.set(id, updatedOrg);
+    return updatedOrg;
+  }
+
+  // Payout Transfer Methods
+  async getPayoutTransfer(id: string): Promise<PayoutTransfer | undefined> {
+    return this.payoutTransfers.get(id);
+  }
+
+  async getPayoutTransfersByInvoice(invoiceId: string): Promise<PayoutTransfer[]> {
+    return Array.from(this.payoutTransfers.values()).filter(transfer => 
+      transfer.invoiceId === invoiceId
+    );
+  }
+
+  async getAllPayoutTransfers(): Promise<PayoutTransfer[]> {
+    return Array.from(this.payoutTransfers.values());
+  }
+
+  async createPayoutTransfer(data: InsertPayoutTransfer): Promise<PayoutTransfer> {
+    const transfer: PayoutTransfer = {
+      id: randomUUID(),
+      invoiceId: data.invoiceId,
+      stripeTransferId: data.stripeTransferId,
+      recipientUserId: data.recipientUserId,
+      amount: data.amount,
+      shareType: data.shareType,
+      createdAt: new Date(),
+    };
+    this.payoutTransfers.set(transfer.id, transfer);
+    return transfer;
+  }
+
   private initializeSeedData() {
+    // Initialize owner user for platform management
+    const ownerId = randomUUID();
+    const ownerUser: User = {
+      id: ownerId,
+      email: "owner@actionladder.com",
+      name: "Platform Owner",
+      globalRole: "OWNER",
+      payoutShareBps: 4000, // 40% share
+      onboardingComplete: true,
+      createdAt: new Date(),
+    };
+    this.users.set(ownerId, ownerUser);
+
     // Seed players
     const seedPlayers: Player[] = [
       {

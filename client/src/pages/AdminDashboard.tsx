@@ -1,448 +1,420 @@
-import React, { useState, useEffect } from 'react';
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useToast } from "@/hooks/use-toast";
+import { Users, DollarSign, Shield, TrendingUp } from "lucide-react";
 
-interface Tournament {
-  id: string;
-  name: string;
-  hall_id: string;
-  max_slots: number;
-  is_open: number;
-  current_entries: number;
-}
-
-interface WaitlistEntry {
-  id: number;
-  tournament_id: string;
-  user_id: string;
-  status: string;
-  offer_url?: string;
-  offer_expires_at?: number;
-  created_at: number;
-}
-
-interface Member {
+interface User {
   id: string;
   email: string;
-  display_name: string;
-  role: string;
-  membership_status: string;
-  current_period_end?: number;
-  stripe_customer_id?: string;
+  name?: string;
+  globalRole: string;
+  payoutShareBps?: number;
+  onboardingComplete: boolean;
+  stripeConnectId?: string;
 }
 
-const AdminDashboard: React.FC = () => {
-  const [tournaments, setTournaments] = useState<Tournament[]>([]);
-  const [selectedTournament, setSelectedTournament] = useState<string>('');
-  const [waitlist, setWaitlist] = useState<WaitlistEntry[]>([]);
-  const [members, setMembers] = useState<Member[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [actionLoading, setActionLoading] = useState(false);
-  const [message, setMessage] = useState<string>('');
+interface PayoutTransfer {
+  id: string;
+  invoiceId: string;
+  stripeTransferId: string;
+  amount: number;
+  shareType: string;
+  recipientName?: string;
+  recipientEmail?: string;
+  createdAt: string;
+}
 
-  useEffect(() => {
-    fetchDashboardData();
-  }, []);
+export default function AdminDashboard() {
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteName, setInviteName] = useState("");
+  const [shareBps, setShareBps] = useState("");
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
 
-  useEffect(() => {
-    if (selectedTournament) {
-      fetchWaitlist(selectedTournament);
-    }
-  }, [selectedTournament]);
+  // Get staff members
+  const { data: staffData, isLoading: loadingStaff } = useQuery({
+    queryKey: ["/api/admin/staff"],
+    enabled: true
+  });
 
-  const fetchDashboardData = async () => {
-    try {
-      // Simulate fetching tournaments and members
-      setTournaments([
-        {
-          id: 'WEEKLY_8BALL_2025',
-          name: 'Weekly 8-Ball Tournament',
-          hall_id: 'SEGUIN_WINNERS',
-          max_slots: 16,
-          is_open: 0,
-          current_entries: 16
-        },
-        {
-          id: 'MONTHLY_9BALL_2025',
-          name: 'Monthly 9-Ball Championship',
-          hall_id: 'SEGUIN_WINNERS',
-          max_slots: 32,
-          is_open: 1,
-          current_entries: 28
-        }
-      ]);
+  // Get payout history
+  const { data: payoutsData, isLoading: loadingPayouts } = useQuery({
+    queryKey: ["/api/admin/payouts"],
+    enabled: true
+  });
 
-      setMembers([
-        {
-          id: 'user_123',
-          email: 'player1@example.com',
-          display_name: 'Mike "The Shark" Johnson',
-          role: 'large',
-          membership_status: 'active',
-          stripe_customer_id: 'cus_test123'
-        },
-        {
-          id: 'user_456',
-          email: 'player2@example.com',
-          display_name: 'Sarah "Steady" Williams',
-          role: 'small',
-          membership_status: 'active',
-          stripe_customer_id: 'cus_test456'
-        }
-      ]);
-    } catch (error) {
-      console.error('Failed to fetch dashboard data:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchWaitlist = async (tournamentId: string) => {
-    try {
-      // Simulate waitlist fetch
-      setWaitlist([
-        {
-          id: 1,
-          tournament_id: tournamentId,
-          user_id: 'user_789',
-          status: 'waiting',
-          created_at: Date.now() / 1000 - 3600
-        },
-        {
-          id: 2,
-          tournament_id: tournamentId,
-          user_id: 'user_101',
-          status: 'offered',
-          offer_url: 'https://checkout.stripe.com/...',
-          offer_expires_at: Date.now() / 1000 + 43200, // 12 hours from now
-          created_at: Date.now() / 1000 - 1800
-        }
-      ]);
-    } catch (error) {
-      console.error('Failed to fetch waitlist:', error);
-    }
-  };
-
-  const promoteNextPlayer = async (tournamentId: string) => {
-    try {
-      setActionLoading(true);
-      const response = await fetch(`/api/admin/tournaments/${tournamentId}/offer-next`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-admin-key': 'admin_key_placeholder'
-        }
+  // Invite staff mutation
+  const inviteStaffMutation = useMutation({
+    mutationFn: async (data: { email: string; name: string; shareBps: number }) => {
+      const response = await apiRequest("POST", "/api/admin/staff/invite", data);
+      return response.json();
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Staff Invited Successfully",
+        description: `Onboarding link generated. Share this with ${inviteEmail}: ${data.onboardingUrl}`,
       });
+      setInviteEmail("");
+      setInviteName("");
+      setShareBps("");
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/staff"] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Invitation Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
 
-      const data = await response.json();
-      
-      if (data.ok) {
-        if (data.promoted === 'offered') {
-          setMessage(`Offered spot to ${data.userId}. Checkout link: ${data.url}`);
-        } else if (data.promoted === 'comped') {
-          setMessage(`Promoted ${data.userId} with comped entry (Large/Mega subscriber)`);
-        }
-        await fetchWaitlist(tournamentId);
-      } else {
-        setMessage(`No promotion: ${data.reason || 'Unknown error'}`);
-      }
-    } catch (error) {
-      console.error('Promotion error:', error);
-      setMessage('Failed to promote player from waitlist');
-    } finally {
-      setActionLoading(false);
+  // Update share mutation
+  const updateShareMutation = useMutation({
+    mutationFn: async (data: { userId: string; shareBps: number }) => {
+      const response = await apiRequest("POST", "/api/admin/staff/share", data);
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Share Updated",
+        description: "Payout percentage updated successfully",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/staff"] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Update Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleInviteStaff = () => {
+    if (!inviteEmail || !shareBps) {
+      toast({
+        title: "Missing Information",
+        description: "Please provide email and share percentage",
+        variant: "destructive",
+      });
+      return;
     }
+
+    const shareBpsNum = Number(shareBps);
+    if (shareBpsNum <= 0 || shareBpsNum > 10000) {
+      toast({
+        title: "Invalid Share",
+        description: "Share must be between 0.01% and 100%",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    inviteStaffMutation.mutate({
+      email: inviteEmail,
+      name: inviteName,
+      shareBps: shareBpsNum,
+    });
   };
 
-  const exportMembersCSV = () => {
-    const csv = [
-      ['ID', 'Email', 'Name', 'Role', 'Status', 'Stripe Customer ID'].join(','),
-      ...members.map(m => [
-        m.id,
-        m.email,
-        m.display_name,
-        m.role,
-        m.membership_status,
-        m.stripe_customer_id || ''
-      ].join(','))
-    ].join('\n');
+  const staff: User[] = staffData?.staff || [];
+  const transfers: PayoutTransfer[] = payoutsData?.transfers || [];
 
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `members_${new Date().toISOString().split('T')[0]}.csv`;
-    a.click();
-  };
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-black text-green-400 p-8">
-        <div className="max-w-6xl mx-auto text-center py-12">
-          <div className="text-2xl">Loading admin dashboard...</div>
-        </div>
-      </div>
-    );
-  }
+  // Calculate total payouts by user
+  const payoutsByUser = transfers.reduce((acc: any, transfer: PayoutTransfer) => {
+    if (!acc[transfer.recipientEmail || "Unknown"]) {
+      acc[transfer.recipientEmail || "Unknown"] = 0;
+    }
+    acc[transfer.recipientEmail || "Unknown"] += transfer.amount;
+    return acc;
+  }, {});
 
   return (
-    <div className="min-h-screen bg-black text-green-400 p-8">
-      <div className="max-w-6xl mx-auto">
-        {/* Header */}
-        <div className="text-center py-12 bg-green-900/10 rounded-lg border border-green-700/30 mb-8">
-          <h1 className="text-5xl font-bold text-green-400 neon-glow mb-4">
-            ACTION LADDER
-          </h1>
-          <p className="text-xl text-green-500 mb-2">
-            Admin Dashboard - Tournament & Waitlist Management
-          </p>
-          <p className="text-green-600 text-sm">
-            First rule of the hustle: You don't tell 'em where the bread came from. just eat
-          </p>
-        </div>
+    <div className="container mx-auto px-4 py-8" data-testid="admin-dashboard">
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-green-400 mb-2">Admin Dashboard</h1>
+        <p className="text-gray-300">Manage staff and automatic revenue splitting</p>
+      </div>
 
-        {/* Quick Stats */}
-        <div className="grid md:grid-cols-4 gap-6 mb-8">
-          <div className="bg-green-900/20 border border-green-600/50 rounded-lg p-6 text-center">
-            <div className="text-3xl font-bold text-yellow-400 mb-2">{tournaments.length}</div>
-            <div className="text-green-400">Active Tournaments</div>
-          </div>
-          <div className="bg-green-900/20 border border-green-600/50 rounded-lg p-6 text-center">
-            <div className="text-3xl font-bold text-yellow-400 mb-2">{members.length}</div>
-            <div className="text-green-400">Total Members</div>
-          </div>
-          <div className="bg-green-900/20 border border-green-600/50 rounded-lg p-6 text-center">
-            <div className="text-3xl font-bold text-yellow-400 mb-2">
-              {waitlist.filter(w => w.status === 'waiting').length}
-            </div>
-            <div className="text-green-400">Waitlist Queue</div>
-          </div>
-          <div className="bg-green-900/20 border border-green-600/50 rounded-lg p-6 text-center">
-            <div className="text-3xl font-bold text-yellow-400 mb-2">
-              {members.filter(m => m.role !== 'nonmember').length}
-            </div>
-            <div className="text-green-400">Paid Subscribers</div>
-          </div>
-        </div>
+      <Tabs defaultValue="staff" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-3 bg-black/40">
+          <TabsTrigger value="staff" className="data-[state=active]:bg-green-600">
+            <Users className="w-4 h-4 mr-2" />
+            Staff Management
+          </TabsTrigger>
+          <TabsTrigger value="payouts" className="data-[state=active]:bg-green-600">
+            <DollarSign className="w-4 h-4 mr-2" />
+            Payout History
+          </TabsTrigger>
+          <TabsTrigger value="overview" className="data-[state=active]:bg-green-600">
+            <TrendingUp className="w-4 h-4 mr-2" />
+            Overview
+          </TabsTrigger>
+        </TabsList>
 
-        {/* Tournament Management */}
-        <div className="bg-green-900/10 border border-green-700/30 rounded-lg p-8 mb-8">
-          <h2 className="text-2xl font-bold text-green-400 mb-6">Tournament Management</h2>
-          
-          <div className="mb-6">
-            <label className="block text-green-400 text-sm font-semibold mb-2">
-              Select Tournament:
-            </label>
-            <select
-              value={selectedTournament}
-              onChange={(e) => setSelectedTournament(e.target.value)}
-              className="bg-green-900/20 border border-green-700/50 rounded px-3 py-2 text-green-400 w-full max-w-md"
-              data-testid="select-tournament"
-            >
-              <option value="">Choose a tournament...</option>
-              {tournaments.map(t => (
-                <option key={t.id} value={t.id}>
-                  {t.name} ({t.current_entries}/{t.max_slots})
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {selectedTournament && (
-            <div className="space-y-6">
-              <div className="bg-green-900/20 rounded-lg p-6">
-                <h3 className="text-xl font-semibold text-green-400 mb-4">Tournament Details</h3>
-                {tournaments.map(t => t.id === selectedTournament && (
-                  <div key={t.id} className="grid md:grid-cols-2 gap-4">
-                    <div>
-                      <p className="text-green-500"><span className="font-semibold">Name:</span> {t.name}</p>
-                      <p className="text-green-500"><span className="font-semibold">Hall:</span> {t.hall_id}</p>
-                      <p className="text-green-500"><span className="font-semibold">Capacity:</span> {t.current_entries}/{t.max_slots}</p>
-                    </div>
-                    <div>
-                      <p className="text-green-500">
-                        <span className="font-semibold">Status:</span> 
-                        <span className={`ml-2 px-2 py-1 rounded text-xs ${
-                          t.is_open ? 'bg-green-600/20 text-green-400' : 'bg-red-600/20 text-red-400'
-                        }`}>
-                          {t.is_open ? 'OPEN' : 'FULL'}
-                        </span>
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Waitlist Management */}
-              <div className="bg-green-900/20 rounded-lg p-6">
-                <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-xl font-semibold text-green-400">Waitlist Management</h3>
-                  <button
-                    onClick={() => promoteNextPlayer(selectedTournament)}
-                    disabled={actionLoading}
-                    className="px-4 py-2 bg-yellow-600 text-black font-semibold rounded-xl hover:bg-yellow-700 disabled:opacity-60"
-                    data-testid="button-promote-next"
-                  >
-                    {actionLoading ? 'Processing...' : 'Promote Next Player'}
-                  </button>
+        <TabsContent value="staff" className="space-y-6">
+          {/* Invite Staff Card */}
+          <Card className="bg-black/60 border-green-600/30">
+            <CardHeader>
+              <CardTitle className="text-green-400 flex items-center">
+                <Shield className="w-5 h-5 mr-2" />
+                Invite Trusted Staff
+              </CardTitle>
+              <CardDescription className="text-gray-300">
+                Add trusted friends to receive automatic revenue splits from all payments
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <Label htmlFor="invite-email">Email Address</Label>
+                  <Input
+                    id="invite-email"
+                    type="email"
+                    placeholder="friend@example.com"
+                    value={inviteEmail}
+                    onChange={(e) => setInviteEmail(e.target.value)}
+                    className="bg-black/40 border-green-600/50"
+                    data-testid="input-invite-email"
+                  />
                 </div>
+                <div>
+                  <Label htmlFor="invite-name">Name (Optional)</Label>
+                  <Input
+                    id="invite-name"
+                    placeholder="Friend's Name"
+                    value={inviteName}
+                    onChange={(e) => setInviteName(e.target.value)}
+                    className="bg-black/40 border-green-600/50"
+                    data-testid="input-invite-name"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="share-bps">Share % (e.g. 3000 = 30%)</Label>
+                  <Input
+                    id="share-bps"
+                    type="number"
+                    placeholder="3000"
+                    value={shareBps}
+                    onChange={(e) => setShareBps(e.target.value)}
+                    className="bg-black/40 border-green-600/50"
+                    data-testid="input-share-bps"
+                  />
+                </div>
+              </div>
+              <Button
+                onClick={handleInviteStaff}
+                disabled={inviteStaffMutation.isPending}
+                className="bg-green-600 hover:bg-green-700 text-black font-semibold"
+                data-testid="button-invite-staff"
+              >
+                {inviteStaffMutation.isPending ? "Sending..." : "Invite & Generate Onboarding Link"}
+              </Button>
+            </CardContent>
+          </Card>
 
-                {message && (
-                  <div className="mb-4 p-3 bg-green-600/10 border border-green-600/30 rounded text-green-400 text-sm">
-                    {message}
-                  </div>
-                )}
-
-                <div className="space-y-3">
-                  {waitlist.length === 0 ? (
-                    <p className="text-green-600 text-center py-4">No players on waitlist</p>
-                  ) : (
-                    waitlist.map((entry, index) => (
-                      <div
-                        key={entry.id}
-                        className="flex items-center justify-between p-4 bg-green-900/30 rounded-lg border border-green-700/30"
-                      >
-                        <div className="flex items-center space-x-4">
-                          <div className="text-2xl font-bold text-yellow-400">#{index + 1}</div>
-                          <div>
-                            <p className="text-green-400 font-semibold">Player {entry.user_id.slice(-3)}</p>
-                            <p className="text-green-600 text-sm">
-                              Joined {new Date(entry.created_at * 1000).toLocaleString()}
-                            </p>
-                            {entry.offer_expires_at && (
-                              <p className="text-yellow-400 text-sm">
-                                Offer expires: {new Date(entry.offer_expires_at * 1000).toLocaleString()}
-                              </p>
-                            )}
-                          </div>
+          {/* Current Staff */}
+          <Card className="bg-black/60 border-green-600/30">
+            <CardHeader>
+              <CardTitle className="text-green-400">Current Staff</CardTitle>
+              <CardDescription className="text-gray-300">
+                Your trusted team members receiving automatic payouts
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {loadingStaff ? (
+                <p className="text-gray-400">Loading staff...</p>
+              ) : staff.length === 0 ? (
+                <p className="text-gray-400">No staff members yet. Invite your trusted friends above.</p>
+              ) : (
+                <div className="space-y-4">
+                  {staff.map((member: User) => (
+                    <div
+                      key={member.id}
+                      className="flex items-center justify-between p-4 bg-black/40 rounded-lg border border-green-600/20"
+                      data-testid={`staff-member-${member.id}`}
+                    >
+                      <div>
+                        <div className="font-semibold text-green-400">
+                          {member.name || member.email}
                         </div>
-                        <div className="text-right space-y-2">
-                          <div className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                            entry.status === 'waiting' ? 'bg-yellow-500/20 text-yellow-400' :
-                            entry.status === 'offered' ? 'bg-green-500/20 text-green-400' :
-                            'bg-gray-500/20 text-gray-400'
-                          }`}>
-                            {entry.status.toUpperCase()}
-                          </div>
-                          {entry.offer_url && (
-                            <div className="text-xs">
-                              <a 
-                                href={entry.offer_url} 
-                                target="_blank" 
-                                rel="noopener noreferrer"
-                                className="text-blue-400 hover:text-blue-300"
-                              >
-                                Checkout Link
-                              </a>
-                            </div>
-                          )}
+                        <div className="text-sm text-gray-400">{member.email}</div>
+                        <div className="flex items-center gap-2 mt-1">
+                          <Badge
+                            variant={member.globalRole === "OWNER" ? "default" : "secondary"}
+                            className={
+                              member.globalRole === "OWNER"
+                                ? "bg-yellow-600 text-black"
+                                : "bg-green-600 text-black"
+                            }
+                          >
+                            {member.globalRole}
+                          </Badge>
+                          <Badge
+                            variant={member.onboardingComplete ? "default" : "destructive"}
+                            className={
+                              member.onboardingComplete
+                                ? "bg-green-600 text-black"
+                                : "bg-red-600 text-white"
+                            }
+                          >
+                            {member.onboardingComplete ? "Verified" : "Pending Verification"}
+                          </Badge>
                         </div>
                       </div>
-                    ))
-                  )}
+                      <div className="text-right">
+                        <div className="text-lg font-bold text-green-400">
+                          {((member.payoutShareBps || 0) / 100).toFixed(1)}%
+                        </div>
+                        <div className="text-sm text-gray-400">Share</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="payouts" className="space-y-6">
+          <Card className="bg-black/60 border-green-600/30">
+            <CardHeader>
+              <CardTitle className="text-green-400">Payout History</CardTitle>
+              <CardDescription className="text-gray-300">
+                Automatic revenue splits from all subscription payments
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {loadingPayouts ? (
+                <p className="text-gray-400">Loading payouts...</p>
+              ) : transfers.length === 0 ? (
+                <p className="text-gray-400">No payouts yet. Payouts happen automatically when customers pay.</p>
+              ) : (
+                <div className="space-y-4">
+                  {transfers.slice(0, 10).map((transfer: PayoutTransfer) => (
+                    <div
+                      key={transfer.id}
+                      className="flex items-center justify-between p-4 bg-black/40 rounded-lg border border-green-600/20"
+                      data-testid={`payout-${transfer.id}`}
+                    >
+                      <div>
+                        <div className="font-semibold text-green-400">
+                          {transfer.recipientName || transfer.recipientEmail}
+                        </div>
+                        <div className="text-sm text-gray-400">
+                          Invoice: {transfer.invoiceId}
+                        </div>
+                        <div className="text-sm text-gray-400">
+                          {new Date(transfer.createdAt).toLocaleDateString()}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-lg font-bold text-green-400">
+                          ${(transfer.amount / 100).toFixed(2)}
+                        </div>
+                        <Badge className="bg-green-600 text-black">
+                          {transfer.shareType}
+                        </Badge>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="overview" className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <Card className="bg-black/60 border-green-600/30">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-gray-300">Total Staff</CardTitle>
+                <Users className="h-4 w-4 text-green-400" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-green-400" data-testid="text-total-staff">
+                  {staff.length}
+                </div>
+                <p className="text-xs text-gray-400">
+                  Active revenue-sharing partners
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-black/60 border-green-600/30">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-gray-300">Total Payouts</CardTitle>
+                <DollarSign className="h-4 w-4 text-green-400" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-green-400" data-testid="text-total-payouts">
+                  ${(transfers.reduce((sum: number, t: PayoutTransfer) => sum + t.amount, 0) / 100).toFixed(2)}
+                </div>
+                <p className="text-xs text-gray-400">
+                  All-time automatic payouts
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-black/60 border-green-600/30">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-gray-300">Revenue Share</CardTitle>
+                <TrendingUp className="h-4 w-4 text-green-400" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-green-400" data-testid="text-revenue-share">
+                  {((staff.reduce((sum: number, s: User) => sum + (s.payoutShareBps || 0), 0)) / 100).toFixed(1)}%
+                </div>
+                <p className="text-xs text-gray-400">
+                  Total allocated to staff
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Revenue Split Breakdown */}
+          <Card className="bg-black/60 border-green-600/30">
+            <CardHeader>
+              <CardTitle className="text-green-400">Revenue Split Configuration</CardTitle>
+              <CardDescription className="text-gray-300">
+                Current automatic payout allocation
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {staff.map((member: User) => (
+                  <div
+                    key={member.id}
+                    className="flex items-center justify-between py-2 border-b border-green-600/20 last:border-b-0"
+                  >
+                    <span className="text-gray-300">
+                      {member.name || member.email} ({member.globalRole})
+                    </span>
+                    <span className="font-semibold text-green-400">
+                      {((member.payoutShareBps || 0) / 100).toFixed(1)}%
+                    </span>
+                  </div>
+                ))}
+                <div className="pt-2 border-t border-green-600/40">
+                  <div className="flex items-center justify-between font-bold">
+                    <span className="text-green-400">Platform Keeps</span>
+                    <span className="text-green-400">
+                      {(100 - (staff.reduce((sum: number, s: User) => sum + (s.payoutShareBps || 0), 0) / 100)).toFixed(1)}%
+                    </span>
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
-        </div>
-
-        {/* Payment Status Section */}
-        <div className="bg-green-900/10 border border-green-700/30 rounded-lg p-8">
-          <h2 className="text-2xl font-bold text-green-400 mb-6">Payment Status</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="bg-green-900/20 rounded-lg p-4">
-              <h3 className="text-lg font-semibold text-green-400 mb-2">Webhook Status</h3>
-              <div className="flex items-center space-x-2">
-                <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                <span className="text-green-300">Last Success: {new Date().toLocaleTimeString()}</span>
-              </div>
-              <p className="text-green-600 text-sm mt-1">checkout.session.completed → 200 OK</p>
-            </div>
-            
-            <div className="bg-green-900/20 rounded-lg p-4">
-              <h3 className="text-lg font-semibold text-green-400 mb-2">Stripe Mode</h3>
-              <div className="flex items-center space-x-2">
-                <span className="px-2 py-1 bg-yellow-500/20 text-yellow-400 rounded text-sm font-semibold">
-                  TEST MODE
-                </span>
-              </div>
-              <p className="text-green-600 text-sm mt-1">Safe for testing payments</p>
-            </div>
-            
-            <div className="bg-green-900/20 rounded-lg p-4">
-              <h3 className="text-lg font-semibold text-green-400 mb-2">Price IDs</h3>
-              <div className="space-y-1 text-sm">
-                <div className="text-green-300">Small Monthly: price_test_small</div>
-                <div className="text-green-300">Analytics: price_test_analytics</div>
-                <div className="text-green-300">Multi-Hall: price_test_multi</div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Member Management */}
-        <div className="bg-green-900/10 border border-green-700/30 rounded-lg p-8">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-bold text-green-400">Member Management</h2>
-            <button
-              onClick={exportMembersCSV}
-              className="px-4 py-2 bg-green-600 text-white font-semibold rounded-xl hover:bg-green-700"
-              data-testid="button-export-csv"
-            >
-              Export CSV
-            </button>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-green-700/30">
-                  <th className="text-left p-3 text-green-400">Name</th>
-                  <th className="text-left p-3 text-green-400">Email</th>
-                  <th className="text-left p-3 text-green-400">Tier</th>
-                  <th className="text-left p-3 text-green-400">Status</th>
-                  <th className="text-left p-3 text-green-400">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {members.map(member => (
-                  <tr key={member.id} className="border-b border-green-700/20">
-                    <td className="p-3 text-green-500">{member.display_name}</td>
-                    <td className="p-3 text-green-600">{member.email}</td>
-                    <td className="p-3">
-                      <span className={`px-2 py-1 rounded text-xs font-semibold ${
-                        member.role === 'mega' ? 'bg-purple-600/20 text-purple-400' :
-                        member.role === 'large' ? 'bg-blue-600/20 text-blue-400' :
-                        member.role === 'medium' ? 'bg-green-600/20 text-green-400' :
-                        member.role === 'small' ? 'bg-yellow-600/20 text-yellow-400' :
-                        'bg-gray-600/20 text-gray-400'
-                      }`}>
-                        {member.role.toUpperCase()}
-                      </span>
-                    </td>
-                    <td className="p-3">
-                      <span className={`px-2 py-1 rounded text-xs font-semibold ${
-                        member.membership_status === 'active' ? 'bg-green-600/20 text-green-400' :
-                        member.membership_status === 'past_due' ? 'bg-red-600/20 text-red-400' :
-                        'bg-gray-600/20 text-gray-400'
-                      }`}>
-                        {member.membership_status.toUpperCase()}
-                      </span>
-                    </td>
-                    <td className="p-3">
-                      {member.stripe_customer_id && (
-                        <button className="text-blue-400 hover:text-blue-300 text-xs">
-                          View Billing
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
-};
-
-export default AdminDashboard;
+}

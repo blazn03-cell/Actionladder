@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import Stripe from "stripe";
 import { storage } from "./storage";
 import { AIService } from "./ai-service";
+import { registerAdminRoutes, payStaffFromInvoice } from "./admin-routes";
 import { 
   insertPlayerSchema, insertMatchSchema, insertTournamentSchema,
   insertKellyPoolSchema, insertBountySchema, insertCharityEventSchema,
@@ -18,6 +19,9 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  
+  // Register admin routes for staff management and payouts
+  registerAdminRoutes(app);
   
   // Player routes
   app.get("/api/players", async (req, res) => {
@@ -576,6 +580,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }
 
   async function handleInvoicePaid(invoice: any): Promise<void> {
+    // Handle subscription membership updates
     if (invoice.subscription) {
       const subscription = await stripe.subscriptions.retrieve(invoice.subscription);
       if (subscription.metadata?.userId) {
@@ -583,6 +588,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
           member: true
         });
       }
+    }
+    
+    // Automatic payout splitting - 40% owner, 30% friend 1, 30% friend 2
+    try {
+      await payStaffFromInvoice(invoice);
+      console.log(`✅ Revenue split processed for invoice ${invoice.id}`);
+    } catch (error: any) {
+      console.error(`❌ Revenue split failed for invoice ${invoice.id}:`, error.message);
+      // Continue processing - don't fail webhook for payout errors
     }
   }
 
