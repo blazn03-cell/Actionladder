@@ -57,7 +57,11 @@ function Navigation({ activeTab, setActiveTab }: { activeTab: string; setActiveT
       {/* Row 1: Brand (left) + Live + Join via QR (right) */}
       <div className="mx-auto max-w-7xl px-4 py-3 flex items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className="h-8 w-8 rounded-xl bg-emerald-500/20 ring-1 ring-emerald-400/30" />
+          <img 
+            src="/attached_assets/assets_task_01k3jk55jwew0tmd764vvanv2x_1756192093_img_0_1756632787662.webp"
+            alt="Action Ladder Billiards Logo"
+            className="h-12 w-12 rounded-xl object-cover border border-emerald-400/30"
+          />
           <div className="flex flex-col leading-5">
             <span className="font-extrabold tracking-wide text-emerald-300 text-lg">
               ACTIONLADDER
@@ -118,9 +122,8 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <div className="min-h-screen bg-felt-dark text-white font-sans overflow-x-hidden">
-        {/* Background Effects */}
-        <div className="fixed inset-0 bg-felt-texture opacity-90 pointer-events-none"></div>
-        <div className="fixed inset-0 bg-smoky opacity-40 pointer-events-none"></div>
+        {/* Cleaner Background */}
+        <div className="fixed inset-0 bg-felt-texture opacity-50 pointer-events-none"></div>
         
         <Navigation activeTab={activeTab} setActiveTab={setActiveTab} />
         
@@ -143,8 +146,15 @@ function App() {
             </Route>
             <Route>
               {/* Hero Banner */}
-              <section className="bg-gradient-to-r from-felt-green/50 to-transparent py-8">
-                <div className="container mx-auto px-4">
+              <section className="bg-gradient-to-r from-felt-green/50 to-transparent py-12 relative overflow-hidden">
+                <div className="absolute inset-0 flex items-center justify-center opacity-5">
+                  <img 
+                    src="/attached_assets/assets_task_01k3jk55jwew0tmd764vvanv2x_1756192093_img_0_1756632787662.webp"
+                    alt="Action Ladder Billiards Background"
+                    className="w-80 h-80 object-contain"
+                  />
+                </div>
+                <div className="container mx-auto px-4 relative z-10">
                   <div className="text-center">
                     <h2 className="text-4xl md:text-5xl font-black text-white mb-4">
                       POOL. POINTS. PRIDE.

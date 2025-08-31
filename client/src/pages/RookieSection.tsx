@@ -22,15 +22,15 @@ export default function RookieSection() {
   const [time, setTime] = useState("");
 
   // Fetch rookie data
-  const { data: rookieLeaderboard } = useQuery({
+  const { data: rookieLeaderboard = [] } = useQuery<any[]>({
     queryKey: ["/api/rookie/leaderboard"],
   });
 
-  const { data: rookieMatches } = useQuery({
+  const { data: rookieMatches = [] } = useQuery<any[]>({
     queryKey: ["/api/rookie/matches"],
   });
 
-  const { data: rookieEvents } = useQuery({
+  const { data: rookieEvents = [] } = useQuery<any[]>({
     queryKey: ["/api/rookie/events"],
   });
 

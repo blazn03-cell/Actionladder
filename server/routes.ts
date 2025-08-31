@@ -625,8 +625,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         await storage.createRookieSubscription({
           playerId,
-          stripeSessionId: session.id,
-          stripeCustomerId: session.customer as string,
+          stripeSubscriptionId: session.subscription as string,
           expiresAt,
         });
         
@@ -653,7 +652,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (subscriptionType === 'rookie_pass' && playerId) {
       // Handle Rookie Pass subscription status changes
       const isActive = subscription.status === 'active';
-      const expiresAt = isActive ? new Date(subscription.current_period_end * 1000) : null;
+      const expiresAt = isActive ? new Date((subscription as any).current_period_end * 1000) : null;
       
       await storage.updatePlayer(playerId, {
         rookiePassActive: isActive,
@@ -687,7 +686,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       if (subscriptionType === 'rookie_pass' && playerId) {
         // Handle Rookie Pass renewal
-        const expiresAt = new Date(subscription.current_period_end * 1000);
+        const expiresAt = new Date((subscription as any).current_period_end * 1000);
         
         await storage.updatePlayer(playerId, {
           rookiePassActive: true,
