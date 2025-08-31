@@ -73,6 +73,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Rookie graduation route
+  app.post("/api/players/graduate", async (req, res) => {
+    try {
+      const { playerId } = req.body;
+      const player = await storage.getPlayer(playerId);
+      
+      if (!player) {
+        return res.status(404).json({ message: "Player not found" });
+      }
+      
+      if (!player.isRookie) {
+        return res.status(400).json({ message: "Player is already graduated" });
+      }
+      
+      if (player.rating < 500 && (player.rookieWins || 0) < 10) {
+        return res.status(400).json({ 
+          message: "Player must have 500+ rating or 10+ rookie wins to graduate" 
+        });
+      }
+      
+      const graduatedPlayer = await storage.updatePlayer(playerId, {
+        isRookie: false,
+        graduatedAt: new Date(),
+      });
+      
+      res.json({ 
+        success: true, 
+        name: graduatedPlayer?.name,
+        message: "Player graduated to main ladder" 
+      });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   // Match routes
   app.get("/api/matches", async (req, res) => {
     try {

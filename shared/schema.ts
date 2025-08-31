@@ -51,6 +51,9 @@ export const players = pgTable("players", {
   birthday: text("birthday"), // MM-DD format
   stripeCustomerId: text("stripe_customer_id"),
   userId: text("user_id"), // link to users table
+  isRookie: boolean("is_rookie").default(true), // Starts as rookie, graduates at Fargo 500+
+  rookieWins: integer("rookie_wins").default(0), // Track rookie division wins
+  graduatedAt: timestamp("graduated_at"), // When they left rookie division
   createdAt: timestamp("created_at").defaultNow(),
 });
 
