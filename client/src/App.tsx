@@ -31,6 +31,8 @@ import NotFound from "@/pages/not-found";
 const queryClient = new QueryClient();
 
 function Navigation({ activeTab, setActiveTab }: { activeTab: string; setActiveTab: (tab: string) => void }) {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  
   const tabs = [
     { id: "dashboard", label: "Dashboard" },
     { id: "ladder", label: "Ladder" },
@@ -51,6 +53,9 @@ function Navigation({ activeTab, setActiveTab }: { activeTab: string; setActiveT
     { id: "bounties", label: "Bounties" },
     { id: "charity", label: "Charity" },
   ];
+
+  const visibleTabs = tabs.slice(0, 6);
+  const extraTabs = tabs.slice(6);
 
   return (
     <header className="sticky top-0 z-50 backdrop-blur-md bg-felt-dark/80 border-b border-neon-green/20">
@@ -78,18 +83,9 @@ function Navigation({ activeTab, setActiveTab }: { activeTab: string; setActiveT
             </button>
           </div>
           
-          {/* Mobile Menu Button */}
-          <button className="md:hidden p-2">
-            <svg className="w-6 h-6 text-neon-green" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16"></path>
-            </svg>
-          </button>
-        </nav>
-        
-        {/* Navigation Tabs - Scrollable Strip */}
-        <div className="overflow-x-auto no-scrollbar">
-          <ul className="inline-flex gap-4 px-4 py-2 whitespace-nowrap">
-            {tabs.map((tab) => (
+          {/* Desktop Navigation with More Dropdown */}
+          <ul className="hidden md:flex gap-4">
+            {visibleTabs.map((tab) => (
               <li key={tab.id}>
                 <button
                   data-testid={`tab-${tab.id}`}
@@ -104,8 +100,61 @@ function Navigation({ activeTab, setActiveTab }: { activeTab: string; setActiveT
                 </button>
               </li>
             ))}
+            {extraTabs.length > 0 && (
+              <li className="relative group">
+                <button className="px-4 py-2 rounded-lg hover:bg-white/10 text-gray-300 transition-colors">
+                  More ▾
+                </button>
+                <div className="absolute right-0 mt-2 w-56 rounded-xl border border-neon-green/20 bg-felt-dark shadow-lg hidden group-hover:block z-50">
+                  {extraTabs.map((tab) => (
+                    <button
+                      key={tab.id}
+                      data-testid={`tab-${tab.id}`}
+                      className={`block w-full text-left px-4 py-2 hover:bg-white/5 transition-colors first:rounded-t-xl last:rounded-b-xl ${
+                        activeTab === tab.id ? "text-neon-green bg-neon-green/10" : "text-gray-300"
+                      }`}
+                      onClick={() => setActiveTab(tab.id)}
+                    >
+                      {tab.label}
+                    </button>
+                  ))}
+                </div>
+              </li>
+            )}
           </ul>
-        </div>
+
+          {/* Mobile Menu Button */}
+          <button 
+            className="md:hidden p-2"
+            onClick={() => setMobileMenuOpen(v => !v)}
+            data-testid="mobile-menu-button"
+          >
+            <svg className="w-6 h-6 text-neon-green" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16"></path>
+            </svg>
+          </button>
+        </nav>
+        
+        {/* Mobile Menu */}
+        {mobileMenuOpen && (
+          <div className="md:hidden px-4 py-2 space-y-2 border-t border-neon-green/20">
+            {tabs.map((tab) => (
+              <button
+                key={tab.id}
+                data-testid={`mobile-tab-${tab.id}`}
+                className={`block w-full text-left py-2 transition-colors ${
+                  activeTab === tab.id ? "text-neon-green" : "text-gray-300 hover:text-white"
+                }`}
+                onClick={() => {
+                  setActiveTab(tab.id);
+                  setMobileMenuOpen(false);
+                }}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
     </header>
   );
