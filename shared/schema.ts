@@ -142,6 +142,9 @@ export const poolHalls = pgTable("pool_halls", {
   address: text("address"),
   phone: text("phone"),
   active: boolean("active").default(true),
+  battlesUnlocked: boolean("battles_unlocked").default(false),
+  unlockedBy: text("unlocked_by"),
+  unlockedAt: timestamp("unlocked_at"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 

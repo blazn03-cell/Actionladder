@@ -153,6 +153,8 @@ export interface IStorage {
   getAllPoolHalls(): Promise<PoolHall[]>;
   createPoolHall(poolHall: InsertPoolHall): Promise<PoolHall>;
   updatePoolHall(id: string, updates: Partial<PoolHall>): Promise<PoolHall | undefined>;
+  unlockHallBattles(hallId: string, unlockedBy: string): Promise<PoolHall | undefined>;
+  lockHallBattles(hallId: string): Promise<PoolHall | undefined>;
 
   // Hall Matches
   getHallMatch(id: string): Promise<HallMatch | undefined>;
@@ -353,6 +355,9 @@ export class MemStorage implements IStorage {
       address: "123 Main St, Seguin, TX",
       phone: "(830) 555-0123",
       active: true,
+      battlesUnlocked: false,
+      unlockedBy: null,
+      unlockedAt: null,
       createdAt: new Date(),
     };
     this.poolHalls.set(seguin.id, seguin);
@@ -368,6 +373,9 @@ export class MemStorage implements IStorage {
       address: "456 River Rd, New Braunfels, TX",
       phone: "(830) 555-0456",
       active: true,
+      battlesUnlocked: false,
+      unlockedBy: null,
+      unlockedAt: null,
       createdAt: new Date(),
     };
     this.poolHalls.set(newBraunfels.id, newBraunfels);
@@ -383,6 +391,9 @@ export class MemStorage implements IStorage {
       address: "789 University Dr, San Marcos, TX",
       phone: "(512) 555-0789",
       active: true,
+      battlesUnlocked: false,
+      unlockedBy: null,
+      unlockedAt: null,
       createdAt: new Date(),
     };
     this.poolHalls.set(sanMarcos.id, sanMarcos);
@@ -920,6 +931,34 @@ export class MemStorage implements IStorage {
     
     const updated = { ...poolHall, ...updates };
     this.poolHalls.set(id, updated);
+    return updated;
+  }
+
+  async unlockHallBattles(hallId: string, unlockedBy: string): Promise<PoolHall | undefined> {
+    const hall = this.poolHalls.get(hallId);
+    if (!hall) return undefined;
+    
+    const updated = {
+      ...hall,
+      battlesUnlocked: true,
+      unlockedBy,
+      unlockedAt: new Date(),
+    };
+    this.poolHalls.set(hallId, updated);
+    return updated;
+  }
+
+  async lockHallBattles(hallId: string): Promise<PoolHall | undefined> {
+    const hall = this.poolHalls.get(hallId);
+    if (!hall) return undefined;
+    
+    const updated = {
+      ...hall,
+      battlesUnlocked: false,
+      unlockedBy: null,
+      unlockedAt: null,
+    };
+    this.poolHalls.set(hallId, updated);
     return updated;
   }
 

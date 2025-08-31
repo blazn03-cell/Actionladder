@@ -8,7 +8,8 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Users, DollarSign, Shield, TrendingUp } from "lucide-react";
+import HallBattlesAdmin from "@/components/hall-battles-admin";
+import { Users, DollarSign, Shield, TrendingUp, Trophy } from "lucide-react";
 
 interface User {
   id: string;
@@ -151,7 +152,7 @@ export default function AdminDashboard() {
       </div>
 
       <Tabs defaultValue="staff" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4 bg-black/40">
+        <TabsList className="grid w-full grid-cols-5 bg-black/40">
           <TabsTrigger value="staff" className="data-[state=active]:bg-green-600">
             <Users className="w-4 h-4 mr-2" />
             Staff Management
@@ -159,6 +160,10 @@ export default function AdminDashboard() {
           <TabsTrigger value="organizations" className="data-[state=active]:bg-green-600">
             <Shield className="w-4 h-4 mr-2" />
             Organizations
+          </TabsTrigger>
+          <TabsTrigger value="hall-battles" className="data-[state=active]:bg-green-600">
+            <Trophy className="w-4 h-4 mr-2" />
+            Hall Battles
           </TabsTrigger>
           <TabsTrigger value="payouts" className="data-[state=active]:bg-green-600">
             <DollarSign className="w-4 h-4 mr-2" />
@@ -318,6 +323,10 @@ export default function AdminDashboard() {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="hall-battles" className="space-y-6">
+          <HallBattlesAdmin />
         </TabsContent>
 
         <TabsContent value="payouts" className="space-y-6">

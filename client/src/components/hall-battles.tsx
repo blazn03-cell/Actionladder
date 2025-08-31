@@ -17,6 +17,9 @@ interface PoolHall {
   address: string;
   phone: string;
   active: boolean;
+  battlesUnlocked: boolean;
+  unlockedBy?: string;
+  unlockedAt?: string;
   createdAt: string;
 }
 
@@ -51,6 +54,28 @@ function HallStandings() {
   }
 
   const halls: PoolHall[] = (hallsData as any)?.halls || [];
+  const battlesEnabled = (hallsData as any)?.battlesEnabled || false;
+
+  if (!battlesEnabled) {
+    return (
+      <div className="text-center py-16">
+        <div className="mb-6">
+          <div className="w-16 h-16 mx-auto bg-yellow-500/20 rounded-full flex items-center justify-center mb-4">
+            <svg className="w-8 h-8 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m0 0v2m0-2h2m-2 0H10m-7-7a9 9 0 1118 0 9 9 0 01-18 0z" />
+            </svg>
+          </div>
+          <h3 className="text-2xl font-bold text-yellow-400 mb-2">HALL BATTLES LOCKED</h3>
+          <p className="text-gray-400 mb-4">
+            This feature is currently locked for your area.
+          </p>
+          <p className="text-sm text-gray-500">
+            Contact your trustee to unlock hall vs hall competitions.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -155,6 +180,28 @@ function RecentMatches() {
 
   const matches: HallMatch[] = (matchesData as any)?.matches || [];
   const halls: PoolHall[] = (hallsData as any)?.halls || [];
+  const battlesEnabled = (matchesData as any)?.battlesEnabled || false;
+
+  if (!battlesEnabled) {
+    return (
+      <div className="text-center py-16">
+        <div className="mb-6">
+          <div className="w-16 h-16 mx-auto bg-yellow-500/20 rounded-full flex items-center justify-center mb-4">
+            <svg className="w-8 h-8 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m0 0v2m0-2h2m-2 0H10m-7-7a9 9 0 1118 0 9 9 0 01-18 0z" />
+            </svg>
+          </div>
+          <h3 className="text-2xl font-bold text-yellow-400 mb-2">HALL BATTLES LOCKED</h3>
+          <p className="text-gray-400 mb-4">
+            No inter-hall matches available - battles not yet unlocked for this area.
+          </p>
+          <p className="text-sm text-gray-500">
+            Contact your trustee to enable venue vs venue competitions.
+          </p>
+        </div>
+      </div>
+    );
+  }
   
   const getHallName = (hallId: string) => {
     const hall = halls.find(h => h.id === hallId);

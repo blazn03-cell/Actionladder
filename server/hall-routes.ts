@@ -4,16 +4,25 @@ import type { InsertHallMatch, InsertHallRoster } from "@shared/schema";
 
 export function registerHallRoutes(app: Express) {
   
-  // Get all pool halls with standings
+  // Get all pool halls with standings (only shows unlocked halls for battles)
   app.get("/api/halls", async (req, res) => {
     try {
       const halls = await storage.getAllPoolHalls();
+      
+      // Filter to only show halls with battles unlocked unless user is admin
+      const filteredHalls = halls.filter(hall => hall.battlesUnlocked || req.query.admin === "true");
+      
       // Sort by points (descending) then by wins
-      const sortedHalls = halls.sort((a, b) => {
+      const sortedHalls = filteredHalls.sort((a, b) => {
         if (b.points !== a.points) return b.points - a.points;
         return b.wins - a.wins;
       });
-      res.json({ halls: sortedHalls });
+      
+      res.json({ 
+        halls: sortedHalls,
+        allHalls: halls, // Include all halls for admin view
+        battlesEnabled: filteredHalls.length > 0
+      });
     } catch (error: any) {
       console.error("Get halls error:", error);
       res.status(500).json({ error: error.message });
@@ -39,17 +48,30 @@ export function registerHallRoutes(app: Express) {
     }
   });
 
-  // Get all hall matches
+  // Get all hall matches (only for unlocked halls)
   app.get("/api/hall-matches", async (req, res) => {
     try {
       const matches = await storage.getAllHallMatches();
+      const halls = await storage.getAllPoolHalls();
+      
+      // Filter matches to only include those between unlocked halls
+      const unlockedHallIds = halls.filter(h => h.battlesUnlocked).map(h => h.id);
+      const filteredMatches = matches.filter(match => 
+        unlockedHallIds.includes(match.homeHallId) && 
+        unlockedHallIds.includes(match.awayHallId)
+      );
+      
       // Sort by scheduled date (most recent first)
-      const sortedMatches = matches.sort((a, b) => {
+      const sortedMatches = filteredMatches.sort((a, b) => {
         const dateA = a.scheduledDate || a.createdAt;
         const dateB = b.scheduledDate || b.createdAt;
         return new Date(dateB).getTime() - new Date(dateA).getTime();
       });
-      res.json({ matches: sortedMatches });
+      
+      res.json({ 
+        matches: sortedMatches,
+        battlesEnabled: unlockedHallIds.length > 1
+      });
     } catch (error: any) {
       console.error("Get hall matches error:", error);
       res.status(500).json({ error: error.message });
@@ -260,6 +282,73 @@ export function registerHallRoutes(app: Express) {
       });
     } catch (error: any) {
       console.error("Get hall stats error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Admin endpoint to unlock hall battles
+  app.post("/api/admin/halls/:hallId/unlock-battles", async (req, res) => {
+    try {
+      const { hallId } = req.params;
+      const { unlockedBy } = req.body;
+
+      if (!unlockedBy) {
+        return res.status(400).json({ error: "Unlocked by is required" });
+      }
+
+      const hall = await storage.unlockHallBattles(hallId, unlockedBy);
+      if (!hall) {
+        return res.status(404).json({ error: "Hall not found" });
+      }
+
+      res.json({ 
+        success: true, 
+        hall,
+        message: `Hall battles unlocked for ${hall.name}` 
+      });
+    } catch (error: any) {
+      console.error("Unlock hall battles error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Admin endpoint to lock hall battles
+  app.post("/api/admin/halls/:hallId/lock-battles", async (req, res) => {
+    try {
+      const { hallId } = req.params;
+
+      const hall = await storage.lockHallBattles(hallId);
+      if (!hall) {
+        return res.status(404).json({ error: "Hall not found" });
+      }
+
+      res.json({ 
+        success: true, 
+        hall,
+        message: `Hall battles locked for ${hall.name}` 
+      });
+    } catch (error: any) {
+      console.error("Lock hall battles error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Admin endpoint to get hall battles status
+  app.get("/api/admin/halls/battles-status", async (req, res) => {
+    try {
+      const halls = await storage.getAllPoolHalls();
+      const hallsWithStatus = halls.map(hall => ({
+        id: hall.id,
+        name: hall.name,
+        city: hall.city,
+        battlesUnlocked: hall.battlesUnlocked,
+        unlockedBy: hall.unlockedBy,
+        unlockedAt: hall.unlockedAt,
+      }));
+
+      res.json({ halls: hallsWithStatus });
+    } catch (error: any) {
+      console.error("Get battles status error:", error);
       res.status(500).json({ error: error.message });
     }
   });
