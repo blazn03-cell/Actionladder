@@ -13,22 +13,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
 });
 
 // Middleware to check if user is OWNER
-function requireOwner(req: any, res: any, next: any) {
-  // For demo purposes, we'll simulate an authenticated owner user in development
-  // In production, this would check actual user session/JWT
-  if (process.env.NODE_ENV === "development") {
-    req.user = {
-      id: "owner-demo-id",
-      globalRole: "OWNER",
-      email: "owner@actionladder.com"
-    };
-  }
-  
-  if (!req.user || req.user?.globalRole !== "OWNER") {
-    return res.status(403).json({ error: "Owner access required" });
-  }
-  next();
-}
+import { requireOwner } from "./replitAuth";
 
 export function registerAdminRoutes(app: Express) {
   

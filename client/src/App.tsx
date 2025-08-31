@@ -204,6 +204,8 @@ function App() {
               <a href="/acceptable-use" className="hover:text-neon-green transition-colors">Acceptable Use</a>
               <span className="text-neon-green">•</span>
               <span>© 2025 ActionLadder</span>
+              <span className="text-neon-green">•</span>
+              <span className="font-mono">v1.0.0</span>
             </div>
           </div>
         </footer>

@@ -64,6 +64,17 @@ export type InsertUser = {
   onboardingComplete?: boolean;
 };
 
+export type UpsertUser = {
+  id: string;
+  email?: string;
+  name?: string;
+  globalRole?: GlobalRole;
+  stripeCustomerId?: string;
+  stripeConnectId?: string;
+  payoutShareBps?: number;
+  onboardingComplete?: boolean;
+};
+
 export type InsertOrganization = {
   name: string;
   stripeCustomerId?: string;
@@ -90,6 +101,7 @@ export interface IStorage {
   getStaffUsers(): Promise<User[]>;
   createUser(user: InsertUser): Promise<User>;
   updateUser(id: string, updates: Partial<User>): Promise<User | undefined>;
+  upsertUser(user: UpsertUser): Promise<User>;
   deleteUser(id: string): Promise<boolean>;
   
   // Organizations
@@ -286,6 +298,27 @@ export class MemStorage implements IStorage {
     const updatedUser = { ...user, ...updates };
     this.users.set(id, updatedUser);
     return updatedUser;
+  }
+
+  async upsertUser(userData: UpsertUser): Promise<User> {
+    const existingUser = await this.getUser(userData.id);
+    if (existingUser) {
+      return await this.updateUser(userData.id, userData) || existingUser;
+    } else {
+      // For new user creation, email is required
+      if (!userData.email) {
+        throw new Error("Email is required for new user creation");
+      }
+      return await this.createUser({
+        email: userData.email,
+        name: userData.name,
+        globalRole: userData.globalRole || "PLAYER",
+        stripeCustomerId: userData.stripeCustomerId,
+        stripeConnectId: userData.stripeConnectId,
+        payoutShareBps: userData.payoutShareBps,
+        onboardingComplete: userData.onboardingComplete,
+      });
+    }
   }
 
   async deleteUser(id: string): Promise<boolean> {
@@ -535,6 +568,11 @@ export class MemStorage implements IStorage {
         userId: null,
         isRookie: false,
         rookieWins: 0,
+        rookieLosses: 0,
+        rookiePoints: 0,
+        rookieStreak: 0,
+        rookiePassActive: false,
+        rookiePassExpiresAt: null,
         graduatedAt: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000),
         createdAt: new Date(),
       },
@@ -553,6 +591,11 @@ export class MemStorage implements IStorage {
         userId: null,
         isRookie: false,
         rookieWins: 0,
+        rookieLosses: 0,
+        rookiePoints: 0,
+        rookieStreak: 0,
+        rookiePassActive: false,
+        rookiePassExpiresAt: null,
         graduatedAt: new Date(Date.now() - 45 * 24 * 60 * 60 * 1000),
         createdAt: new Date(),
       },
@@ -571,6 +614,11 @@ export class MemStorage implements IStorage {
         userId: null,
         isRookie: false,
         rookieWins: 0,
+        rookieLosses: 0,
+        rookiePoints: 0,
+        rookieStreak: 0,
+        rookiePassActive: false,
+        rookiePassExpiresAt: null,
         graduatedAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
         createdAt: new Date(),
       },
@@ -589,6 +637,11 @@ export class MemStorage implements IStorage {
         userId: null,
         isRookie: false,
         rookieWins: 0,
+        rookieLosses: 0,
+        rookiePoints: 0,
+        rookieStreak: 0,
+        rookiePassActive: false,
+        rookiePassExpiresAt: null,
         graduatedAt: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000),
         createdAt: new Date(),
       },
@@ -607,6 +660,11 @@ export class MemStorage implements IStorage {
         userId: null,
         isRookie: false,
         rookieWins: 0,
+        rookieLosses: 0,
+        rookiePoints: 0,
+        rookieStreak: 0,
+        rookiePassActive: false,
+        rookiePassExpiresAt: null,
         graduatedAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000),
         createdAt: new Date(),
       },
@@ -625,6 +683,11 @@ export class MemStorage implements IStorage {
         userId: null,
         isRookie: true,
         rookieWins: 3,
+        rookieLosses: 1,
+        rookiePoints: 25,
+        rookieStreak: 2,
+        rookiePassActive: false,
+        rookiePassExpiresAt: null,
         graduatedAt: null,
         createdAt: new Date(),
       },
@@ -644,6 +707,11 @@ export class MemStorage implements IStorage {
         userId: null,
         isRookie: true,
         rookieWins: 5,
+        rookieLosses: 2,
+        rookiePoints: 35,
+        rookieStreak: 2,
+        rookiePassActive: false,
+        rookiePassExpiresAt: null,
         graduatedAt: null,
         createdAt: new Date(),
       },
@@ -662,6 +730,11 @@ export class MemStorage implements IStorage {
         userId: null,
         isRookie: true,
         rookieWins: 8,
+        rookieLosses: 3,
+        rookiePoints: 55,
+        rookieStreak: 1,
+        rookiePassActive: true,
+        rookiePassExpiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
         graduatedAt: null,
         createdAt: new Date(),
       },
@@ -680,6 +753,11 @@ export class MemStorage implements IStorage {
         userId: null,
         isRookie: true,
         rookieWins: 2,
+        rookieLosses: 4,
+        rookiePoints: 15,
+        rookieStreak: 0,
+        rookiePassActive: false,
+        rookiePassExpiresAt: null,
         graduatedAt: null,
         createdAt: new Date(),
       },
@@ -1043,6 +1121,7 @@ export class MemStorage implements IStorage {
       isLive: null,
       viewerCount: null,
       matchId: null,
+      hallMatchId: null,
       ...insertLiveStream,
       id,
       createdAt: new Date(),
@@ -1088,8 +1167,18 @@ export class MemStorage implements IStorage {
   async createPoolHall(insertPoolHall: InsertPoolHall): Promise<PoolHall> {
     const id = randomUUID();
     const poolHall: PoolHall = {
-      id,
+      points: 0,
+      active: true,
+      description: null,
+      wins: 0,
+      losses: 0,
+      address: null,
+      phone: null,
+      battlesUnlocked: false,
+      unlockedBy: null,
+      unlockedAt: null,
       ...insertPoolHall,
+      id,
       createdAt: new Date(),
     };
     this.poolHalls.set(id, poolHall);
@@ -1151,8 +1240,17 @@ export class MemStorage implements IStorage {
   async createHallMatch(insertHallMatch: InsertHallMatch): Promise<HallMatch> {
     const id = randomUUID();
     const hallMatch: HallMatch = {
-      id,
+      status: "scheduled",
+      stake: null,
+      notes: null,
+      totalRacks: 7,
+      homeScore: null,
+      awayScore: null,
+      winnerHallId: null,
+      scheduledDate: null,
+      completedAt: null,
       ...insertHallMatch,
+      id,
       createdAt: new Date(),
     };
     this.hallMatches.set(id, hallMatch);
@@ -1209,8 +1307,10 @@ export class MemStorage implements IStorage {
   async createHallRoster(insertHallRoster: InsertHallRoster): Promise<HallRoster> {
     const id = randomUUID();
     const hallRoster: HallRoster = {
-      id,
+      position: null,
+      isActive: true,
       ...insertHallRoster,
+      id,
       joinedAt: new Date(),
     };
     this.hallRosters.set(id, hallRoster);
@@ -1247,8 +1347,14 @@ export class MemStorage implements IStorage {
 
   async createRookieMatch(match: InsertRookieMatch): Promise<RookieMatch> {
     const newMatch = {
-      id: randomUUID(),
+      status: "scheduled",
+      notes: null,
+      winner: null,
+      commission: 200, // $2 default
+      fee: 800, // $8 default
+      pointsAwarded: null,
       ...match,
+      id: randomUUID(),
       reportedAt: null,
       createdAt: new Date(),
     };
@@ -1335,8 +1441,13 @@ export class MemStorage implements IStorage {
 
   async createRookieSubscription(subscription: InsertRookieSubscription): Promise<RookieSubscription> {
     const newSubscription = {
-      id: randomUUID(),
+      status: "active",
+      stripeSubscriptionId: null,
+      monthlyFee: 500,
+      expiresAt: null,
+      cancelledAt: null,
       ...subscription,
+      id: randomUUID(),
       startedAt: new Date(),
     };
     this.rookieSubscriptions.set(newSubscription.id, newSubscription);
