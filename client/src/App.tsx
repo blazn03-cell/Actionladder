@@ -122,8 +122,19 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <div className="min-h-screen bg-felt-dark text-white font-sans overflow-x-hidden">
-        {/* Cleaner Background */}
-        <div className="fixed inset-0 bg-felt-texture opacity-50 pointer-events-none"></div>
+        {/* Professional Logo Background */}
+        <div className="fixed inset-0 pointer-events-none">
+          <div 
+            className="absolute inset-0 opacity-5"
+            style={{
+              backgroundImage: `url(/attached_assets/assets_task_01k3jk55jwew0tmd764vvanv2x_1756192093_img_0_1756634613619.webp)`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+              backgroundRepeat: 'no-repeat'
+            }}
+          ></div>
+          <div className="absolute inset-0 bg-gradient-to-br from-emerald-900/20 via-felt-dark/80 to-felt-dark/90"></div>
+        </div>
         
         <Navigation activeTab={activeTab} setActiveTab={setActiveTab} />
         
@@ -146,14 +157,17 @@ function App() {
             </Route>
             <Route>
               {/* Hero Banner */}
-              <section className="bg-gradient-to-r from-felt-green/50 to-transparent py-12 relative overflow-hidden">
-                <div className="absolute inset-0 flex items-center justify-center opacity-5">
-                  <img 
-                    src="/attached_assets/assets_task_01k3jk55jwew0tmd764vvanv2x_1756192093_img_0_1756632787662.webp"
-                    alt="Action Ladder Billiards Background"
-                    className="w-80 h-80 object-contain"
-                  />
-                </div>
+              <section className="py-12 relative overflow-hidden">
+                <div 
+                  className="absolute inset-0 opacity-10"
+                  style={{
+                    backgroundImage: `url(/attached_assets/assets_task_01k3jk55jwew0tmd764vvanv2x_1756192093_img_0_1756634613619.webp)`,
+                    backgroundSize: 'contain',
+                    backgroundPosition: 'center',
+                    backgroundRepeat: 'no-repeat'
+                  }}
+                ></div>
+                <div className="absolute inset-0 bg-gradient-to-r from-emerald-600/20 via-transparent to-emerald-600/20"></div>
                 <div className="container mx-auto px-4 relative z-10">
                   <div className="text-center">
                     <h2 className="text-4xl md:text-5xl font-black text-white mb-4">
