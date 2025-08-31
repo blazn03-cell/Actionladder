@@ -22,8 +22,12 @@ interface Match {
   scoreA?: number;
   scoreB?: number;
   winnerId?: string; // a.id or b.id
-  nextMatchId?: string; // link forward
+  nextMatchId?: string; // winner link forward
   nextSlot?: "a" | "b"; // where the winner goes next
+  // Double-elim extras
+  bracket?: "W" | "L" | "GF"; // Winners, Losers, Grand Final
+  loserNextMatchId?: string; // where the loser goes (only for W bracket)
+  loserNextSlot?: "a" | "b";
 }
 
 interface BracketState {
@@ -114,6 +118,7 @@ function buildSingleElim(playersIn: Player[]): Match[] {
       round: r,
       a: null,
       b: null,
+      bracket: "W",
     } as Match));
     matchMatrix.push(roundMatches);
   }
@@ -142,6 +147,88 @@ function buildSingleElim(playersIn: Player[]): Match[] {
   // auto-advance any BYE
   autoAdvanceByes(matches);
   return matches;
+}
+
+function buildDoubleElim(playersIn: Player[]): Match[] {
+  // Winners bracket identical to single-elim
+  const wb = buildSingleElim(playersIn);
+  const byId = new Map(wb.map(m => [m.id, m] as const));
+
+  // Count rounds in WB
+  const wbRounds = Math.max(...wb.map(m => m.round));
+  const size = Math.pow(2, wbRounds);
+
+  // Build Losers Bracket rounds (simplified chain)
+  const losers: Match[] = [];
+  const lbRoundsArr: Match[][] = [];
+  for (let r = 1; r <= wbRounds - 1; r++) {
+    const numMatches = size / Math.pow(2, r + 1); // half of WB round r
+    const roundMatches: Match[] = new Array(numMatches).fill(null).map(() => ({
+      id: `L-${r}-${uid()}`,
+      round: r,
+      a: null,
+      b: null,
+      bracket: "L",
+    } as Match));
+    lbRoundsArr.push(roundMatches);
+  }
+
+  // Link LB winners forward within LB
+  for (let r = 0; r < lbRoundsArr.length - 1; r++) {
+    const cur = lbRoundsArr[r];
+    const nxt = lbRoundsArr[r + 1];
+    cur.forEach((m, i) => {
+      const target = nxt[Math.floor(i / 2)];
+      m.nextMatchId = target.id;
+      m.nextSlot = i % 2 === 0 ? "a" : "b";
+    });
+  }
+
+  // Map WB losers → LB entries (pair WB matches 0&1 → LB r match 0, 2&3 → LB r match 1, etc.)
+  for (let r = 1; r <= wbRounds - 1; r++) {
+    const wbMatches = wb.filter(m => m.round === r);
+    const lbMatches = lbRoundsArr[r - 1];
+    wbMatches.forEach((m, i) => {
+      const target = lbMatches[Math.floor(i / 2)];
+      if (i % 2 === 0) {
+        m.loserNextMatchId = target.id;
+        m.loserNextSlot = "a";
+      } else {
+        m.loserNextMatchId = target.id;
+        m.loserNextSlot = "b";
+      }
+    });
+  }
+
+  // Grand Final: LB winner vs WB champion
+  const gf: Match = {
+    id: `GF-${uid()}`,
+    round: wbRounds + 1,
+    a: null,
+    b: null,
+    bracket: "GF",
+  };
+
+  // Link WB final winner → GF.a
+  const wbFinalRound = wb.filter(m => m.round === wbRounds);
+  const wbFinal = wbFinalRound[0];
+  if (wbFinal) {
+    wbFinal.nextMatchId = gf.id;
+    wbFinal.nextSlot = "a";
+  }
+
+  // Link LB final winner → GF.b
+  const lbFinalArr = lbRoundsArr[lbRoundsArr.length - 1] || [];
+  const lbFinal = lbFinalArr[0];
+  if (lbFinal) {
+    lbFinal.nextMatchId = gf.id;
+    lbFinal.nextSlot = "b";
+  }
+
+  // Flatten LB
+  lbRoundsArr.forEach(r => losers.push(...r));
+
+  return [...wb, ...losers, gf];
 }
 
 function autoAdvanceByes(matches: Match[]) {
@@ -283,10 +370,11 @@ export default function TournamentBrackets() {
         description: `Single elimination bracket created with ${players.length} players`,
       });
     } else {
+      const m = buildDoubleElim(players);
+      setMatches(m);
       toast({
-        title: "Coming Soon",
-        description: "Double-elimination brackets will be available soon",
-        variant: "destructive",
+        title: "Tournament Started",
+        description: `Double elimination bracket created with ${players.length} players`,
       });
     }
   }
@@ -312,6 +400,7 @@ export default function TournamentBrackets() {
 
   function setWinner(m: Match, winner: "a" | "b") {
     const w = winner === "a" ? m.a : m.b;
+    const l = winner === "a" ? m.b : m.a;
     if (!w || w.name === "BYE") return;
     
     const updated = matches.map(x => ({ ...x }));
@@ -321,7 +410,7 @@ export default function TournamentBrackets() {
 
     cur.winnerId = w.id;
 
-    // propagate to next
+    // Winner propagation
     if (cur.nextMatchId && cur.nextSlot) {
       const nxt = byId.get(cur.nextMatchId);
       if (nxt) {
@@ -329,11 +418,21 @@ export default function TournamentBrackets() {
         else nxt.b = w;
       }
     }
+
+    // Loser propagation (double-elim only)
+    if (l && cur.loserNextMatchId && cur.loserNextSlot && l.name !== "BYE") {
+      const loserNext = byId.get(cur.loserNextMatchId);
+      if (loserNext) {
+        if (cur.loserNextSlot === "a") loserNext.a = l;
+        else loserNext.b = l;
+      }
+    }
+
     setMatches(updated);
 
     toast({
       title: "Winner Set",
-      description: `${w.name} advances to the next round`,
+      description: `${w.name} advances${cur.bracket === "W" && l && l.name !== "BYE" ? ", " + l.name + " drops to losers bracket" : ""}`,
     });
 
     // if reporting is on, append a CSV-ready row
@@ -471,13 +570,16 @@ export default function TournamentBrackets() {
     });
   }
 
-  const matchesByRound = useMemo(() => {
-    const byRound = new Map<number, Match[]>();
+  const matchesByBracketAndRound = useMemo(() => {
+    const byBracket = new Map<string, Map<number, Match[]>>();
     matches.forEach(m => {
+      const bracket = m.bracket || "W";
+      if (!byBracket.has(bracket)) byBracket.set(bracket, new Map());
+      const byRound = byBracket.get(bracket)!;
       if (!byRound.has(m.round)) byRound.set(m.round, []);
       byRound.get(m.round)!.push(m);
     });
-    return byRound;
+    return byBracket;
   }, [matches]);
 
   const maxRound = matches.length ? Math.max(...matches.map(m => m.round)) : 0;
@@ -543,11 +645,10 @@ export default function TournamentBrackets() {
                     <Button
                       variant={format === "double" ? "default" : "outline"}
                       onClick={() => setFormat("double")}
-                      disabled
-                      className="border-gray-500/50 text-gray-500"
+                      className={format === "double" ? "bg-neon-green text-black" : "border-neon-green/50 text-neon-green"}
                       data-testid="button-format-double"
                     >
-                      Double Elimination (Coming Soon)
+                      Double Elimination
                     </Button>
                   </div>
                 </div>
@@ -653,31 +754,91 @@ export default function TournamentBrackets() {
                 </CardContent>
               </Card>
             ) : (
-              <div className="space-y-8">
-                {Array.from({ length: maxRound }, (_, i) => i + 1).map(round => {
-                  const roundMatches = matchesByRound.get(round) || [];
-                  const roundName = round === maxRound ? "Finals" : 
-                                  round === maxRound - 1 ? "Semi-Finals" :
-                                  round === maxRound - 2 ? "Quarter-Finals" :
-                                  `Round ${round}`;
-                  
-                  return (
-                    <div key={round}>
-                      <h3 className="text-2xl font-bold text-neon-green mb-4 text-center">{roundName}</h3>
-                      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                        {roundMatches.map(match => (
-                          <MatchCard 
-                            key={match.id} 
-                            match={match} 
-                            onSetWinner={setWinner}
-                            onOCR={handleOCR}
-                            ocrBusy={ocrBusy === match.id}
-                          />
-                        ))}
-                      </div>
+              <div className="space-y-12">
+                {/* Winners Bracket */}
+                {matchesByBracketAndRound.has("W") && (
+                  <div>
+                    <h2 className="text-3xl font-bold text-neon-green mb-6 text-center">Winners Bracket</h2>
+                    <div className="space-y-8">
+                      {Array.from(matchesByBracketAndRound.get("W")!.keys()).sort((a, b) => a - b).map(round => {
+                        const roundMatches = matchesByBracketAndRound.get("W")!.get(round) || [];
+                        const wbMaxRound = Math.max(...Array.from(matchesByBracketAndRound.get("W")!.keys()));
+                        const roundName = round === wbMaxRound ? "WB Finals" : 
+                                        round === wbMaxRound - 1 ? "WB Semi-Finals" :
+                                        round === wbMaxRound - 2 ? "WB Quarter-Finals" :
+                                        `WB Round ${round}`;
+                        
+                        return (
+                          <div key={`W-${round}`}>
+                            <h3 className="text-xl font-bold text-neon-green mb-4 text-center">{roundName}</h3>
+                            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                              {roundMatches.map(match => (
+                                <MatchCard 
+                                  key={match.id} 
+                                  match={match} 
+                                  onSetWinner={setWinner}
+                                  onOCR={handleOCR}
+                                  ocrBusy={ocrBusy === match.id}
+                                />
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
-                  );
-                })}
+                  </div>
+                )}
+
+                {/* Losers Bracket */}
+                {matchesByBracketAndRound.has("L") && (
+                  <div>
+                    <h2 className="text-3xl font-bold text-red-400 mb-6 text-center">Losers Bracket</h2>
+                    <div className="space-y-8">
+                      {Array.from(matchesByBracketAndRound.get("L")!.keys()).sort((a, b) => a - b).map(round => {
+                        const roundMatches = matchesByBracketAndRound.get("L")!.get(round) || [];
+                        const lbMaxRound = Math.max(...Array.from(matchesByBracketAndRound.get("L")!.keys()));
+                        const roundName = round === lbMaxRound ? "LB Finals" : 
+                                        round === lbMaxRound - 1 ? "LB Semi-Finals" :
+                                        `LB Round ${round}`;
+                        
+                        return (
+                          <div key={`L-${round}`}>
+                            <h3 className="text-xl font-bold text-red-400 mb-4 text-center">{roundName}</h3>
+                            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                              {roundMatches.map(match => (
+                                <MatchCard 
+                                  key={match.id} 
+                                  match={match} 
+                                  onSetWinner={setWinner}
+                                  onOCR={handleOCR}
+                                  ocrBusy={ocrBusy === match.id}
+                                />
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Grand Final */}
+                {matchesByBracketAndRound.has("GF") && (
+                  <div>
+                    <h2 className="text-3xl font-bold text-yellow-400 mb-6 text-center">Grand Final</h2>
+                    <div className="flex justify-center">
+                      {Array.from(matchesByBracketAndRound.get("GF")!.values()).flat().map(match => (
+                        <MatchCard 
+                          key={match.id} 
+                          match={match} 
+                          onSetWinner={setWinner}
+                          onOCR={handleOCR}
+                          ocrBusy={ocrBusy === match.id}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </TabsContent>
