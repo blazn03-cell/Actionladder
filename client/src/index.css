@@ -189,6 +189,15 @@ body {
   display: none;
 }
 
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
 /* Custom gradient backgrounds for cards */
 .bg-gradient-felt {
   background: linear-gradient(180deg, hsl(0, 0%, 7%) 0%, hsl(0, 0%, 5%) 100%);

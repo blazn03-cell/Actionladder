@@ -86,22 +86,25 @@ function Navigation({ activeTab, setActiveTab }: { activeTab: string; setActiveT
           </button>
         </nav>
         
-        {/* Navigation Tabs */}
-        <div className="flex space-x-1 overflow-x-auto pb-4 scrollbar-hide">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              data-testid={`tab-${tab.id}`}
-              className={`px-4 py-2 rounded-lg whitespace-nowrap transition-colors ${
-                activeTab === tab.id
-                  ? "bg-neon-green/20 text-neon-green border border-neon-green/50"
-                  : "hover:bg-white/10 text-gray-300"
-              }`}
-              onClick={() => setActiveTab(tab.id)}
-            >
-              {tab.label}
-            </button>
-          ))}
+        {/* Navigation Tabs - Scrollable Strip */}
+        <div className="overflow-x-auto no-scrollbar">
+          <ul className="inline-flex gap-4 px-4 py-2 whitespace-nowrap">
+            {tabs.map((tab) => (
+              <li key={tab.id}>
+                <button
+                  data-testid={`tab-${tab.id}`}
+                  className={`px-4 py-2 rounded-lg whitespace-nowrap transition-colors ${
+                    activeTab === tab.id
+                      ? "bg-neon-green/20 text-neon-green border border-neon-green/50"
+                      : "hover:bg-white/10 text-gray-300"
+                  }`}
+                  onClick={() => setActiveTab(tab.id)}
+                >
+                  {tab.label}
+                </button>
+              </li>
+            ))}
+          </ul>
         </div>
       </div>
     </header>
