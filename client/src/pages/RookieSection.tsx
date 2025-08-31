@@ -40,7 +40,7 @@ export default function RookieSection() {
     onSuccess: () => {
       toast({
         title: "Rookie Match Scheduled",
-        description: "Match created successfully with $10 fee and $2 operator commission",
+        description: "Match created successfully with $8 fee and $2 operator commission",
       });
       queryClient.invalidateQueries({ queryKey: ["/api/rookie/matches"] });
       setChallengerName("");
@@ -110,7 +110,7 @@ export default function RookieSection() {
       game,
       table,
       time: new Date(time),
-      fee: 1000, // $10 in cents
+      fee: 800, // $8 in cents
       commission: 200, // $2 in cents
       pointsAwarded: 10,
     });
@@ -143,7 +143,7 @@ export default function RookieSection() {
           <p className="text-gray-400">Entry-level pool for players building their skills</p>
           <div className="mt-4 flex justify-center space-x-4">
             <div className="px-4 py-2 bg-green-600/20 border border-green-500/30 rounded-lg">
-              <p className="text-sm text-green-400">💰 $10 flat match fee • $2 operator commission</p>
+              <p className="text-sm text-green-400">💰 $8 flat match fee • $2 operator commission</p>
             </div>
             <div className="px-4 py-2 bg-blue-600/20 border border-blue-500/30 rounded-lg">
               <p className="text-sm text-blue-400">🎯 10 points for win • 5 points for loss</p>
@@ -245,7 +245,7 @@ export default function RookieSection() {
             <Card className="bg-felt-darker border border-neon-green/30">
               <CardHeader>
                 <CardTitle className="text-neon-green">Schedule Rookie Match</CardTitle>
-                <CardDescription>Create a new rookie match with $10 flat fee</CardDescription>
+                <CardDescription>Create a new rookie match with $8 flat fee</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
@@ -314,7 +314,7 @@ export default function RookieSection() {
                   data-testid="button-schedule-match"
                 >
                   <DollarSign className="w-4 h-4 mr-2" />
-                  Schedule Match ($10 Fee)
+                  Schedule Match ($8 Fee)
                 </Button>
               </CardContent>
             </Card>

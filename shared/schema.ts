@@ -308,7 +308,7 @@ export const rookieMatches = pgTable("rookie_matches", {
   opponent: text("opponent").notNull(),
   game: text("game").notNull(),
   table: text("table").notNull(),
-  fee: integer("fee").notNull().default(1000), // $10 in cents
+  fee: integer("fee").notNull().default(800), // $8 in cents
   commission: integer("commission").notNull().default(200), // $2 in cents
   time: timestamp("time").notNull(),
   notes: text("notes"),
