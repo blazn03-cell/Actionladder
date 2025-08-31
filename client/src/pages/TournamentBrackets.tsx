@@ -590,6 +590,9 @@ export default function TournamentBrackets() {
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold text-neon-green mb-2">Tournament Brackets</h1>
           <p className="text-gray-400">Single elimination tournaments with OCR photo scanning</p>
+          <div className="mt-3 px-4 py-2 bg-green-600/20 border border-green-500/30 rounded-lg inline-block">
+            <p className="text-sm text-green-400">✓ No membership required to create or participate in tournaments</p>
+          </div>
         </div>
 
         <Tabs defaultValue="setup" className="space-y-6">

@@ -123,7 +123,7 @@ export const TournamentEntryButton: React.FC<TournamentEntryButtonProps> = ({
   tournamentId,
   userEmail,
   className = "",
-  label = "Enter Tournament"
+  label = "Enter Tournament (No Membership Required)"
 }) => {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);

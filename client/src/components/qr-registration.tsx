@@ -26,6 +26,7 @@ const quickRegistrationSchema = z.object({
   rating: z.number().min(200, "Minimum rating is 200").max(800, "Maximum rating is 800").optional(),
   theme: z.string().optional(),
   phone: z.string().optional(),
+  membershipTier: z.enum(["none", "basic", "pro"]).optional(),
 });
 
 type QuickRegistrationData = z.infer<typeof quickRegistrationSchema>;
@@ -49,7 +50,7 @@ function GenerateQRDialog() {
   const generateQRMutation = useMutation({
     mutationFn: async () => {
       const response = await apiRequest("POST", "/api/qr-registration/generate");
-      return response as QRRegistrationSession;
+      return response.json() as Promise<QRRegistrationSession>;
     },
     onSuccess: (data: QRRegistrationSession) => {
       setRegistrationUrl(data.registrationUrl);
@@ -217,6 +218,7 @@ function QuickRegistrationForm({ sessionId }: { sessionId: string }) {
       rating: 500,
       theme: "",
       phone: "",
+      membershipTier: "none",
     },
   });
 
@@ -250,7 +252,7 @@ function QuickRegistrationForm({ sessionId }: { sessionId: string }) {
           <UserPlus className="w-8 h-8 text-green-400" />
         </div>
         <CardTitle className="text-white">Join Action Ladder!</CardTitle>
-        <p className="text-gray-400 text-sm">Quick mobile registration</p>
+        <p className="text-gray-400 text-sm">Quick mobile registration - No membership required!</p>
       </CardHeader>
       <CardContent>
         <Form {...form}>
@@ -350,6 +352,32 @@ function QuickRegistrationForm({ sessionId }: { sessionId: string }) {
                       className="bg-black/50 border-green-500/30 text-white"
                     />
                   </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="membershipTier"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-gray-300">Membership Tier (Optional)</FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl>
+                      <SelectTrigger className="bg-black/50 border-green-500/30 text-white">
+                        <SelectValue />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="none">No Membership (Free)</SelectItem>
+                      <SelectItem value="basic">Basic - $25/month</SelectItem>
+                      <SelectItem value="pro">Pro - $40/month</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <div className="text-xs text-gray-400 mt-1">
+                    You can join and play without any membership. Memberships offer benefits like reduced fees.
+                  </div>
                   <FormMessage />
                 </FormItem>
               )}

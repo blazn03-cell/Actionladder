@@ -828,7 +828,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/qr-registration/:sessionId/register", async (req, res) => {
     try {
       const { sessionId } = req.params;
-      const { name, city, rating, theme, phone } = req.body;
+      const { name, city, rating, theme, phone, membershipTier } = req.body;
       
       const player = {
         id: `player-${Date.now()}`,
@@ -837,6 +837,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         rating: rating || 500,
         theme,
         phone,
+        membershipTier: membershipTier || "none",
         registeredVia: "qr",
         createdAt: new Date(),
       };
