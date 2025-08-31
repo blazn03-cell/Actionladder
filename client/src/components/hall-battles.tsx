@@ -80,7 +80,7 @@ function HallStandings() {
   return (
     <div className="space-y-6">
       <div className="text-center py-8">
-        <h2 className="text-3xl font-bold text-neon-green mb-2">TRI-CITY HALL STANDINGS</h2>
+        <h2 className="text-3xl font-bold text-neon-green mb-2">ACTIONLADDER HALL STANDINGS</h2>
         <p className="text-gray-400">Pool Hall vs Pool Hall Competition Rankings</p>
       </div>
 

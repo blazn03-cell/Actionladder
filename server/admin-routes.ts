@@ -2,6 +2,7 @@ import type { Express } from "express";
 import Stripe from "stripe";
 import { storage } from "./storage";
 import type { User, InsertUser } from "./storage";
+import { insertOperatorSettingsSchema } from "@shared/schema";
 
 if (!process.env.STRIPE_SECRET_KEY) {
   throw new Error('Missing required Stripe secret: STRIPE_SECRET_KEY');
@@ -363,4 +364,127 @@ export async function payStaffFromInvoice(invoice: any) {
     console.error("Payout processing error:", error);
     throw error;
   }
+}
+
+// API routes for operator settings management
+export function registerOperatorRoutes(app: Express) {
+  
+  // Get all operator settings (for trustee view)
+  app.get("/api/admin/operators", requireOwner, async (req, res) => {
+    try {
+      const operators = await storage.getAllOperatorSettings();
+      // Get user details for each operator
+      const operatorsWithDetails = await Promise.all(
+        operators.map(async (settings) => {
+          const user = await storage.getUser(settings.operatorUserId);
+          return {
+            ...settings,
+            user: user ? { name: user.name, email: user.email } : null
+          };
+        })
+      );
+      res.json(operatorsWithDetails);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Toggle free months for an operator (trustee only)
+  app.post("/api/admin/operators/:operatorUserId/free-months", requireOwner, async (req, res) => {
+    try {
+      const { operatorUserId } = req.params;
+      const { hasFreeMonths, freeMonthsCount } = req.body;
+      const trusteeId = req.user.id;
+
+      let settings = await storage.getOperatorSettings(operatorUserId);
+      
+      if (!settings) {
+        // Create default settings first
+        settings = await storage.createOperatorSettings({
+          operatorUserId,
+          cityName: "Your City",
+          areaName: "Your Area",
+          hasFreeMonths: false,
+          freeMonthsCount: 0,
+        });
+      }
+
+      const updated = await storage.updateOperatorSettings(operatorUserId, {
+        hasFreeMonths,
+        freeMonthsCount: hasFreeMonths ? freeMonthsCount || 1 : 0,
+        freeMonthsGrantedBy: hasFreeMonths ? trusteeId : null,
+        freeMonthsGrantedAt: hasFreeMonths ? new Date() : null,
+      });
+
+      res.json(updated);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get operator's own settings
+  app.get("/api/operator/settings", async (req, res) => {
+    try {
+      // In a real app, this would get the current user from session
+      // For demo, we'll use a query parameter
+      const operatorUserId = req.query.userId as string;
+      if (!operatorUserId) {
+        return res.status(400).json({ error: "operatorUserId required" });
+      }
+
+      let settings = await storage.getOperatorSettings(operatorUserId);
+      
+      if (!settings) {
+        // Create default settings for new operator
+        settings = await storage.createOperatorSettings({
+          operatorUserId,
+          cityName: "Your City",
+          areaName: "Your Area",
+          hasFreeMonths: false,
+          freeMonthsCount: 0,
+        });
+      }
+
+      res.json(settings);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Update operator's customization settings
+  app.put("/api/operator/settings", async (req, res) => {
+    try {
+      const operatorUserId = req.query.userId as string;
+      if (!operatorUserId) {
+        return res.status(400).json({ error: "operatorUserId required" });
+      }
+
+      const { cityName, areaName, customBranding } = req.body;
+
+      let settings = await storage.getOperatorSettings(operatorUserId);
+      
+      if (!settings) {
+        // Create if doesn't exist
+        settings = await storage.createOperatorSettings({
+          operatorUserId,
+          cityName: cityName || "Your City",
+          areaName: areaName || "Your Area",
+          customBranding,
+          hasFreeMonths: false,
+          freeMonthsCount: 0,
+        });
+      } else {
+        // Update existing
+        settings = await storage.updateOperatorSettings(operatorUserId, {
+          cityName,
+          areaName,
+          customBranding,
+        });
+      }
+
+      res.json(settings);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
 }

@@ -197,6 +197,21 @@ export const webhookEvents = pgTable("webhook_events", {
   payloadJson: text("payload_json").notNull(),
 });
 
+// Operator settings for customization and free months
+export const operatorSettings = pgTable("operator_settings", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  operatorUserId: text("operator_user_id").notNull().unique(), // Links to users table
+  cityName: text("city_name").default("Your City"),
+  areaName: text("area_name").default("Your Area"),
+  customBranding: text("custom_branding"), // Optional custom branding text
+  hasFreeMonths: boolean("has_free_months").default(false), // Trustee can toggle this
+  freeMonthsCount: integer("free_months_count").default(0), // How many free months left
+  freeMonthsGrantedBy: text("free_months_granted_by"), // Which trustee granted it
+  freeMonthsGrantedAt: timestamp("free_months_granted_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
@@ -275,6 +290,12 @@ export const insertWebhookEventSchema = createInsertSchema(webhookEvents).omit({
   processedAt: true,
 });
 
+export const insertOperatorSettingsSchema = createInsertSchema(operatorSettings).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 // Types
 export type Player = typeof players.$inferSelect;
 export type InsertPlayer = z.infer<typeof insertPlayerSchema>;
@@ -300,3 +321,5 @@ export type LiveStream = typeof liveStreams.$inferSelect;
 export type InsertLiveStream = z.infer<typeof insertLiveStreamSchema>;
 export type WebhookEvent = typeof webhookEvents.$inferSelect;
 export type InsertWebhookEvent = z.infer<typeof insertWebhookEventSchema>;
+export type OperatorSettings = typeof operatorSettings.$inferSelect;
+export type InsertOperatorSettings = z.infer<typeof insertOperatorSettingsSchema>;

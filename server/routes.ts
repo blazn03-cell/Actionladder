@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import Stripe from "stripe";
 import { storage } from "./storage";
 import { AIService } from "./ai-service";
-import { registerAdminRoutes, payStaffFromInvoice } from "./admin-routes";
+import { registerAdminRoutes, registerOperatorRoutes, payStaffFromInvoice } from "./admin-routes";
 import { registerHallRoutes } from "./hall-routes";
 import { 
   insertPlayerSchema, insertMatchSchema, insertTournamentSchema,
@@ -26,6 +26,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Register admin routes for staff management and payouts
   registerAdminRoutes(app);
+  
+  // Register operator settings routes
+  registerOperatorRoutes(app);
   
   // Register hall vs hall match routes
   registerHallRoutes(app);

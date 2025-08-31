@@ -19,6 +19,7 @@ import RealTimeNotifications from "@/components/real-time-notifications";
 import PosterGenerator from "@/components/poster-generator";
 import AIDashboard from "@/pages/AIDashboard";
 import AdminDashboard from "@/pages/AdminDashboard";
+import OperatorSettings from "@/pages/OperatorSettings";
 import TournamentBrackets from "@/pages/TournamentBrackets";
 import Checkout from "@/pages/checkout";
 import Terms from "@/pages/Terms";
@@ -41,6 +42,7 @@ function Navigation({ activeTab, setActiveTab }: { activeTab: string; setActiveT
     { id: "poster-generator", label: "Poster Generator" },
     { id: "live-stream", label: "Live Stream" },
     { id: "ai-features", label: "AI Features" },
+    { id: "operator-settings", label: "Operator Settings" },
     { id: "admin", label: "Admin" },
     { id: "tournaments", label: "Tournaments" },
     { id: "tournament-brackets", label: "Tournament Brackets" },
@@ -60,8 +62,8 @@ function Navigation({ activeTab, setActiveTab }: { activeTab: string; setActiveT
               <span className="text-xl font-black text-felt-dark">🎱</span>
             </div>
             <div>
-              <h1 className="text-xl font-black text-neon-green">TRI-CITY TEXAS LADDER</h1>
-              <p className="text-sm text-gray-400">Seguin • New Braunfels • San Marcos</p>
+              <h1 className="text-xl font-black text-neon-green">ACTIONLADDER</h1>
+              <p className="text-sm text-gray-400">In here, respect is earned in racks, not words</p>
             </div>
           </div>
           
@@ -161,6 +163,7 @@ function App() {
                 {activeTab === "poster-generator" && <PosterGenerator />}
                 {activeTab === "live-stream" && <LiveStream />}
                 {activeTab === "ai-features" && <AIDashboard />}
+                {activeTab === "operator-settings" && <OperatorSettings />}
                 {activeTab === "admin" && <AdminDashboard />}
                 {activeTab === "tournaments" && <Tournaments />}
                 {activeTab === "tournament-brackets" && <TournamentBrackets />}
@@ -186,7 +189,7 @@ function App() {
               <a href="/refund" className="hover:text-neon-green transition-colors">Refund Policy</a>
               <a href="/acceptable-use" className="hover:text-neon-green transition-colors">Acceptable Use</a>
               <span className="text-neon-green">•</span>
-              <span>© 2025 Tri-City Texas Ladder</span>
+              <span>© 2025 ActionLadder</span>
             </div>
           </div>
         </footer>

@@ -193,7 +193,7 @@ function AILadderSection({ players }: { players: Player[] }) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
-          question: `What are the best strategies for players to climb the Tri-City ladder effectively? Consider rating gaps, point systems, streak bonuses, and optimal challenge patterns.` 
+          question: `What are the best strategies for players to climb the ActionLadder effectively? Consider rating gaps, point systems, streak bonuses, and optimal challenge patterns.` 
         })
       }).then(res => res.json()),
     onSuccess: (data) => {

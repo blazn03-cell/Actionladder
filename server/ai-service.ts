@@ -132,7 +132,7 @@ Provide coaching based on:
 
 Give practical, actionable advice that players can implement immediately to improve their game.`;
 
-const COMMUNITY_PROMPT = `You are the friendly assistant for the Tri-City Texas Billiards Ladder community.
+const COMMUNITY_PROMPT = `You are the friendly assistant for the ActionLadder billiards community.
 
 Help with:
 - Tournament rules and regulations
@@ -288,7 +288,7 @@ export class AIService {
       { role: 'system', content: COMMUNITY_PROMPT },
       { 
         role: 'user', 
-        content: `Answer this question about the Tri-City Texas Billiards Ladder: ${question}
+        content: `Answer this question about the ActionLadder billiards community: ${question}
         
         Current community context:
         Top Players: ${rankings}

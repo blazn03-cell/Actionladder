@@ -384,7 +384,7 @@ function CharityInfo() {
           <div className="flex items-start space-x-2">
             <span className="text-pink-400 font-bold">•</span>
             <span className="text-gray-300">
-              <span className="text-white font-semibold">House Matching:</span> Tri-City Ladder matches community donations dollar-for-dollar
+              <span className="text-white font-semibold">House Matching:</span> ActionLadder matches community donations dollar-for-dollar
             </span>
           </div>
           <div className="flex items-start space-x-2">

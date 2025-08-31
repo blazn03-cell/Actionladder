@@ -83,7 +83,7 @@ export function generateFightNightPoster(data: PosterData): Promise<string> {
     // Footer
     ctx.fillStyle = '#85bb65';
     ctx.font = 'bold 28px Inter';
-    ctx.fillText('TRI-CITY TEXAS LADDER', 400, 1100);
+    ctx.fillText('ACTIONLADDER', 400, 1100);
     ctx.font = '18px Inter';
     ctx.fillText('Pool. Points. Pride.', 400, 1130);
     
@@ -137,7 +137,7 @@ export function generateBreakAndRunPoster(playerName: string, amount: number): P
     // Footer
     ctx.fillStyle = '#00ff41';
     ctx.font = 'bold 28px Inter';
-    ctx.fillText('TRI-CITY TEXAS LADDER', 400, 700);
+    ctx.fillText('ACTIONLADDER', 400, 700);
     
     // Convert to blob URL
     canvas.toBlob((blob) => {

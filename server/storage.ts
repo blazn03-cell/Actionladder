@@ -11,6 +11,7 @@ import {
   type PoolHall, type InsertPoolHall,
   type HallMatch, type InsertHallMatch,
   type HallRoster, type InsertHallRoster,
+  type OperatorSettings, type InsertOperatorSettings,
   type GlobalRole,
   insertUserSchema,
   insertOrganizationSchema,
@@ -98,6 +99,12 @@ export interface IStorage {
   getPayoutTransfersByInvoice(invoiceId: string): Promise<PayoutTransfer[]>;
   getAllPayoutTransfers(): Promise<PayoutTransfer[]>;
   createPayoutTransfer(transfer: InsertPayoutTransfer): Promise<PayoutTransfer>;
+  
+  // Operator Settings
+  getOperatorSettings(operatorUserId: string): Promise<OperatorSettings | undefined>;
+  getAllOperatorSettings(): Promise<OperatorSettings[]>;
+  createOperatorSettings(settings: InsertOperatorSettings): Promise<OperatorSettings>;
+  updateOperatorSettings(operatorUserId: string, updates: Partial<OperatorSettings>): Promise<OperatorSettings | undefined>;
   
   // Players
   getPlayer(id: string): Promise<Player | undefined>;
@@ -192,6 +199,7 @@ export class MemStorage implements IStorage {
   private hallMatches = new Map<string, HallMatch>();
   private hallRosters = new Map<string, HallRoster>();
   private webhookEvents = new Map<string, WebhookEvent>();
+  private operatorSettings = new Map<string, OperatorSettings>(); // keyed by operatorUserId
 
   constructor() {
     // Initialize with seed data for demonstration (disabled in production)
@@ -310,6 +318,47 @@ export class MemStorage implements IStorage {
     };
     this.payoutTransfers.set(transfer.id, transfer);
     return transfer;
+  }
+
+  // Operator Settings Methods
+  async getOperatorSettings(operatorUserId: string): Promise<OperatorSettings | undefined> {
+    return this.operatorSettings.get(operatorUserId);
+  }
+
+  async getAllOperatorSettings(): Promise<OperatorSettings[]> {
+    return Array.from(this.operatorSettings.values());
+  }
+
+  async createOperatorSettings(data: InsertOperatorSettings): Promise<OperatorSettings> {
+    const settings: OperatorSettings = {
+      id: randomUUID(),
+      operatorUserId: data.operatorUserId,
+      cityName: data.cityName || "Your City",
+      areaName: data.areaName || "Your Area", 
+      customBranding: data.customBranding || null,
+      hasFreeMonths: data.hasFreeMonths || false,
+      freeMonthsCount: data.freeMonthsCount || 0,
+      freeMonthsGrantedBy: data.freeMonthsGrantedBy || null,
+      freeMonthsGrantedAt: data.freeMonthsGrantedAt || null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    this.operatorSettings.set(settings.operatorUserId, settings);
+    return settings;
+  }
+
+  async updateOperatorSettings(operatorUserId: string, updates: Partial<OperatorSettings>): Promise<OperatorSettings | undefined> {
+    const existing = this.operatorSettings.get(operatorUserId);
+    if (!existing) return undefined;
+
+    const updated: OperatorSettings = {
+      ...existing,
+      ...updates,
+      operatorUserId, // Keep the key consistent
+      updatedAt: new Date(),
+    };
+    this.operatorSettings.set(operatorUserId, updated);
+    return updated;
   }
 
   private initializeSeedData() {

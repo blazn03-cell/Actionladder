@@ -91,7 +91,7 @@ function AIPaymentInsights({ paymentInfo }: { paymentInfo: { type: string; amoun
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
-          question: `Analyze this payment: ${paymentInfo.description} for $${paymentInfo.amount}. Provide insights about value, competitive analysis, and strategic recommendations for this type of investment in the Tri-City billiards scene.` 
+          question: `Analyze this payment: ${paymentInfo.description} for $${paymentInfo.amount}. Provide insights about value, competitive analysis, and strategic recommendations for this type of investment in the ActionLadder billiards community.` 
         })
       }).then(res => res.json()),
     onSuccess: (data) => {

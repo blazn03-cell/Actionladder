@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import HallBattlesAdmin from "@/components/hall-battles-admin";
-import { Users, DollarSign, Shield, TrendingUp, Trophy } from "lucide-react";
+import { Users, DollarSign, Shield, TrendingUp, Trophy, Settings, Gift } from "lucide-react";
 
 interface User {
   id: string;
@@ -30,6 +30,24 @@ interface PayoutTransfer {
   recipientName?: string;
   recipientEmail?: string;
   createdAt: string;
+}
+
+interface OperatorSettings {
+  id: string;
+  operatorUserId: string;
+  cityName: string;
+  areaName: string;
+  customBranding?: string;
+  hasFreeMonths: boolean;
+  freeMonthsCount: number;
+  freeMonthsGrantedBy?: string;
+  freeMonthsGrantedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+  user?: {
+    name?: string;
+    email: string;
+  };
 }
 
 export default function AdminDashboard() {
@@ -54,6 +72,12 @@ export default function AdminDashboard() {
   // Get organizations
   const { data: orgData, isLoading: loadingOrgs } = useQuery({
     queryKey: ["/api/admin/organizations"],
+    enabled: true
+  });
+
+  // Get operator settings
+  const { data: operatorsData, isLoading: loadingOperators } = useQuery({
+    queryKey: ["/api/admin/operators"],
     enabled: true
   });
 
@@ -104,6 +128,31 @@ export default function AdminDashboard() {
     },
   });
 
+  // Toggle free months mutation
+  const toggleFreeMonthsMutation = useMutation({
+    mutationFn: async (data: { operatorUserId: string; hasFreeMonths: boolean; freeMonthsCount?: number }) => {
+      const response = await apiRequest("POST", `/api/admin/operators/${data.operatorUserId}/free-months`, {
+        hasFreeMonths: data.hasFreeMonths,
+        freeMonthsCount: data.freeMonthsCount
+      });
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Free Months Updated",
+        description: "Operator free months status updated successfully",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/operators"] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Update Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleInviteStaff = () => {
     if (!inviteEmail || !shareBps) {
       toast({
@@ -134,6 +183,7 @@ export default function AdminDashboard() {
   const staff: User[] = (staffData as any)?.staff || [];
   const transfers: PayoutTransfer[] = (payoutsData as any)?.transfers || [];
   const organizations: any[] = (orgData as any)?.organizations || [];
+  const operators: OperatorSettings[] = (operatorsData as any) || [];
 
   // Calculate total payouts by user
   const payoutsByUser = transfers.reduce((acc: any, transfer: PayoutTransfer) => {
@@ -152,7 +202,7 @@ export default function AdminDashboard() {
       </div>
 
       <Tabs defaultValue="staff" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-5 bg-black/40">
+        <TabsList className="grid w-full grid-cols-7 bg-black/40">
           <TabsTrigger value="staff" className="data-[state=active]:bg-green-600">
             <Users className="w-4 h-4 mr-2" />
             Staff Management
@@ -172,6 +222,14 @@ export default function AdminDashboard() {
           <TabsTrigger value="overview" className="data-[state=active]:bg-green-600">
             <TrendingUp className="w-4 h-4 mr-2" />
             Overview
+          </TabsTrigger>
+          <TabsTrigger value="operators" className="data-[state=active]:bg-green-600">
+            <Settings className="w-4 h-4 mr-2" />
+            Operators
+          </TabsTrigger>
+          <TabsTrigger value="free-months" className="data-[state=active]:bg-green-600">
+            <Gift className="w-4 h-4 mr-2" />
+            Free Months
           </TabsTrigger>
         </TabsList>
 
@@ -460,6 +518,152 @@ export default function AdminDashboard() {
             </CardContent>
           </Card>
         </TabsContent>
+        {/* Operators Tab */}
+        <TabsContent value="operators" className="space-y-6">
+          <Card className="bg-black/60 border-green-600/30">
+            <CardHeader>
+              <CardTitle className="text-green-400 flex items-center">
+                <Settings className="w-5 h-5 mr-2" />
+                Operator Management
+              </CardTitle>
+              <CardDescription className="text-gray-300">
+                View and manage all operators in the system
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {loadingOperators ? (
+                <div className="text-center py-8">
+                  <div className="animate-spin w-8 h-8 border-4 border-green-600 border-t-transparent rounded-full mx-auto"></div>
+                  <p className="text-gray-400 mt-2">Loading operators...</p>
+                </div>
+              ) : operators.length === 0 ? (
+                <p className="text-gray-400 text-center py-8">No operators found</p>
+              ) : (
+                <div className="space-y-4">
+                  {operators.map((operator) => (
+                    <div key={operator.id} className="bg-black/40 rounded-lg p-4 border border-green-600/20">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h3 className="text-green-400 font-semibold">
+                            {operator.user?.name || operator.user?.email || "Unknown Operator"}
+                          </h3>
+                          <p className="text-gray-400 text-sm">{operator.user?.email}</p>
+                          <div className="mt-2 space-y-1 text-sm">
+                            <p><span className="text-gray-400">City:</span> <span className="text-green-400">{operator.cityName}</span></p>
+                            <p><span className="text-gray-400">Area:</span> <span className="text-green-400">{operator.areaName}</span></p>
+                            {operator.customBranding && (
+                              <p><span className="text-gray-400">Custom Branding:</span> <span className="text-green-400">{operator.customBranding}</span></p>
+                            )}
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <Badge 
+                            variant={operator.hasFreeMonths ? "default" : "secondary"}
+                            className={operator.hasFreeMonths ? "bg-green-600 text-black" : "bg-gray-600 text-white"}
+                          >
+                            {operator.hasFreeMonths ? `${operator.freeMonthsCount} Free Months` : "No Free Months"}
+                          </Badge>
+                          {operator.hasFreeMonths && operator.freeMonthsGrantedAt && (
+                            <p className="text-xs text-gray-400 mt-1">
+                              Granted: {new Date(operator.freeMonthsGrantedAt).toLocaleDateString()}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Free Months Management Tab */}
+        <TabsContent value="free-months" className="space-y-6">
+          <Card className="bg-black/60 border-green-600/30">
+            <CardHeader>
+              <CardTitle className="text-green-400 flex items-center">
+                <Gift className="w-5 h-5 mr-2" />
+                Free Months Management
+              </CardTitle>
+              <CardDescription className="text-gray-300">
+                Grant or revoke free months for operators (Trustee Only)
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {loadingOperators ? (
+                <div className="text-center py-8">
+                  <div className="animate-spin w-8 h-8 border-4 border-green-600 border-t-transparent rounded-full mx-auto"></div>
+                  <p className="text-gray-400 mt-2">Loading operators...</p>
+                </div>
+              ) : operators.length === 0 ? (
+                <p className="text-gray-400 text-center py-8">No operators found</p>
+              ) : (
+                <div className="space-y-4">
+                  {operators.map((operator) => (
+                    <div key={operator.id} className="bg-black/40 rounded-lg p-4 border border-green-600/20">
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <h3 className="text-green-400 font-semibold">
+                            {operator.user?.name || operator.user?.email || "Unknown Operator"}
+                          </h3>
+                          <p className="text-gray-400 text-sm">{operator.user?.email}</p>
+                          <p className="text-gray-400 text-sm">{operator.cityName}, {operator.areaName}</p>
+                        </div>
+                        <div className="flex items-center gap-4">
+                          <div className="text-right">
+                            <Badge 
+                              variant={operator.hasFreeMonths ? "default" : "secondary"}
+                              className={operator.hasFreeMonths ? "bg-green-600 text-black" : "bg-gray-600 text-white"}
+                            >
+                              {operator.hasFreeMonths ? `${operator.freeMonthsCount} Free Months` : "No Free Months"}
+                            </Badge>
+                            {operator.hasFreeMonths && operator.freeMonthsGrantedAt && (
+                              <p className="text-xs text-gray-400 mt-1">
+                                Granted: {new Date(operator.freeMonthsGrantedAt).toLocaleDateString()}
+                              </p>
+                            )}
+                          </div>
+                          <div className="flex gap-2">
+                            {!operator.hasFreeMonths ? (
+                              <Button
+                                onClick={() => toggleFreeMonthsMutation.mutate({
+                                  operatorUserId: operator.operatorUserId,
+                                  hasFreeMonths: true,
+                                  freeMonthsCount: 1
+                                })}
+                                size="sm"
+                                className="bg-green-600 hover:bg-green-700 text-black font-semibold"
+                                disabled={toggleFreeMonthsMutation.isPending}
+                                data-testid={`button-grant-free-months-${operator.operatorUserId}`}
+                              >
+                                Grant 1 Month
+                              </Button>
+                            ) : (
+                              <Button
+                                onClick={() => toggleFreeMonthsMutation.mutate({
+                                  operatorUserId: operator.operatorUserId,
+                                  hasFreeMonths: false
+                                })}
+                                size="sm"
+                                variant="destructive"
+                                disabled={toggleFreeMonthsMutation.isPending}
+                                data-testid={`button-revoke-free-months-${operator.operatorUserId}`}
+                              >
+                                Revoke
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
       </Tabs>
     </div>
   );
