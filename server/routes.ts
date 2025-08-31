@@ -19,6 +19,15 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
   apiVersion: "2025-08-27.basil",
 });
 
+// Stripe Price IDs
+const prices = {
+  rookie_monthly: "prod_Sy1Pr1q0qu3UoL", // $5/month Rookie Pass
+  small: process.env.SMALL_PRICE_ID,
+  medium: process.env.MEDIUM_PRICE_ID,
+  large: process.env.LARGE_PRICE_ID,
+  mega: process.env.MEGA_PRICE_ID,
+};
+
 export async function registerRoutes(app: Express): Promise<Server> {
   
   // Health check endpoint (required for production deployment)
@@ -605,8 +614,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
     } else if (session.mode === 'subscription') {
-      // Handle membership subscriptions
-      if (userId) {
+      // Handle subscriptions
+      const subscriptionType = session.metadata?.subscriptionType;
+      const playerId = session.metadata?.playerId;
+      
+      if (subscriptionType === 'rookie_pass' && playerId) {
+        // Handle Rookie Pass subscription
+        const expiresAt = new Date();
+        expiresAt.setMonth(expiresAt.getMonth() + 1); // 1 month from now
+        
+        await storage.createRookieSubscription({
+          playerId,
+          stripeSessionId: session.id,
+          stripeCustomerId: session.customer as string,
+          expiresAt,
+        });
+        
+        // Update player's rookie pass status
+        await storage.updatePlayer(playerId, {
+          rookiePassActive: true,
+          rookiePassExpiresAt: expiresAt,
+        });
+      } else if (userId) {
+        // Handle regular membership subscriptions
         await storage.updatePlayer(userId, {
           member: true,
           stripeCustomerId: session.customer as string
@@ -616,9 +646,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }
 
   async function handleSubscription(subscription: any): Promise<void> {
-    if (subscription.metadata?.userId) {
+    const userId = subscription.metadata?.userId;
+    const playerId = subscription.metadata?.playerId;
+    const subscriptionType = subscription.metadata?.subscriptionType;
+    
+    if (subscriptionType === 'rookie_pass' && playerId) {
+      // Handle Rookie Pass subscription status changes
       const isActive = subscription.status === 'active';
-      await storage.updatePlayer(subscription.metadata.userId, {
+      const expiresAt = isActive ? new Date(subscription.current_period_end * 1000) : null;
+      
+      await storage.updatePlayer(playerId, {
+        rookiePassActive: isActive,
+        rookiePassExpiresAt: expiresAt,
+      });
+      
+      // Update rookie subscription status
+      const existingSubscription = await storage.getRookieSubscription(playerId);
+      if (existingSubscription) {
+        await storage.updateRookieSubscription(playerId, {
+          status: subscription.status,
+          expiresAt: expiresAt,
+        });
+      }
+    } else if (userId) {
+      // Handle regular membership subscriptions
+      const isActive = subscription.status === 'active';
+      await storage.updatePlayer(userId, {
         member: isActive
       });
     }
@@ -628,8 +681,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     // Handle subscription membership updates
     if (invoice.subscription) {
       const subscription = await stripe.subscriptions.retrieve(invoice.subscription);
-      if (subscription.metadata?.userId) {
-        await storage.updatePlayer(subscription.metadata.userId, {
+      const userId = subscription.metadata?.userId;
+      const playerId = subscription.metadata?.playerId;
+      const subscriptionType = subscription.metadata?.subscriptionType;
+      
+      if (subscriptionType === 'rookie_pass' && playerId) {
+        // Handle Rookie Pass renewal
+        const expiresAt = new Date(subscription.current_period_end * 1000);
+        
+        await storage.updatePlayer(playerId, {
+          rookiePassActive: true,
+          rookiePassExpiresAt: expiresAt,
+        });
+        
+        // Update rookie subscription
+        const existingSubscription = await storage.getRookieSubscription(playerId);
+        if (existingSubscription) {
+          await storage.updateRookieSubscription(playerId, {
+            expiresAt: expiresAt,
+          });
+        }
+      } else if (userId) {
+        // Handle regular membership renewal
+        await storage.updatePlayer(userId, {
           member: true
         });
       }
@@ -1174,15 +1248,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/rookie/subscription", async (req, res) => {
     try {
-      const subscription = await storage.createRookieSubscription(req.body);
+      const { playerId } = req.body;
       
-      // Update player's rookie pass status
-      await storage.updatePlayer(req.body.playerId, {
-        rookiePassActive: true,
-        rookiePassExpiresAt: subscription.expiresAt,
+      if (!playerId) {
+        return res.status(400).json({ message: "Player ID is required" });
+      }
+
+      // Create Stripe checkout session for Rookie Pass subscription
+      const session = await stripe.checkout.sessions.create({
+        mode: 'subscription',
+        line_items: [{
+          price: prices.rookie_monthly,
+          quantity: 1,
+        }],
+        success_url: `${process.env.APP_BASE_URL || 'http://localhost:5000'}/?rookie_subscription=success`,
+        cancel_url: `${process.env.APP_BASE_URL || 'http://localhost:5000'}/?rookie_subscription=cancelled`,
+        metadata: {
+          playerId,
+          subscriptionType: 'rookie_pass'
+        },
+        allow_promotion_codes: true,
+        automatic_tax: { enabled: false },
       });
 
-      res.json(subscription);
+      res.json({ 
+        checkoutUrl: session.url,
+        sessionId: session.id 
+      });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }

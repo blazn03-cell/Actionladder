@@ -77,6 +77,23 @@ export default function RookieSection() {
     },
   });
 
+  // Subscribe to Rookie Pass mutation
+  const subscribeRookiePassMutation = useMutation({
+    mutationFn: (playerId: string) => apiRequest("POST", "/api/rookie/subscription", { playerId }),
+    onSuccess: (data: any) => {
+      if (data.checkoutUrl) {
+        window.location.href = data.checkoutUrl;
+      }
+    },
+    onError: () => {
+      toast({
+        title: "Subscription Error",
+        description: "Unable to start subscription process. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleScheduleMatch = () => {
     if (!challengerName || !opponentName || !game || !table || !time) {
       toast({
@@ -475,13 +492,15 @@ export default function RookieSection() {
                 </div>
                 <div className="text-center">
                   <Button
+                    onClick={() => subscribeRookiePassMutation.mutate("rookie-player-1")} // In real app, get from user context
+                    disabled={subscribeRookiePassMutation.isPending}
                     className="bg-purple-600 hover:bg-purple-700 text-white px-8 py-3"
                     data-testid="button-subscribe-rookie-pass"
                   >
                     <Crown className="w-4 h-4 mr-2" />
-                    Subscribe to Rookie Pass ($5/month)
+                    {subscribeRookiePassMutation.isPending ? "Processing..." : "Subscribe to Rookie Pass ($5/month)"}
                   </Button>
-                  <p className="text-sm text-gray-400 mt-2">Operator decides where this fee goes</p>
+                  <p className="text-sm text-gray-400 mt-2">Secure payment via Stripe • Operator decides where fee goes</p>
                 </div>
               </CardContent>
             </Card>
