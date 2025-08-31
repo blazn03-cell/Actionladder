@@ -12,6 +12,11 @@ import Charity from "@/components/charity";
 import LiveStream from "@/components/live-stream";
 import HallBattles from "@/components/hall-battles";
 import RookieSection from "@/components/rookie-section";
+import EscrowBetting from "@/components/escrow-betting";
+import QRRegistration from "@/components/qr-registration";
+import LeagueStandings from "@/components/league-standings";
+import RealTimeNotifications from "@/components/real-time-notifications";
+import PosterGenerator from "@/components/poster-generator";
 import AIDashboard from "@/pages/AIDashboard";
 import AdminDashboard from "@/pages/AdminDashboard";
 import TournamentBrackets from "@/pages/TournamentBrackets";
@@ -29,7 +34,11 @@ function Navigation({ activeTab, setActiveTab }: { activeTab: string; setActiveT
     { id: "dashboard", label: "Dashboard" },
     { id: "ladder", label: "Ladder" },
     { id: "rookie-section", label: "Rookie Section" },
+    { id: "escrow-betting", label: "Escrow Betting" },
     { id: "hall-battles", label: "Hall Battles" },
+    { id: "league-standings", label: "League Standings" },
+    { id: "qr-registration", label: "QR Registration" },
+    { id: "poster-generator", label: "Poster Generator" },
     { id: "live-stream", label: "Live Stream" },
     { id: "ai-features", label: "AI Features" },
     { id: "admin", label: "Admin" },
@@ -145,7 +154,11 @@ function App() {
                 {activeTab === "dashboard" && <Dashboard />}
                 {activeTab === "ladder" && <Ladder />}
                 {activeTab === "rookie-section" && <RookieSection />}
+                {activeTab === "escrow-betting" && <EscrowBetting />}
                 {activeTab === "hall-battles" && <HallBattles />}
+                {activeTab === "league-standings" && <LeagueStandings />}
+                {activeTab === "qr-registration" && <QRRegistration />}
+                {activeTab === "poster-generator" && <PosterGenerator />}
                 {activeTab === "live-stream" && <LiveStream />}
                 {activeTab === "ai-features" && <AIDashboard />}
                 {activeTab === "admin" && <AdminDashboard />}
@@ -156,6 +169,7 @@ function App() {
                 {activeTab === "bounties" && <Bounties />}
                 {activeTab === "charity" && <Charity />}
               </div>
+              <RealTimeNotifications />
             </Route>
             <Route component={NotFound} />
           </Switch>

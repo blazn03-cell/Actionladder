@@ -1,0 +1,693 @@
+import { useState, useRef, useEffect } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
+import { queryClient } from "@/lib/queryClient";
+import { FileImage, Download, Palette, Type, Crown, Target, Zap } from "lucide-react";
+import type { Player, Match } from "@shared/schema";
+
+const posterSchema = z.object({
+  title: z.string().min(1, "Title is required"),
+  subtitle: z.string().optional(),
+  playerAId: z.string().min(1, "Select first player"),
+  playerBId: z.string().min(1, "Select second player"),
+  matchType: z.string().min(1, "Select match type"),
+  stakes: z.string().optional(),
+  date: z.string().optional(),
+  venue: z.string().optional(),
+  theme: z.enum(["fight-night", "championship", "grudge-match", "tournament", "custom"]),
+  backgroundColor: z.string().optional(),
+  textColor: z.string().optional(),
+});
+
+type PosterFormData = z.infer<typeof posterSchema>;
+
+interface GeneratedPoster {
+  id: string;
+  url: string;
+  title: string;
+  subtitle?: string;
+  playerA: Player;
+  playerB: Player;
+  theme: string;
+  createdAt: Date;
+}
+
+const posterThemes = [
+  {
+    value: "fight-night",
+    label: "Fight Night",
+    description: "Dark and intense boxing-style poster",
+    colors: { bg: "#000000", text: "#ff0000", accent: "#ffffff" }
+  },
+  {
+    value: "championship",
+    label: "Championship",
+    description: "Gold and royal championship theme",
+    colors: { bg: "#1a1a2e", text: "#ffd700", accent: "#ffffff" }
+  },
+  {
+    value: "grudge-match",
+    label: "Grudge Match",
+    description: "Electric rivalry theme",
+    colors: { bg: "#0f0f23", text: "#00ff00", accent: "#ff4444" }
+  },
+  {
+    value: "tournament",
+    label: "Tournament",
+    description: "Professional tournament style",
+    colors: { bg: "#1e293b", text: "#38bdf8", accent: "#ffffff" }
+  },
+  {
+    value: "custom",
+    label: "Custom",
+    description: "Design your own colors",
+    colors: { bg: "#000000", text: "#00ff00", accent: "#ffffff" }
+  }
+];
+
+function PosterCanvas({ 
+  posterData, 
+  theme, 
+  canvasRef 
+}: { 
+  posterData: PosterFormData; 
+  theme: typeof posterThemes[0];
+  canvasRef: React.RefObject<HTMLCanvasElement>;
+}) {
+  const { data: players = [] } = useQuery<Player[]>({
+    queryKey: ["/api/players"],
+  });
+
+  const playerA = players.find(p => p.id === posterData.playerAId);
+  const playerB = players.find(p => p.id === posterData.playerBId);
+
+  const generatePoster = () => {
+    const canvas = canvasRef.current;
+    if (!canvas || !playerA || !playerB) return;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    // Set canvas size
+    canvas.width = 1200;
+    canvas.height = 1600;
+
+    // Background
+    const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+    gradient.addColorStop(0, theme.colors.bg);
+    gradient.addColorStop(1, '#000000');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Title
+    ctx.fillStyle = theme.colors.text;
+    ctx.font = 'bold 72px Arial, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(posterData.title.toUpperCase(), canvas.width / 2, 150);
+
+    // Subtitle
+    if (posterData.subtitle) {
+      ctx.fillStyle = theme.colors.accent;
+      ctx.font = 'bold 36px Arial, sans-serif';
+      ctx.fillText(posterData.subtitle.toUpperCase(), canvas.width / 2, 220);
+    }
+
+    // VS in the middle
+    ctx.fillStyle = theme.colors.text;
+    ctx.font = 'bold 120px Arial, sans-serif';
+    ctx.fillText('VS', canvas.width / 2, 850);
+
+    // Player A (left side)
+    ctx.fillStyle = theme.colors.accent;
+    ctx.font = 'bold 48px Arial, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(playerA.name.toUpperCase(), 300, 650);
+    ctx.font = 'bold 32px Arial, sans-serif';
+    ctx.fillText(`${playerA.rating} FARGO`, 300, 700);
+    ctx.fillText(`RATING: ${playerA.rating}`, 300, 740);
+
+    // Player B (right side)
+    ctx.fillText(playerB.name.toUpperCase(), 900, 650);
+    ctx.fillText(`${playerB.rating} FARGO`, 900, 700);
+    ctx.fillText(`RATING: ${playerB.rating}`, 900, 740);
+
+    // Match details
+    if (posterData.matchType) {
+      ctx.fillStyle = theme.colors.text;
+      ctx.font = 'bold 36px Arial, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(posterData.matchType.toUpperCase(), canvas.width / 2, 1000);
+    }
+
+    if (posterData.stakes) {
+      ctx.fillStyle = '#ffd700';
+      ctx.font = 'bold 48px Arial, sans-serif';
+      ctx.fillText(posterData.stakes, canvas.width / 2, 1100);
+    }
+
+    if (posterData.date) {
+      ctx.fillStyle = theme.colors.accent;
+      ctx.font = 'bold 32px Arial, sans-serif';
+      ctx.fillText(posterData.date, canvas.width / 2, 1200);
+    }
+
+    if (posterData.venue) {
+      ctx.fillText(posterData.venue.toUpperCase(), canvas.width / 2, 1250);
+    }
+
+    // Action Ladder branding
+    ctx.fillStyle = theme.colors.text;
+    ctx.font = 'bold 28px Arial, sans-serif';
+    ctx.fillText('ACTION LADDER BILLIARDS', canvas.width / 2, 1400);
+    ctx.font = '24px Arial, sans-serif';
+    ctx.fillText('"In here, respect is earned in racks, not words"', canvas.width / 2, 1450);
+
+    // Decorative elements
+    drawDecorations(ctx, theme);
+  };
+
+  const drawDecorations = (ctx: CanvasRenderingContext2D, theme: typeof posterThemes[0]) => {
+    // Corner decorations
+    ctx.strokeStyle = theme.colors.text;
+    ctx.lineWidth = 4;
+    
+    // Top corners
+    ctx.beginPath();
+    ctx.moveTo(50, 50);
+    ctx.lineTo(150, 50);
+    ctx.moveTo(50, 50);
+    ctx.lineTo(50, 150);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(1150, 50);
+    ctx.lineTo(1050, 50);
+    ctx.moveTo(1150, 50);
+    ctx.lineTo(1150, 150);
+    ctx.stroke();
+
+    // Bottom corners
+    ctx.beginPath();
+    ctx.moveTo(50, 1550);
+    ctx.lineTo(150, 1550);
+    ctx.moveTo(50, 1550);
+    ctx.lineTo(50, 1450);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(1150, 1550);
+    ctx.lineTo(1050, 1550);
+    ctx.moveTo(1150, 1550);
+    ctx.lineTo(1150, 1450);
+    ctx.stroke();
+  };
+
+  // Generate poster when data changes
+  useEffect(() => {
+    if (playerA && playerB) {
+      generatePoster();
+    }
+  }, [posterData, theme, playerA, playerB]);
+
+  return null;
+}
+
+function CreatePosterDialog() {
+  const [open, setOpen] = useState(false);
+  const [selectedTheme, setSelectedTheme] = useState(posterThemes[0]);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const { toast } = useToast();
+
+  const { data: players = [] } = useQuery<Player[]>({
+    queryKey: ["/api/players"],
+  });
+
+  const form = useForm<PosterFormData>({
+    resolver: zodResolver(posterSchema),
+    defaultValues: {
+      title: "FIGHT NIGHT",
+      subtitle: "",
+      playerAId: "",
+      playerBId: "",
+      matchType: "8-Ball Race to 7",
+      stakes: "$500 WINNER TAKES ALL",
+      date: "",
+      venue: "Action Ladder Billiards",
+      theme: "fight-night",
+    },
+  });
+
+  const selectedThemeValue = form.watch("theme");
+  
+  useEffect(() => {
+    const theme = posterThemes.find(t => t.value === selectedThemeValue) || posterThemes[0];
+    setSelectedTheme(theme);
+  }, [selectedThemeValue]);
+
+  const savePosterMutation = useMutation({
+    mutationFn: async (posterData: PosterFormData) => {
+      const canvas = canvasRef.current;
+      if (!canvas) throw new Error("Canvas not ready");
+      
+      const imageData = canvas.toDataURL('image/png');
+      return apiRequest("POST", "/api/posters", {
+        ...posterData,
+        imageData
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/posters"] });
+      toast({
+        title: "Poster Created!",
+        description: "Your fight night poster has been generated and saved.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to create poster",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const downloadPoster = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const link = document.createElement('a');
+    link.download = `action-ladder-poster-${Date.now()}.png`;
+    link.href = canvas.toDataURL();
+    link.click();
+  };
+
+  const onSubmit = (data: PosterFormData) => {
+    savePosterMutation.mutate(data);
+  };
+
+  const watchedData = form.watch();
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button className="bg-purple-600 hover:bg-purple-700" data-testid="create-poster-button">
+          <FileImage className="w-4 h-4 mr-2" />
+          Create Fight Poster
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-6xl bg-black/95 border border-green-500/30">
+        <DialogHeader>
+          <DialogTitle className="text-white">AI Poster Generator</DialogTitle>
+        </DialogHeader>
+        
+        <div className="grid grid-cols-2 gap-6">
+          {/* Form */}
+          <div className="space-y-6">
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                <FormField
+                  control={form.control}
+                  name="title"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-gray-300">Title</FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          className="bg-black/50 border-green-500/30 text-white"
+                          placeholder="FIGHT NIGHT"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="subtitle"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-gray-300">Subtitle (Optional)</FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          className="bg-black/50 border-green-500/30 text-white"
+                          placeholder="Championship Match"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="playerAId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-gray-300">Player A</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger className="bg-black/50 border-green-500/30 text-white">
+                              <SelectValue placeholder="Select player" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {players.map((player) => (
+                              <SelectItem key={player.id} value={player.id}>
+                                {player.name} ({player.rating} Fargo)
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="playerBId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-gray-300">Player B</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger className="bg-black/50 border-green-500/30 text-white">
+                              <SelectValue placeholder="Select player" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {players.map((player) => (
+                              <SelectItem key={player.id} value={player.id}>
+                                {player.name} ({player.rating} Fargo)
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <FormField
+                  control={form.control}
+                  name="theme"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-gray-300">Theme</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger className="bg-black/50 border-green-500/30 text-white">
+                            <SelectValue />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {posterThemes.map((theme) => (
+                            <SelectItem key={theme.value} value={theme.value}>
+                              {theme.label} - {theme.description}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="matchType"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-gray-300">Match Type</FormLabel>
+                        <FormControl>
+                          <Input
+                            {...field}
+                            className="bg-black/50 border-green-500/30 text-white"
+                            placeholder="8-Ball Race to 7"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="stakes"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-gray-300">Stakes</FormLabel>
+                        <FormControl>
+                          <Input
+                            {...field}
+                            className="bg-black/50 border-green-500/30 text-white"
+                            placeholder="$500 WINNER TAKES ALL"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="date"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-gray-300">Date</FormLabel>
+                        <FormControl>
+                          <Input
+                            {...field}
+                            className="bg-black/50 border-green-500/30 text-white"
+                            placeholder="Friday Night 8 PM"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="venue"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-gray-300">Venue</FormLabel>
+                        <FormControl>
+                          <Input
+                            {...field}
+                            className="bg-black/50 border-green-500/30 text-white"
+                            placeholder="Action Ladder Billiards"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <div className="flex space-x-3 pt-4">
+                  <Button
+                    type="button"
+                    onClick={downloadPoster}
+                    variant="outline"
+                    className="flex-1"
+                    data-testid="download-poster-button"
+                  >
+                    <Download className="w-4 h-4 mr-2" />
+                    Download
+                  </Button>
+                  <Button
+                    type="submit"
+                    disabled={savePosterMutation.isPending}
+                    className="flex-1 bg-purple-600 hover:bg-purple-700"
+                  >
+                    {savePosterMutation.isPending ? (
+                      <LoadingSpinner size="sm" />
+                    ) : (
+                      "Save Poster"
+                    )}
+                  </Button>
+                </div>
+              </form>
+            </Form>
+          </div>
+
+          {/* Live Preview */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold text-white">Live Preview</h3>
+              <div className="flex items-center space-x-2">
+                <Palette className="w-4 h-4 text-green-400" />
+                <span className="text-sm text-gray-400">{selectedTheme.label} Theme</span>
+              </div>
+            </div>
+            
+            <div className="bg-gray-900/50 border border-green-500/30 rounded-lg p-4">
+              <canvas
+                ref={canvasRef}
+                width={1200}
+                height={1600}
+                className="w-full max-w-sm mx-auto border border-gray-600 rounded"
+                style={{ aspectRatio: '3/4' }}
+              />
+              <PosterCanvas 
+                posterData={watchedData} 
+                theme={selectedTheme} 
+                canvasRef={canvasRef} 
+              />
+            </div>
+
+            <div className="text-xs text-gray-500 text-center">
+              High-resolution: 1200×1600px • Perfect for printing
+            </div>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function PosterGallery() {
+  const { data: posters = [] } = useQuery<GeneratedPoster[]>({
+    queryKey: ["/api/posters"],
+  });
+
+  return (
+    <Card className="bg-black/60 backdrop-blur-sm border border-green-500/30">
+      <CardHeader>
+        <CardTitle className="text-white flex items-center">
+          <FileImage className="w-5 h-5 mr-2 text-green-400" />
+          Generated Posters
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        {posters.length === 0 ? (
+          <div className="text-center py-8">
+            <FileImage className="w-12 h-12 text-gray-500 mx-auto mb-4" />
+            <p className="text-gray-400">No posters created yet</p>
+            <p className="text-gray-500 text-sm mt-1">Generate your first fight night poster above</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+            {posters.map((poster) => (
+              <div key={poster.id} className="border border-gray-600/30 rounded-lg p-4">
+                <img
+                  src={poster.url}
+                  alt={poster.title}
+                  className="w-full h-32 object-cover rounded mb-2"
+                />
+                <div className="text-sm">
+                  <div className="font-semibold text-white">{poster.title}</div>
+                  {poster.subtitle && (
+                    <div className="text-gray-400">{poster.subtitle}</div>
+                  )}
+                  <div className="text-xs text-gray-500 mt-1">
+                    {poster.playerA.name} vs {poster.playerB.name}
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    {new Date(poster.createdAt).toLocaleDateString()}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+export default function PosterGenerator() {
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-bold text-white">AI Poster Generator</h1>
+          <p className="text-gray-400">Create professional fight night posters instantly</p>
+        </div>
+        <CreatePosterDialog />
+      </div>
+
+      <div className="grid lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2">
+          <PosterGallery />
+        </div>
+        
+        <Card className="bg-black/60 backdrop-blur-sm border border-green-500/30">
+          <CardHeader>
+            <CardTitle className="text-white flex items-center">
+              <Zap className="w-5 h-5 mr-2 text-green-400" />
+              Features
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="flex items-start space-x-3">
+                <Type className="w-5 h-5 text-green-400 mt-1 flex-shrink-0" />
+                <div>
+                  <h4 className="font-semibold text-white">Professional Typography</h4>
+                  <p className="text-gray-400 text-sm">Bold, impactful fonts designed for maximum visual appeal</p>
+                </div>
+              </div>
+              
+              <div className="flex items-start space-x-3">
+                <Palette className="w-5 h-5 text-green-400 mt-1 flex-shrink-0" />
+                <div>
+                  <h4 className="font-semibold text-white">Multiple Themes</h4>
+                  <p className="text-gray-400 text-sm">Fight night, championship, grudge match, and custom themes</p>
+                </div>
+              </div>
+              
+              <div className="flex items-start space-x-3">
+                <Target className="w-5 h-5 text-green-400 mt-1 flex-shrink-0" />
+                <div>
+                  <h4 className="font-semibold text-white">Player Integration</h4>
+                  <p className="text-gray-400 text-sm">Automatically pulls player names, ratings, and rankings</p>
+                </div>
+              </div>
+              
+              <div className="flex items-start space-x-3">
+                <Download className="w-5 h-5 text-green-400 mt-1 flex-shrink-0" />
+                <div>
+                  <h4 className="font-semibold text-white">High Resolution</h4>
+                  <p className="text-gray-400 text-sm">1200×1600px output perfect for printing and social media</p>
+                </div>
+              </div>
+              
+              <div className="flex items-start space-x-3">
+                <Crown className="w-5 h-5 text-green-400 mt-1 flex-shrink-0" />
+                <div>
+                  <h4 className="font-semibold text-white">Branded Design</h4>
+                  <p className="text-gray-400 text-sm">Action Ladder branding with signature slogan included</p>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}

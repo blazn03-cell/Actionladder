@@ -714,6 +714,306 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ==================== ESCROW BETTING ENDPOINTS ====================
+  app.get("/api/escrow-bets", async (req, res) => {
+    try {
+      // Mock data for escrow bets
+      const bets = [
+        {
+          id: "bet-001",
+          challengerId: "player-001",
+          opponentId: "player-002",
+          amount: 500,
+          gameType: "8-ball",
+          gameFormat: "race-to-7",
+          status: "pending",
+          escrowId: "escrow-001",
+          challenger: { id: "player-001", name: "Tommy 'The Knife' Rodriguez", rating: 650 },
+          opponent: { id: "player-002", name: "Sarah 'Pool Shark' Chen", rating: 680 },
+          createdAt: new Date(),
+        }
+      ];
+      res.json(bets);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/escrow-bets", async (req, res) => {
+    try {
+      const { amount, opponentId, gameType, gameFormat, terms } = req.body;
+      
+      // Create Stripe payment intent for escrow
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: amount * 100, // Convert to cents
+        currency: "usd",
+        metadata: {
+          type: "escrow_bet",
+          opponentId,
+          gameType,
+          gameFormat,
+        },
+      });
+
+      const bet = {
+        id: `bet-${Date.now()}`,
+        challengerId: "current-user",
+        opponentId,
+        amount,
+        gameType,
+        gameFormat,
+        status: "pending",
+        escrowId: paymentIntent.id,
+        terms,
+        createdAt: new Date(),
+      };
+
+      res.json(bet);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/escrow-bets/:id/accept", async (req, res) => {
+    try {
+      const { id } = req.params;
+      // Accept bet and create escrow for opponent
+      res.json({ message: "Bet accepted", betId: id });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/escrow-bets/stats", async (req, res) => {
+    try {
+      const stats = {
+        totalVolume: 125000,
+        activeBets: 8,
+        completedBets: 42,
+        totalEscrow: 15000,
+      };
+      res.json(stats);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // ==================== QR REGISTRATION ENDPOINTS ====================
+  app.post("/api/qr-registration/generate", async (req, res) => {
+    try {
+      const sessionId = `qr-${Date.now()}`;
+      const registrationUrl = `${req.protocol}://${req.get('host')}/register/${sessionId}`;
+      
+      const session = {
+        id: sessionId,
+        qrCode: "", // Will be generated client-side
+        registrationUrl,
+        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
+        registrations: [],
+        active: true,
+      };
+
+      res.json(session);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/qr-registration/:sessionId/register", async (req, res) => {
+    try {
+      const { sessionId } = req.params;
+      const { name, city, rating, theme, phone } = req.body;
+      
+      const player = {
+        id: `player-${Date.now()}`,
+        name,
+        city,
+        rating: rating || 500,
+        theme,
+        phone,
+        registeredVia: "qr",
+        createdAt: new Date(),
+      };
+
+      res.json(player);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/qr-registration/stats", async (req, res) => {
+    try {
+      const stats = {
+        totalQRRegistrations: 67,
+        todayRegistrations: 5,
+        activeSession: true,
+        recentRegistrations: [],
+      };
+      res.json(stats);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/qr-registration/recent", async (req, res) => {
+    try {
+      const recentRegistrations = [
+        {
+          id: "player-001",
+          name: "Mike 'Chalk Dust' Johnson",
+          city: "San Marcos",
+          rating: 520,
+          theme: "Precision over power",
+          createdAt: new Date(),
+        }
+      ];
+      res.json(recentRegistrations);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // ==================== LEAGUE STANDINGS ENDPOINTS ====================
+  app.get("/api/league/standings", async (req, res) => {
+    try {
+      const standings = [
+        {
+          id: "hall-001",
+          name: "Rack & Roll Billiards",
+          city: "San Marcos",
+          wins: 12,
+          losses: 3,
+          points: 850,
+          description: "Home of the hustlers",
+          roster: [
+            {
+              id: "roster-001",
+              playerId: "player-001",
+              hallId: "hall-001",
+              position: "Captain",
+              isActive: true,
+              player: {
+                id: "player-001",
+                name: "Tommy Rodriguez",
+                rating: 650,
+                theme: "The Knife"
+              }
+            }
+          ],
+          recentMatches: [],
+          averageRating: 625,
+          totalRacks: 456,
+          winPercentage: 80.0,
+        }
+      ];
+      res.json(standings);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/league/seasons", async (req, res) => {
+    try {
+      const seasons = [
+        {
+          id: "season-001",
+          name: "Spring 2024 Championship",
+          startDate: new Date("2024-03-01"),
+          endDate: new Date("2024-06-01"),
+          status: "active",
+          totalMatches: 45,
+          completedMatches: 32,
+          prizePool: 25000,
+        }
+      ];
+      res.json(seasons);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/league/stats", async (req, res) => {
+    try {
+      const stats = {
+        totalHalls: 6,
+        totalPlayers: 78,
+        totalMatches: 156,
+        totalPrizePool: 25000,
+        avgMatchStake: 750,
+        topHall: "Rack & Roll Billiards",
+      };
+      res.json(stats);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/league/upcoming-matches", async (req, res) => {
+    try {
+      const matches = [
+        {
+          id: "match-001",
+          homeHallId: "hall-001",
+          awayHallId: "hall-002",
+          format: "Best of 9",
+          totalRacks: 9,
+          homeScore: 0,
+          awayScore: 0,
+          status: "scheduled",
+          scheduledDate: "2024-03-15",
+          stake: 150000, // In cents
+          homeHall: { name: "Rack & Roll Billiards" },
+          awayHall: { name: "Corner Pocket Palace" },
+        }
+      ];
+      res.json(matches);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // ==================== POSTER GENERATION ENDPOINTS ====================
+  app.post("/api/posters", async (req, res) => {
+    try {
+      const { title, subtitle, playerAId, playerBId, theme, imageData } = req.body;
+      
+      const poster = {
+        id: `poster-${Date.now()}`,
+        title,
+        subtitle,
+        playerAId,
+        playerBId,
+        theme,
+        url: imageData, // In production, save to file storage
+        createdAt: new Date(),
+      };
+
+      res.json(poster);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/posters", async (req, res) => {
+    try {
+      const posters = [
+        {
+          id: "poster-001",
+          title: "FIGHT NIGHT",
+          subtitle: "Championship Match",
+          url: "/placeholder-poster.png",
+          theme: "fight-night",
+          playerA: { name: "Tommy Rodriguez" },
+          playerB: { name: "Sarah Chen" },
+          createdAt: new Date(),
+        }
+      ];
+      res.json(posters);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
