@@ -21,6 +21,7 @@ import AIDashboard from "@/pages/AIDashboard";
 import AdminDashboard from "@/pages/AdminDashboard";
 import OperatorSettings from "@/pages/OperatorSettings";
 import TournamentBrackets from "@/pages/TournamentBrackets";
+import MoneyOnTable from "@/components/money-on-table";
 import Checkout from "@/pages/checkout";
 import Terms from "@/pages/Terms";
 import Privacy from "@/pages/Privacy";
@@ -47,6 +48,7 @@ function Navigation({ activeTab, setActiveTab }: { activeTab: string; setActiveT
     { id: "admin", label: "Admin" },
     { id: "tournaments", label: "Tournaments" },
     { id: "tournament-brackets", label: "Tournament Brackets" },
+    { id: "money-on-table", label: "Money on Table" },
     { id: "kelly-pool", label: "Kelly Pool" },
     { id: "players", label: "Players" },
     { id: "bounties", label: "Bounties" },
@@ -196,6 +198,7 @@ function App() {
                 {activeTab === "admin" && <AdminDashboard />}
                 {activeTab === "tournaments" && <Tournaments />}
                 {activeTab === "tournament-brackets" && <TournamentBrackets />}
+                {activeTab === "money-on-table" && <MoneyOnTable />}
                 {activeTab === "kelly-pool" && <KellyPool />}
                 {activeTab === "players" && <Players />}
                 {activeTab === "bounties" && <Bounties />}
