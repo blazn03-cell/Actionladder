@@ -34,9 +34,11 @@ Dark, gritty billiards tournament ladder system with live streaming integration,
 ## Technical Architecture
 - **Frontend**: React 18 with TypeScript, Wouter routing, TanStack Query
 - **Backend**: Express.js with in-memory storage (MemStorage)
+- **Mobile App**: React Native with Expo (WebView wrapper)
 - **Styling**: Tailwind CSS with custom dark theme
 - **Payments**: Stripe Checkout API integration
 - **Database**: PostgreSQL available (currently using memory storage)
+- **Streaming**: Multi-platform live stream integration (Twitch, YouTube, Facebook, TikTok, Kick)
 
 ## User Preferences
 - **Communication Style**: Concise, professional, no emojis in code
@@ -49,6 +51,10 @@ Dark, gritty billiards tournament ladder system with live streaming integration,
 - Added Stripe Checkout API integration with proper price IDs
 - Implemented dark green pool hall theme throughout
 - Created comprehensive player support and community features
+- Enhanced Live Streams with geographic filtering and 6 platform support
+- Built complete React Native mobile app with Expo
+- Added "Money on the Table" gambling game with multiple variants
+- Integrated OCR capabilities with tesseract.js for tournament features
 
 ## Development Setup
 - Uses Vite for frontend development server
@@ -69,6 +75,9 @@ Dark, gritty billiards tournament ladder system with live streaming integration,
 - `STRIPE_SECRET_KEY`: Stripe API secret key
 - `STRIPE_WEBHOOK_SECRET`: Stripe webhook endpoint secret
 - `STRIPE_PUBLISHABLE_KEY`: Stripe public key for frontend
+- `DATABASE_URL`: PostgreSQL connection string (available)
+- `SESSION_SECRET`: Session encryption key (available)
+- `REPLIT_DOMAINS`: Deployment domains (available)
 
 ## Payment Integration
 Uses Stripe Checkout Sessions API with:
@@ -76,3 +85,32 @@ Uses Stripe Checkout Sessions API with:
 - Subscription billing for memberships
 - Webhook handling for payment confirmation
 - Metadata tracking for payment types and user tiers
+
+## Mobile Application
+React Native app built with Expo featuring:
+- **WebView Integration**: Full web app in native mobile wrapper
+- **Camera/Microphone Access**: OCR scanning, live streaming, match recording
+- **Deep Linking**: actionladder:// URLs for sharing tournaments/matches
+- **Push Notifications**: Tournament updates, match results, live stream alerts
+- **Offline Support**: Cached content when internet unavailable
+- **Store Deployment**: Ready for Google Play Store and Apple App Store
+- **Location Services**: Find nearby pool halls and tournaments
+- **Native Optimizations**: Touch gestures, keyboard handling, performance
+
+### Mobile App Setup
+1. Navigate to `mobile-app/` directory
+2. Install dependencies: `npm install`
+3. Update `APP_URL` in `App.js` to your deployment URL
+4. Start development: `npm start`
+5. Test with Expo Go app on your phone
+6. Build for stores: `npm run build:android` or `npm run build:ios`
+
+## Live Streaming Features
+Comprehensive streaming platform with:
+- **Multi-Platform Support**: Twitch, YouTube, Facebook, TikTok, Kick, Other
+- **Geographic Discovery**: Filter streams by city, state, and pool hall
+- **Stream Categories**: Tournament, casual, practice, special event
+- **Quality Indicators**: HD, Full HD, 4K streaming support
+- **Real-Time Stats**: Live viewer counts with peak tracking
+- **Integration**: Connected with tournaments, matches, and player profiles
+- **Operator Controls**: Stream management and moderation tools

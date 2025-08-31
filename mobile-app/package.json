@@ -1,0 +1,46 @@
+{
+  "name": "actionladder-mobile",
+  "version": "1.0.0",
+  "description": "ActionLadder Mobile App - Pool hall management and live tournament streaming",
+  "main": "node_modules/expo/AppEntry.js",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web",
+    "build:android": "eas build --platform android",
+    "build:ios": "eas build --platform ios",
+    "build:all": "eas build --platform all",
+    "preview:android": "eas build --platform android --profile preview",
+    "submit:android": "eas submit --platform android",
+    "submit:ios": "eas submit --platform ios",
+    "update": "eas update"
+  },
+  "dependencies": {
+    "expo": "~49.0.0",
+    "expo-status-bar": "~1.6.0",
+    "react": "18.2.0",
+    "react-native": "0.72.6",
+    "react-native-webview": "^13.6.4",
+    "expo-camera": "~13.4.4",
+    "expo-media-library": "~15.4.1",
+    "expo-location": "~16.1.0",
+    "expo-sharing": "~11.5.0"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.20.0",
+    "eas-cli": "latest"
+  },
+  "keywords": [
+    "pool",
+    "billiards", 
+    "tournament",
+    "ladder",
+    "streaming",
+    "gambling",
+    "ActionLadder"
+  ],
+  "author": "ActionLadder Team",
+  "license": "MIT",
+  "private": true
+}

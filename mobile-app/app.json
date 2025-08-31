@@ -1,0 +1,87 @@
+{
+  "expo": {
+    "name": "ActionLadder",
+    "slug": "actionladder-app",
+    "scheme": "actionladder",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0B0B0F"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "bundleIdentifier": "net.actionladder.app",
+      "supportsTablet": true,
+      "requireFullScreen": false,
+      "statusBarStyle": "light",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Camera is used for OCR score scanning, tournament bracket photos, and player verification in ActionLadder.",
+        "NSMicrophoneUsageDescription": "Microphone is used for live stream commentary, match recordings, and voice notes in ActionLadder.",
+        "NSPhotoLibraryUsageDescription": "Photo library access is used to save tournament posters and match photos in ActionLadder.",
+        "NSLocationWhenInUseUsageDescription": "Location is used to find nearby pool halls and tournaments in your area.",
+        "CFBundleURLTypes": [
+          {
+            "CFBundleURLName": "actionladder",
+            "CFBundleURLSchemes": ["actionladder"]
+          }
+        ]
+      },
+      "buildNumber": "1"
+    },
+    "android": {
+      "package": "net.actionladder.app",
+      "versionCode": 1,
+      "permissions": [
+        "INTERNET",
+        "CAMERA", 
+        "RECORD_AUDIO",
+        "WRITE_EXTERNAL_STORAGE",
+        "READ_EXTERNAL_STORAGE",
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION"
+      ],
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/icon.png",
+        "backgroundColor": "#0B0B0F"
+      },
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "data": [
+            {
+              "scheme": "actionladder"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        }
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro"
+    },
+    "extra": {
+      "actionLadder": {
+        "apiUrl": "https://YOUR-REPLIT-URL.replit.app",
+        "version": "1.0.0",
+        "environment": "production"
+      }
+    },
+    "updates": {
+      "fallbackToCacheTimeout": 0,
+      "url": "https://u.expo.dev/[your-project-id]"
+    },
+    "runtimeVersion": {
+      "policy": "sdkVersion"
+    }
+  }
+}
