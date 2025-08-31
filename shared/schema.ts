@@ -53,6 +53,11 @@ export const players = pgTable("players", {
   userId: text("user_id"), // link to users table
   isRookie: boolean("is_rookie").default(true), // Starts as rookie, graduates at Fargo 500+
   rookieWins: integer("rookie_wins").default(0), // Track rookie division wins
+  rookieLosses: integer("rookie_losses").default(0), // Track rookie division losses
+  rookiePoints: integer("rookie_points").default(0), // Separate rookie points system
+  rookieStreak: integer("rookie_streak").default(0), // Current rookie win streak
+  rookiePassActive: boolean("rookie_pass_active").default(false), // $5/month subscription
+  rookiePassExpiresAt: timestamp("rookie_pass_expires_at"), // When subscription expires
   graduatedAt: timestamp("graduated_at"), // When they left rookie division
   createdAt: timestamp("created_at").defaultNow(),
 });
@@ -296,6 +301,81 @@ export const insertOperatorSettingsSchema = createInsertSchema(operatorSettings)
   updatedAt: true,
 });
 
+// Rookie-specific tables
+export const rookieMatches = pgTable("rookie_matches", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  challenger: text("challenger").notNull(),
+  opponent: text("opponent").notNull(),
+  game: text("game").notNull(),
+  table: text("table").notNull(),
+  fee: integer("fee").notNull().default(1000), // $10 in cents
+  commission: integer("commission").notNull().default(200), // $2 in cents
+  time: timestamp("time").notNull(),
+  notes: text("notes"),
+  status: text("status").notNull().default("scheduled"), // "scheduled", "completed"
+  winner: text("winner"),
+  pointsAwarded: integer("points_awarded").default(10), // 10 points for win, 5 for loss
+  reportedAt: timestamp("reported_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const rookieEvents = pgTable("rookie_events", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  type: text("type").notNull(), // "tournament", "jackpot", "achievement"
+  buyIn: integer("buy_in").default(500), // $5 in cents
+  prizePool: integer("prize_pool").default(0),
+  maxPlayers: integer("max_players").default(8),
+  currentPlayers: integer("current_players").default(0),
+  status: text("status").default("open"), // "open", "active", "completed"
+  prizeType: text("prize_type").default("credit"), // "credit", "voucher", "merch"
+  description: text("description"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const rookieAchievements = pgTable("rookie_achievements", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  playerId: text("player_id").notNull(),
+  type: text("type").notNull(), // "first_win", "streak_3", "graduated"
+  title: text("title").notNull(),
+  description: text("description"),
+  badge: text("badge"), // Badge icon/image reference
+  earnedAt: timestamp("earned_at").defaultNow(),
+});
+
+export const rookieSubscriptions = pgTable("rookie_subscriptions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  playerId: text("player_id").notNull().unique(),
+  stripeSubscriptionId: text("stripe_subscription_id").unique(),
+  status: text("status").notNull().default("active"), // "active", "cancelled", "expired"
+  monthlyFee: integer("monthly_fee").default(500), // $5 in cents
+  startedAt: timestamp("started_at").defaultNow(),
+  expiresAt: timestamp("expires_at"),
+  cancelledAt: timestamp("cancelled_at"),
+});
+
+// Insert schemas for rookie tables
+export const insertRookieMatchSchema = createInsertSchema(rookieMatches).omit({
+  id: true,
+  createdAt: true,
+  reportedAt: true,
+});
+
+export const insertRookieEventSchema = createInsertSchema(rookieEvents).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertRookieAchievementSchema = createInsertSchema(rookieAchievements).omit({
+  id: true,
+  earnedAt: true,
+});
+
+export const insertRookieSubscriptionSchema = createInsertSchema(rookieSubscriptions).omit({
+  id: true,
+  startedAt: true,
+});
+
 // Types
 export type Player = typeof players.$inferSelect;
 export type InsertPlayer = z.infer<typeof insertPlayerSchema>;
@@ -323,3 +403,11 @@ export type WebhookEvent = typeof webhookEvents.$inferSelect;
 export type InsertWebhookEvent = z.infer<typeof insertWebhookEventSchema>;
 export type OperatorSettings = typeof operatorSettings.$inferSelect;
 export type InsertOperatorSettings = z.infer<typeof insertOperatorSettingsSchema>;
+export type RookieMatch = typeof rookieMatches.$inferSelect;
+export type InsertRookieMatch = z.infer<typeof insertRookieMatchSchema>;
+export type RookieEvent = typeof rookieEvents.$inferSelect;
+export type InsertRookieEvent = z.infer<typeof insertRookieEventSchema>;
+export type RookieAchievement = typeof rookieAchievements.$inferSelect;
+export type InsertRookieAchievement = z.infer<typeof insertRookieAchievementSchema>;
+export type RookieSubscription = typeof rookieSubscriptions.$inferSelect;
+export type InsertRookieSubscription = z.infer<typeof insertRookieSubscriptionSchema>;

@@ -12,6 +12,10 @@ import {
   type HallMatch, type InsertHallMatch,
   type HallRoster, type InsertHallRoster,
   type OperatorSettings, type InsertOperatorSettings,
+  type RookieMatch, type InsertRookieMatch,
+  type RookieEvent, type InsertRookieEvent,
+  type RookieAchievement, type InsertRookieAchievement,
+  type RookieSubscription, type InsertRookieSubscription,
   type GlobalRole,
   insertUserSchema,
   insertOrganizationSchema,
@@ -181,6 +185,30 @@ export interface IStorage {
   // Webhook Events
   getWebhookEvent(stripeEventId: string): Promise<WebhookEvent | undefined>;
   createWebhookEvent(event: InsertWebhookEvent): Promise<WebhookEvent>;
+  
+  // Rookie System
+  getRookieMatch(id: string): Promise<RookieMatch | undefined>;
+  getAllRookieMatches(): Promise<RookieMatch[]>;
+  getRookieMatchesByPlayer(playerId: string): Promise<RookieMatch[]>;
+  createRookieMatch(match: InsertRookieMatch): Promise<RookieMatch>;
+  updateRookieMatch(id: string, updates: Partial<RookieMatch>): Promise<RookieMatch | undefined>;
+  
+  getRookieEvent(id: string): Promise<RookieEvent | undefined>;
+  getAllRookieEvents(): Promise<RookieEvent[]>;
+  createRookieEvent(event: InsertRookieEvent): Promise<RookieEvent>;
+  updateRookieEvent(id: string, updates: Partial<RookieEvent>): Promise<RookieEvent | undefined>;
+  
+  getRookieAchievement(id: string): Promise<RookieAchievement | undefined>;
+  getRookieAchievementsByPlayer(playerId: string): Promise<RookieAchievement[]>;
+  createRookieAchievement(achievement: InsertRookieAchievement): Promise<RookieAchievement>;
+  
+  getRookieSubscription(playerId: string): Promise<RookieSubscription | undefined>;
+  getAllRookieSubscriptions(): Promise<RookieSubscription[]>;
+  createRookieSubscription(subscription: InsertRookieSubscription): Promise<RookieSubscription>;
+  updateRookieSubscription(playerId: string, updates: Partial<RookieSubscription>): Promise<RookieSubscription | undefined>;
+  
+  getRookieLeaderboard(): Promise<Player[]>;
+  promoteRookieToMainLadder(playerId: string): Promise<Player | undefined>;
 }
 
 export class MemStorage implements IStorage {
@@ -197,6 +225,10 @@ export class MemStorage implements IStorage {
   private liveStreams = new Map<string, LiveStream>();
   private poolHalls = new Map<string, PoolHall>();
   private hallMatches = new Map<string, HallMatch>();
+  private rookieMatches = new Map<string, RookieMatch>();
+  private rookieEvents = new Map<string, RookieEvent>();
+  private rookieAchievements = new Map<string, RookieAchievement>();
+  private rookieSubscriptions = new Map<string, RookieSubscription>();
   private hallRosters = new Map<string, HallRoster>();
   private webhookEvents = new Map<string, WebhookEvent>();
   private operatorSettings = new Map<string, OperatorSettings>(); // keyed by operatorUserId
@@ -770,6 +802,11 @@ export class MemStorage implements IStorage {
       userId: null,
       isRookie: true,
       rookieWins: 0,
+      rookieLosses: 0,
+      rookiePoints: 0,
+      rookieStreak: 0,
+      rookiePassActive: false,
+      rookiePassExpiresAt: null,
       graduatedAt: null,
       ...insertPlayer,
       id,
@@ -1187,6 +1224,171 @@ export class MemStorage implements IStorage {
     const updated = { ...hallRoster, ...updates };
     this.hallRosters.set(id, updated);
     return updated;
+  }
+
+  // Rookie System Implementation
+  async getRookieMatch(id: string): Promise<RookieMatch | undefined> {
+    return this.rookieMatches.get(id);
+  }
+
+  async getAllRookieMatches(): Promise<RookieMatch[]> {
+    return Array.from(this.rookieMatches.values()).sort((a, b) => 
+      (b.createdAt?.getTime() || 0) - (a.createdAt?.getTime() || 0)
+    );
+  }
+
+  async getRookieMatchesByPlayer(playerId: string): Promise<RookieMatch[]> {
+    return Array.from(this.rookieMatches.values())
+      .filter(match => match.challenger === playerId || match.opponent === playerId)
+      .sort((a, b) => 
+        (b.createdAt?.getTime() || 0) - (a.createdAt?.getTime() || 0)
+      );
+  }
+
+  async createRookieMatch(match: InsertRookieMatch): Promise<RookieMatch> {
+    const newMatch = {
+      id: randomUUID(),
+      ...match,
+      reportedAt: null,
+      createdAt: new Date(),
+    };
+    this.rookieMatches.set(newMatch.id, newMatch);
+    return newMatch;
+  }
+
+  async updateRookieMatch(id: string, updates: Partial<RookieMatch>): Promise<RookieMatch | undefined> {
+    const match = this.rookieMatches.get(id);
+    if (!match) return undefined;
+    const updatedMatch = { ...match, ...updates };
+    this.rookieMatches.set(id, updatedMatch);
+    return updatedMatch;
+  }
+
+  async getRookieEvent(id: string): Promise<RookieEvent | undefined> {
+    return this.rookieEvents.get(id);
+  }
+
+  async getAllRookieEvents(): Promise<RookieEvent[]> {
+    return Array.from(this.rookieEvents.values()).sort((a, b) => 
+      (b.createdAt?.getTime() || 0) - (a.createdAt?.getTime() || 0)
+    );
+  }
+
+  async createRookieEvent(event: InsertRookieEvent): Promise<RookieEvent> {
+    const newEvent = {
+      id: randomUUID(),
+      status: event.status || "open",
+      prizePool: event.prizePool || 0,
+      maxPlayers: event.maxPlayers || 8,
+      currentPlayers: event.currentPlayers || 0,
+      buyIn: event.buyIn || 500,
+      prizeType: event.prizeType || "credit",
+      description: event.description || null,
+      ...event,
+      createdAt: new Date(),
+    };
+    this.rookieEvents.set(newEvent.id, newEvent);
+    return newEvent;
+  }
+
+  async updateRookieEvent(id: string, updates: Partial<RookieEvent>): Promise<RookieEvent | undefined> {
+    const event = this.rookieEvents.get(id);
+    if (!event) return undefined;
+    const updatedEvent = { ...event, ...updates };
+    this.rookieEvents.set(id, updatedEvent);
+    return updatedEvent;
+  }
+
+  async getRookieAchievement(id: string): Promise<RookieAchievement | undefined> {
+    return this.rookieAchievements.get(id);
+  }
+
+  async getRookieAchievementsByPlayer(playerId: string): Promise<RookieAchievement[]> {
+    return Array.from(this.rookieAchievements.values())
+      .filter(achievement => achievement.playerId === playerId)
+      .sort((a, b) => 
+        (b.earnedAt?.getTime() || 0) - (a.earnedAt?.getTime() || 0)
+      );
+  }
+
+  async createRookieAchievement(achievement: InsertRookieAchievement): Promise<RookieAchievement> {
+    const newAchievement = {
+      id: randomUUID(),
+      description: achievement.description || null,
+      badge: achievement.badge || null,
+      ...achievement,
+      earnedAt: new Date(),
+    };
+    this.rookieAchievements.set(newAchievement.id, newAchievement);
+    return newAchievement;
+  }
+
+  async getRookieSubscription(playerId: string): Promise<RookieSubscription | undefined> {
+    return Array.from(this.rookieSubscriptions.values()).find(sub => sub.playerId === playerId);
+  }
+
+  async getAllRookieSubscriptions(): Promise<RookieSubscription[]> {
+    return Array.from(this.rookieSubscriptions.values()).sort((a, b) => 
+      (b.startedAt?.getTime() || 0) - (a.startedAt?.getTime() || 0)
+    );
+  }
+
+  async createRookieSubscription(subscription: InsertRookieSubscription): Promise<RookieSubscription> {
+    const newSubscription = {
+      id: randomUUID(),
+      ...subscription,
+      startedAt: new Date(),
+    };
+    this.rookieSubscriptions.set(newSubscription.id, newSubscription);
+    return newSubscription;
+  }
+
+  async updateRookieSubscription(playerId: string, updates: Partial<RookieSubscription>): Promise<RookieSubscription | undefined> {
+    const subscription = await this.getRookieSubscription(playerId);
+    if (!subscription) return undefined;
+    const updatedSubscription = { ...subscription, ...updates };
+    this.rookieSubscriptions.set(subscription.id, updatedSubscription);
+    return updatedSubscription;
+  }
+
+  async getRookieLeaderboard(): Promise<Player[]> {
+    return Array.from(this.players.values())
+      .filter(player => player.isRookie)
+      .sort((a, b) => {
+        // Sort by rookie points descending, then by wins
+        const aPoints = a.rookiePoints || 0;
+        const bPoints = b.rookiePoints || 0;
+        const aWins = a.rookieWins || 0;
+        const bWins = b.rookieWins || 0;
+        
+        if (bPoints !== aPoints) {
+          return bPoints - aPoints;
+        }
+        return bWins - aWins;
+      });
+  }
+
+  async promoteRookieToMainLadder(playerId: string): Promise<Player | undefined> {
+    const player = this.players.get(playerId);
+    if (!player || !player.isRookie) return undefined;
+
+    const updatedPlayer = {
+      ...player,
+      isRookie: false,
+      graduatedAt: new Date(),
+    };
+    this.players.set(playerId, updatedPlayer);
+
+    // Award graduation achievement
+    await this.createRookieAchievement({
+      playerId,
+      type: "graduated",
+      title: "Graduated to Main Ladder",
+      description: "Reached 100 rookie points and joined the main ladder",
+      badge: "🎓",
+    });
+
+    return updatedPlayer;
   }
 }
 

@@ -11,7 +11,7 @@ import Bounties from "@/components/bounties";
 import Charity from "@/components/charity";
 import LiveStream from "@/components/live-stream";
 import HallBattles from "@/components/hall-battles";
-import RookieSection from "@/components/rookie-section";
+import RookieSection from "@/pages/RookieSection";
 import EscrowChallenges from "@/components/escrow-challenges";
 import QRRegistration from "@/components/qr-registration";
 import LeagueStandings from "@/components/league-standings";
