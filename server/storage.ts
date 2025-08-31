@@ -194,8 +194,10 @@ export class MemStorage implements IStorage {
   private webhookEvents = new Map<string, WebhookEvent>();
 
   constructor() {
-    // Initialize with seed data for demonstration
-    this.initializeSeedData();
+    // Initialize with seed data for demonstration (disabled in production)
+    if (process.env.NODE_ENV === "development") {
+      this.initializeSeedData();
+    }
   }
 
   // User Management Methods

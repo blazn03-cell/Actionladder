@@ -21,6 +21,9 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
 
 export async function registerRoutes(app: Express): Promise<Server> {
   
+  // Health check endpoint (required for production deployment)
+  app.get("/healthz", (_, res) => res.send("ok"));
+  
   // Register admin routes for staff management and payouts
   registerAdminRoutes(app);
   
