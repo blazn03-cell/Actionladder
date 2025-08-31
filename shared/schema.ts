@@ -184,14 +184,27 @@ export const hallRosters = pgTable("hall_rosters", {
 
 export const liveStreams = pgTable("live_streams", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  platform: text("platform").notNull(), // "twitch", "youtube", "facebook", "tiktok"
+  platform: text("platform").notNull(), // "twitch", "youtube", "facebook", "tiktok", "kick", "other"
   url: text("url").notNull(),
   title: text("title"),
+  poolHallName: text("pool_hall_name").notNull(),
+  city: text("city").notNull(),
+  state: text("state").notNull(),
+  category: text("category").default("casual"), // "tournament", "casual", "practice", "event"
+  quality: text("quality").default("hd"), // "hd", "fhd", "4k"
   isLive: boolean("is_live").default(false),
   viewerCount: integer("viewer_count").default(0),
+  maxViewers: integer("max_viewers").default(0),
   matchId: text("match_id"),
   hallMatchId: text("hall_match_id"), // Link to inter-hall matches
+  tournamentId: text("tournament_id"), // Link to tournaments
+  streamerId: text("streamer_id"), // Link to player/user
+  embedUrl: text("embed_url"), // Processed embed URL
+  thumbnailUrl: text("thumbnail_url"), // Stream thumbnail
+  tags: text("tags").array(), // Searchable tags
+  language: text("language").default("en"), // Stream language
   createdAt: timestamp("created_at").defaultNow(),
+  lastLiveAt: timestamp("last_live_at"),
 });
 
 export const webhookEvents = pgTable("webhook_events", {
@@ -288,6 +301,9 @@ export const insertHallRosterSchema = createInsertSchema(hallRosters).omit({
 export const insertLiveStreamSchema = createInsertSchema(liveStreams).omit({
   id: true,
   createdAt: true,
+  lastLiveAt: true,
+  maxViewers: true,
+  embedUrl: true,
 });
 
 export const insertWebhookEventSchema = createInsertSchema(webhookEvents).omit({

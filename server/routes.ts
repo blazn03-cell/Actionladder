@@ -354,6 +354,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.delete("/api/live-streams/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const success = await storage.deleteLiveStream(id);
+      if (!success) {
+        return res.status(404).json({ message: "Live stream not found" });
+      }
+      res.json({ message: "Live stream deleted successfully" });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Enhanced live stream routes
+  app.get("/api/live-streams/by-location", async (req, res) => {
+    try {
+      const { city, state } = req.query;
+      const streams = await storage.getLiveStreamsByLocation(city as string, state as string);
+      res.json(streams);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/live-streams/stats", async (req, res) => {
+    try {
+      const stats = await storage.getLiveStreamStats();
+      res.json(stats);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   // Stripe payment routes
   app.post("/api/create-payment-intent", async (req, res) => {
     try {

@@ -170,6 +170,9 @@ export interface IStorage {
   getAllLiveStreams(): Promise<LiveStream[]>;
   createLiveStream(stream: InsertLiveStream): Promise<LiveStream>;
   updateLiveStream(id: string, updates: Partial<LiveStream>): Promise<LiveStream | undefined>;
+  deleteLiveStream(id: string): Promise<boolean>;
+  getLiveStreamsByLocation(city?: string, state?: string): Promise<LiveStream[]>;
+  getLiveStreamStats(): Promise<any>;
 
   // Pool Halls
   getPoolHall(id: string): Promise<PoolHall | undefined>;
@@ -1122,7 +1125,13 @@ export class MemStorage implements IStorage {
       viewerCount: null,
       matchId: null,
       hallMatchId: null,
+      maxViewers: 0,
+      embedUrl: null,
+      lastLiveAt: null,
       ...insertLiveStream,
+      category: insertLiveStream.category || null,
+      quality: insertLiveStream.quality || null,
+      tags: insertLiveStream.tags || [],
       id,
       createdAt: new Date(),
     };
@@ -1137,6 +1146,47 @@ export class MemStorage implements IStorage {
     const updatedLiveStream = { ...liveStream, ...updates };
     this.liveStreams.set(id, updatedLiveStream);
     return updatedLiveStream;
+  }
+
+  async deleteLiveStream(id: string): Promise<boolean> {
+    return this.liveStreams.delete(id);
+  }
+
+  async getLiveStreamsByLocation(city?: string, state?: string): Promise<LiveStream[]> {
+    const allStreams = Array.from(this.liveStreams.values());
+    return allStreams.filter(stream => {
+      const matchesCity = !city || stream.city?.toLowerCase().includes(city.toLowerCase());
+      const matchesState = !state || stream.state?.toLowerCase() === state.toLowerCase();
+      return matchesCity && matchesState;
+    });
+  }
+
+  async getLiveStreamStats(): Promise<any> {
+    const allStreams = Array.from(this.liveStreams.values());
+    const liveStreams = allStreams.filter(s => s.isLive);
+    const totalViewers = liveStreams.reduce((sum, stream) => sum + (stream.viewerCount || 0), 0);
+    const peakViewers = allStreams.reduce((max, stream) => Math.max(max, stream.maxViewers || 0), 0);
+    
+    const platformStats = allStreams.reduce((acc, stream) => {
+      acc[stream.platform] = (acc[stream.platform] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+    
+    const locationStats = allStreams.reduce((acc, stream) => {
+      if (stream.state) {
+        acc[stream.state] = (acc[stream.state] || 0) + 1;
+      }
+      return acc;
+    }, {} as Record<string, number>);
+    
+    return {
+      totalStreams: allStreams.length,
+      liveStreams: liveStreams.length,
+      totalViewers,
+      peakViewers,
+      platformStats,
+      locationStats
+    };
   }
 
   // Webhook Event methods
