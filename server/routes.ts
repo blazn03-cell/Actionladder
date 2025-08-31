@@ -714,13 +714,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // ==================== ESCROW BETTING ENDPOINTS ====================
-  app.get("/api/escrow-bets", async (req, res) => {
+  // ==================== ESCROW CHALLENGE ENDPOINTS ====================
+  app.get("/api/escrow-challenges", async (req, res) => {
     try {
-      // Mock data for escrow bets
-      const bets = [
+      // Mock data for escrow challenges
+      const challenges = [
         {
-          id: "bet-001",
+          id: "challenge-001",
           challengerId: "player-001",
           opponentId: "player-002",
           amount: 500,
@@ -733,13 +733,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           createdAt: new Date(),
         }
       ];
-      res.json(bets);
+      res.json(challenges);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
   });
 
-  app.post("/api/escrow-bets", async (req, res) => {
+  app.post("/api/escrow-challenges", async (req, res) => {
     try {
       const { amount, opponentId, gameType, gameFormat, terms } = req.body;
       
@@ -748,15 +748,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         amount: amount * 100, // Convert to cents
         currency: "usd",
         metadata: {
-          type: "escrow_bet",
+          type: "escrow_challenge",
           opponentId,
           gameType,
           gameFormat,
         },
       });
 
-      const bet = {
-        id: `bet-${Date.now()}`,
+      const challenge = {
+        id: `challenge-${Date.now()}`,
         challengerId: "current-user",
         opponentId,
         amount,
@@ -768,28 +768,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
         createdAt: new Date(),
       };
 
-      res.json(bet);
+      res.json(challenge);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
   });
 
-  app.post("/api/escrow-bets/:id/accept", async (req, res) => {
+  app.post("/api/escrow-challenges/:id/accept", async (req, res) => {
     try {
       const { id } = req.params;
-      // Accept bet and create escrow for opponent
-      res.json({ message: "Bet accepted", betId: id });
+      // Accept challenge and create escrow for opponent
+      res.json({ message: "Challenge accepted", challengeId: id });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
   });
 
-  app.get("/api/escrow-bets/stats", async (req, res) => {
+  app.get("/api/escrow-challenges/stats", async (req, res) => {
     try {
       const stats = {
         totalVolume: 125000,
-        activeBets: 8,
-        completedBets: 42,
+        activeChallenges: 8,
+        completedChallenges: 42,
         totalEscrow: 15000,
       };
       res.json(stats);

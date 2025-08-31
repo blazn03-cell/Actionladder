@@ -20,17 +20,17 @@ import { queryClient } from "@/lib/queryClient";
 import { DollarSign, Shield, Clock, Users, Trophy, AlertTriangle, CheckCircle, Lock } from "lucide-react";
 import type { Player, Match } from "@shared/schema";
 
-const betSchema = z.object({
-  amount: z.number().min(60, "Minimum bet is $60").max(500000, "Maximum bet is $500,000"),
+const challengeSchema = z.object({
+  amount: z.number().min(60, "Minimum entry is $60").max(500000, "Maximum entry is $500,000"),
   opponentId: z.string().min(1, "Select an opponent"),
   gameType: z.enum(["8-ball", "9-ball", "10-ball", "one-pocket", "straight-pool"]),
   gameFormat: z.enum(["race-to-5", "race-to-7", "race-to-9", "single-game"]),
   terms: z.string().optional(),
 });
 
-type BetFormData = z.infer<typeof betSchema>;
+type ChallengeFormData = z.infer<typeof challengeSchema>;
 
-interface EscrowBet {
+interface EscrowChallenge {
   id: string;
   challengerId: string;
   opponentId: string;
@@ -63,7 +63,7 @@ const gameFormats = [
   { value: "single-game", label: "Single Game", description: "One game winner takes all" },
 ];
 
-function CreateBetDialog() {
+function CreateChallengeDialog() {
   const [open, setOpen] = useState(false);
   const { toast } = useToast();
 
@@ -71,8 +71,8 @@ function CreateBetDialog() {
     queryKey: ["/api/players"],
   });
 
-  const form = useForm<BetFormData>({
-    resolver: zodResolver(betSchema),
+  const form = useForm<ChallengeFormData>({
+    resolver: zodResolver(challengeSchema),
     defaultValues: {
       amount: 60,
       opponentId: "",
@@ -82,13 +82,13 @@ function CreateBetDialog() {
     },
   });
 
-  const createBetMutation = useMutation({
-    mutationFn: (data: BetFormData) => apiRequest("POST", "/api/escrow-bets", data),
+  const createChallengeMutation = useMutation({
+    mutationFn: (data: ChallengeFormData) => apiRequest("POST", "/api/escrow-challenges", data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/escrow-bets"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/escrow-challenges"] });
       toast({
         title: "Challenge Created!",
-        description: "Your bet has been placed in escrow. Waiting for opponent acceptance.",
+        description: "Your challenge has been placed in escrow. Waiting for opponent acceptance.",
       });
       setOpen(false);
       form.reset();
@@ -96,14 +96,14 @@ function CreateBetDialog() {
     onError: (error: any) => {
       toast({
         title: "Error",
-        description: error.message || "Failed to create bet",
+        description: error.message || "Failed to create challenge",
         variant: "destructive",
       });
     },
   });
 
-  const onSubmit = (data: BetFormData) => {
-    createBetMutation.mutate(data);
+  const onSubmit = (data: ChallengeFormData) => {
+    createChallengeMutation.mutate(data);
   };
 
   const selectedAmount = form.watch("amount");
@@ -114,7 +114,7 @@ function CreateBetDialog() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button className="bg-green-600 hover:bg-green-700 text-white" data-testid="create-bet-button">
+        <Button className="bg-green-600 hover:bg-green-700 text-white" data-testid="create-challenge-button">
           <DollarSign className="w-4 h-4 mr-2" />
           Create Challenge
         </Button>
@@ -141,7 +141,7 @@ function CreateBetDialog() {
                         {...field}
                         onChange={(e) => field.onChange(Number(e.target.value))}
                         className="bg-black/50 border-green-500/30 text-white"
-                        data-testid="bet-amount-input"
+                        data-testid="challenge-amount-input"
                       />
                     </FormControl>
                     <FormMessage />
@@ -245,17 +245,17 @@ function CreateBetDialog() {
               )}
             />
 
-            {/* Bet Summary */}
+            {/* Challenge Summary */}
             <Card className="bg-gray-900/50 border border-green-500/30">
               <CardContent className="p-4">
-                <h4 className="font-semibold text-white mb-3">Bet Summary</h4>
+                <h4 className="font-semibold text-white mb-3">Challenge Summary</h4>
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between text-gray-300">
-                    <span>Your stake:</span>
+                    <span>Your entry:</span>
                     <span>${selectedAmount.toLocaleString()}</span>
                   </div>
                   <div className="flex justify-between text-gray-300">
-                    <span>Opponent stake:</span>
+                    <span>Opponent entry:</span>
                     <span>${selectedAmount.toLocaleString()}</span>
                   </div>
                   <div className="flex justify-between text-gray-300">
@@ -287,10 +287,10 @@ function CreateBetDialog() {
               </Button>
               <Button
                 type="submit"
-                disabled={createBetMutation.isPending}
+                disabled={createChallengeMutation.isPending}
                 className="flex-1 bg-green-600 hover:bg-green-700"
               >
-                {createBetMutation.isPending ? (
+                {createChallengeMutation.isPending ? (
                   <LoadingSpinner size="sm" />
                 ) : (
                   "Create Challenge"
@@ -304,13 +304,13 @@ function CreateBetDialog() {
   );
 }
 
-function BetCard({ bet }: { bet: EscrowBet }) {
+function ChallengeCard({ challenge }: { challenge: EscrowChallenge }) {
   const { toast } = useToast();
 
-  const acceptBetMutation = useMutation({
-    mutationFn: () => apiRequest("POST", `/api/escrow-bets/${bet.id}/accept`),
+  const acceptChallengeMutation = useMutation({
+    mutationFn: () => apiRequest("POST", `/api/escrow-challenges/${challenge.id}/accept`),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/escrow-bets"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/escrow-challenges"] });
       toast({
         title: "Challenge Accepted!",
         description: "Funds are now in escrow. Good luck!",
@@ -318,10 +318,10 @@ function BetCard({ bet }: { bet: EscrowBet }) {
     },
   });
 
-  const cancelBetMutation = useMutation({
-    mutationFn: () => apiRequest("POST", `/api/escrow-bets/${bet.id}/cancel`),
+  const cancelChallengeMutation = useMutation({
+    mutationFn: () => apiRequest("POST", `/api/escrow-challenges/${challenge.id}/cancel`),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/escrow-bets"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/escrow-challenges"] });
       toast({
         title: "Challenge Cancelled",
         description: "Your funds have been released from escrow.",
@@ -354,31 +354,31 @@ function BetCard({ bet }: { bet: EscrowBet }) {
   };
 
   return (
-    <Card className="bg-black/60 backdrop-blur-sm border border-green-500/30" data-testid={`bet-card-${bet.id}`}>
+    <Card className="bg-black/60 backdrop-blur-sm border border-green-500/30" data-testid={`challenge-card-${challenge.id}`}>
       <CardContent className="p-6">
         <div className="flex justify-between items-start mb-4">
           <div>
             <h3 className="text-lg font-semibold text-white">
-              {bet.challenger.name} vs {bet.opponent.name}
+              {challenge.challenger.name} vs {challenge.opponent.name}
             </h3>
-            <p className="text-gray-400">{bet.gameType} • {bet.gameFormat}</p>
-            {bet.terms && (
-              <p className="text-xs text-gray-500 mt-1">{bet.terms}</p>
+            <p className="text-gray-400">{challenge.gameType} • {challenge.gameFormat}</p>
+            {challenge.terms && (
+              <p className="text-xs text-gray-500 mt-1">{challenge.terms}</p>
             )}
           </div>
-          <Badge className={getStatusColor(bet.status)}>
-            {getStatusIcon(bet.status)}
-            <span className="ml-1 capitalize">{bet.status.replace('_', ' ')}</span>
+          <Badge className={getStatusColor(challenge.status)}>
+            {getStatusIcon(challenge.status)}
+            <span className="ml-1 capitalize">{challenge.status.replace('_', ' ')}</span>
           </Badge>
         </div>
 
         <div className="grid grid-cols-3 gap-4 mb-4">
           <div className="text-center">
-            <div className="text-2xl font-bold text-green-400">${bet.amount.toLocaleString()}</div>
-            <div className="text-xs text-gray-400">Stake Each</div>
+            <div className="text-2xl font-bold text-green-400">${challenge.amount.toLocaleString()}</div>
+            <div className="text-xs text-gray-400">Entry Each</div>
           </div>
           <div className="text-center">
-            <div className="text-2xl font-bold text-white">${(bet.amount * 2).toLocaleString()}</div>
+            <div className="text-2xl font-bold text-white">${(challenge.amount * 2).toLocaleString()}</div>
             <div className="text-xs text-gray-400">Total Pot</div>
           </div>
           <div className="text-center">
@@ -391,37 +391,37 @@ function BetCard({ bet }: { bet: EscrowBet }) {
         </div>
 
         <div className="flex space-x-2">
-          {bet.status === 'pending' && (
+          {challenge.status === 'pending' && (
             <>
               <Button
-                onClick={() => acceptBetMutation.mutate()}
-                disabled={acceptBetMutation.isPending}
+                onClick={() => acceptChallengeMutation.mutate()}
+                disabled={acceptChallengeMutation.isPending}
                 className="flex-1 bg-green-600 hover:bg-green-700"
-                data-testid={`accept-bet-${bet.id}`}
+                data-testid={`accept-challenge-${challenge.id}`}
               >
-                {acceptBetMutation.isPending ? <LoadingSpinner size="sm" /> : "Accept"}
+                {acceptChallengeMutation.isPending ? <LoadingSpinner size="sm" /> : "Accept"}
               </Button>
               <Button
-                onClick={() => cancelBetMutation.mutate()}
-                disabled={cancelBetMutation.isPending}
+                onClick={() => cancelChallengeMutation.mutate()}
+                disabled={cancelChallengeMutation.isPending}
                 variant="outline"
                 className="flex-1"
-                data-testid={`cancel-bet-${bet.id}`}
+                data-testid={`cancel-challenge-${challenge.id}`}
               >
-                {cancelBetMutation.isPending ? <LoadingSpinner size="sm" /> : "Cancel"}
+                {cancelChallengeMutation.isPending ? <LoadingSpinner size="sm" /> : "Cancel"}
               </Button>
             </>
           )}
-          {bet.status === 'accepted' && (
+          {challenge.status === 'accepted' && (
             <Button className="w-full bg-blue-600 hover:bg-blue-700">
               Start Match
             </Button>
           )}
-          {bet.status === 'completed' && bet.winner && (
+          {challenge.status === 'completed' && challenge.winner && (
             <div className="w-full text-center">
               <div className="text-green-400 font-semibold">
                 <Trophy className="w-4 h-4 inline mr-1" />
-                Winner: {bet.winner}
+                Winner: {challenge.winner}
               </div>
             </div>
           )}
@@ -433,13 +433,13 @@ function BetCard({ bet }: { bet: EscrowBet }) {
 
 function EscrowStats() {
   const { data: stats } = useQuery({
-    queryKey: ["/api/escrow-bets/stats"],
+    queryKey: ["/api/escrow-challenges/stats"],
   });
 
   const escrowStats = stats as any || {
     totalVolume: 0,
-    activeBets: 0,
-    completedBets: 0,
+    activeChallenges: 0,
+    completedChallenges: 0,
     totalEscrow: 0,
   };
 
@@ -453,13 +453,13 @@ function EscrowStats() {
       </Card>
       <Card className="bg-black/60 backdrop-blur-sm border border-green-500/30">
         <CardContent className="p-4 text-center">
-          <div className="text-2xl font-bold text-orange-400">{escrowStats.activeBets}</div>
-          <div className="text-xs text-gray-400">Active Bets</div>
+          <div className="text-2xl font-bold text-orange-400">{escrowStats.activeChallenges}</div>
+          <div className="text-xs text-gray-400">Active Challenges</div>
         </CardContent>
       </Card>
       <Card className="bg-black/60 backdrop-blur-sm border border-green-500/30">
         <CardContent className="p-4 text-center">
-          <div className="text-2xl font-bold text-blue-400">{escrowStats.completedBets}</div>
+          <div className="text-2xl font-bold text-blue-400">{escrowStats.completedChallenges}</div>
           <div className="text-xs text-gray-400">Completed</div>
         </CardContent>
       </Card>
@@ -473,14 +473,14 @@ function EscrowStats() {
   );
 }
 
-export default function EscrowBetting() {
-  const { data: bets = [], isLoading } = useQuery<EscrowBet[]>({
-    queryKey: ["/api/escrow-bets"],
+export default function EscrowChallenges() {
+  const { data: challenges = [], isLoading } = useQuery<EscrowChallenge[]>({
+    queryKey: ["/api/escrow-challenges"],
   });
 
-  const pendingBets = bets.filter(bet => bet.status === 'pending');
-  const activeBets = bets.filter(bet => ['accepted', 'in_progress'].includes(bet.status));
-  const completedBets = bets.filter(bet => bet.status === 'completed');
+  const pendingChallenges = challenges.filter(challenge => challenge.status === 'pending');
+  const activeChallenges = challenges.filter(challenge => ['accepted', 'in_progress'].includes(challenge.status));
+  const completedChallenges = challenges.filter(challenge => challenge.status === 'completed');
 
   if (isLoading) {
     return (
@@ -505,18 +505,18 @@ export default function EscrowBetting() {
       <Tabs defaultValue="pending" className="space-y-6">
         <TabsList className="grid w-full grid-cols-3 bg-black/50">
           <TabsTrigger value="pending">
-            Pending ({pendingBets.length})
+            Pending ({pendingChallenges.length})
           </TabsTrigger>
           <TabsTrigger value="active">
-            Active ({activeBets.length})
+            Active ({activeChallenges.length})
           </TabsTrigger>
           <TabsTrigger value="completed">
-            Completed ({completedBets.length})
+            Completed ({completedChallenges.length})
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="pending" className="space-y-4">
-          {pendingBets.length === 0 ? (
+          {pendingChallenges.length === 0 ? (
             <Card className="bg-black/60 backdrop-blur-sm border border-green-500/30">
               <CardContent className="p-8 text-center">
                 <DollarSign className="w-12 h-12 text-gray-500 mx-auto mb-4" />
@@ -526,15 +526,15 @@ export default function EscrowBetting() {
             </Card>
           ) : (
             <div className="grid gap-4">
-              {pendingBets.map(bet => (
-                <BetCard key={bet.id} bet={bet} />
+              {pendingChallenges.map(challenge => (
+                <ChallengeCard key={challenge.id} challenge={challenge} />
               ))}
             </div>
           )}
         </TabsContent>
 
         <TabsContent value="active" className="space-y-4">
-          {activeBets.length === 0 ? (
+          {activeChallenges.length === 0 ? (
             <Card className="bg-black/60 backdrop-blur-sm border border-green-500/30">
               <CardContent className="p-8 text-center">
                 <Users className="w-12 h-12 text-gray-500 mx-auto mb-4" />
@@ -544,15 +544,15 @@ export default function EscrowBetting() {
             </Card>
           ) : (
             <div className="grid gap-4">
-              {activeBets.map(bet => (
-                <BetCard key={bet.id} bet={bet} />
+              {activeChallenges.map(challenge => (
+                <ChallengeCard key={challenge.id} challenge={challenge} />
               ))}
             </div>
           )}
         </TabsContent>
 
         <TabsContent value="completed" className="space-y-4">
-          {completedBets.length === 0 ? (
+          {completedChallenges.length === 0 ? (
             <Card className="bg-black/60 backdrop-blur-sm border border-green-500/30">
               <CardContent className="p-8 text-center">
                 <Trophy className="w-12 h-12 text-gray-500 mx-auto mb-4" />
@@ -562,8 +562,8 @@ export default function EscrowBetting() {
             </Card>
           ) : (
             <div className="grid gap-4">
-              {completedBets.map(bet => (
-                <BetCard key={bet.id} bet={bet} />
+              {completedChallenges.map(challenge => (
+                <ChallengeCard key={challenge.id} challenge={challenge} />
               ))}
             </div>
           )}
