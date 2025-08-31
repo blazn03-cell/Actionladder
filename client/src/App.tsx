@@ -27,6 +27,7 @@ import Privacy from "@/pages/Privacy";
 import Refund from "@/pages/Refund";
 import AcceptableUse from "@/pages/AcceptableUse";
 import NotFound from "@/pages/not-found";
+import logoBackground from "@assets/assets_task_01k3jk55jwew0tmd764vvanv2x_1756192093_img_0_1756634613619.webp";
 
 const queryClient = new QueryClient();
 
@@ -127,7 +128,7 @@ function App() {
           <div 
             className="absolute inset-0 opacity-5"
             style={{
-              backgroundImage: `url(/attached_assets/assets_task_01k3jk55jwew0tmd764vvanv2x_1756192093_img_0_1756634613619.webp)`,
+              backgroundImage: `url(${logoBackground})`,
               backgroundSize: 'cover',
               backgroundPosition: 'center',
               backgroundRepeat: 'no-repeat'
@@ -161,7 +162,7 @@ function App() {
                 <div 
                   className="absolute inset-0 opacity-10"
                   style={{
-                    backgroundImage: `url(/attached_assets/assets_task_01k3jk55jwew0tmd764vvanv2x_1756192093_img_0_1756634613619.webp)`,
+                    backgroundImage: `url(${logoBackground})`,
                     backgroundSize: 'contain',
                     backgroundPosition: 'center',
                     backgroundRepeat: 'no-repeat'
