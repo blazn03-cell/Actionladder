@@ -13,6 +13,7 @@ import LiveStream from "@/components/live-stream";
 import HallBattles from "@/components/hall-battles";
 import AIDashboard from "@/pages/AIDashboard";
 import AdminDashboard from "@/pages/AdminDashboard";
+import TournamentBrackets from "@/pages/TournamentBrackets";
 import Checkout from "@/pages/checkout";
 import Terms from "@/pages/Terms";
 import Privacy from "@/pages/Privacy";
@@ -31,6 +32,7 @@ function Navigation({ activeTab, setActiveTab }: { activeTab: string; setActiveT
     { id: "ai-features", label: "AI Features" },
     { id: "admin", label: "Admin" },
     { id: "tournaments", label: "Tournaments" },
+    { id: "tournament-brackets", label: "Tournament Brackets" },
     { id: "kelly-pool", label: "Kelly Pool" },
     { id: "players", label: "Players" },
     { id: "bounties", label: "Bounties" },
@@ -145,6 +147,7 @@ function App() {
                 {activeTab === "ai-features" && <AIDashboard />}
                 {activeTab === "admin" && <AdminDashboard />}
                 {activeTab === "tournaments" && <Tournaments />}
+                {activeTab === "tournament-brackets" && <TournamentBrackets />}
                 {activeTab === "kelly-pool" && <KellyPool />}
                 {activeTab === "players" && <Players />}
                 {activeTab === "bounties" && <Bounties />}
