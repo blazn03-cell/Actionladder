@@ -31,8 +31,6 @@ import NotFound from "@/pages/not-found";
 const queryClient = new QueryClient();
 
 function Navigation({ activeTab, setActiveTab }: { activeTab: string; setActiveTab: (tab: string) => void }) {
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  
   const tabs = [
     { id: "dashboard", label: "Dashboard" },
     { id: "ladder", label: "Ladder" },
@@ -54,108 +52,62 @@ function Navigation({ activeTab, setActiveTab }: { activeTab: string; setActiveT
     { id: "charity", label: "Charity" },
   ];
 
-  const visibleTabs = tabs.slice(0, 6);
-  const extraTabs = tabs.slice(6);
-
   return (
-    <header className="sticky top-0 z-50 backdrop-blur-md bg-felt-dark/80 border-b border-neon-green/20">
-      <div className="container mx-auto px-4">
-        <nav className="flex items-center justify-between py-4">
-          {/* Brand Logo */}
-          <div className="flex items-center space-x-4">
-            <div className="w-12 h-12 bg-gradient-to-br from-neon-green to-accent rounded-xl flex items-center justify-center shadow-neon">
-              <span className="text-xl font-black text-felt-dark">🎱</span>
-            </div>
-            <div>
-              <h1 className="text-xl font-black text-neon-green">ACTIONLADDER</h1>
-              <p className="text-sm text-gray-400">In here, respect is earned in racks, not words</p>
-            </div>
+    <header className="sticky top-0 z-50 bg-[#0d1f12]/90 backdrop-blur border-b border-white/10">
+      {/* Row 1: Brand (left) + Live + Join via QR (right) */}
+      <div className="mx-auto max-w-7xl px-4 py-3 flex items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="h-8 w-8 rounded-xl bg-emerald-500/20 ring-1 ring-emerald-400/30" />
+          <div className="flex flex-col leading-5">
+            <span className="font-extrabold tracking-wide text-emerald-300 text-lg">
+              ACTIONLADDER
+            </span>
+            <span className="text-xs text-emerald-200/70">
+              In here, respect is earned in racks, not words
+            </span>
           </div>
-          
-          {/* Live Status Badge */}
-          <div className="hidden md:flex items-center space-x-4">
-            <div className="flex items-center space-x-2 bg-red-600/20 border border-red-500/50 rounded-full px-3 py-1">
-              <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
-              <span className="text-sm font-semibold text-red-400">LIVE NOW</span>
-            </div>
-            <button className="bg-neon-green/20 hover:bg-neon-green/30 border border-neon-green/50 text-neon-green px-4 py-2 rounded-lg transition-colors">
-              Join via QR
-            </button>
-          </div>
-          
-          {/* Desktop Navigation with More Dropdown */}
-          <ul className="hidden md:flex gap-4">
-            {visibleTabs.map((tab) => (
+        </div>
+
+        <div className="flex items-center gap-3">
+          <span className="rounded-full px-3 py-1 text-xs font-bold bg-red-900/40 text-red-300 ring-1 ring-red-500/40">
+            ● LIVE NOW
+          </span>
+          <button
+            onClick={() => setActiveTab("qr-registration")}
+            className="whitespace-nowrap rounded-xl px-4 py-2 text-sm font-semibold
+                       ring-1 ring-emerald-400/50 bg-emerald-500/15 text-emerald-200
+                       hover:bg-emerald-500/25 transition"
+          >
+            Join via QR
+          </button>
+        </div>
+      </div>
+
+      {/* Row 2: Nav links that WRAP to 2 lines if needed */}
+      <nav className="mx-auto max-w-7xl px-4 pb-3">
+        <ul
+          className="flex flex-wrap gap-x-6 gap-y-2 whitespace-nowrap
+                     text-[15px] text-emerald-100/90"
+        >
+          {tabs.map((tab) => {
+            const active = activeTab === tab.id;
+            return (
               <li key={tab.id}>
                 <button
                   data-testid={`tab-${tab.id}`}
-                  className={`px-4 py-2 rounded-lg whitespace-nowrap transition-colors ${
-                    activeTab === tab.id
-                      ? "bg-neon-green/20 text-neon-green border border-neon-green/50"
-                      : "hover:bg-white/10 text-gray-300"
-                  }`}
                   onClick={() => setActiveTab(tab.id)}
+                  className={`inline-block px-1 py-1 rounded-md hover:text-white transition-colors ${
+                    active ? "text-white font-semibold underline decoration-emerald-400/70" : ""
+                  }`}
+                  aria-current={active ? "page" : undefined}
                 >
                   {tab.label}
                 </button>
               </li>
-            ))}
-            {extraTabs.length > 0 && (
-              <li className="relative group">
-                <button className="px-4 py-2 rounded-lg hover:bg-white/10 text-gray-300 transition-colors">
-                  More ▾
-                </button>
-                <div className="absolute right-0 mt-2 w-56 rounded-xl border border-neon-green/20 bg-felt-dark shadow-lg hidden group-hover:block z-50">
-                  {extraTabs.map((tab) => (
-                    <button
-                      key={tab.id}
-                      data-testid={`tab-${tab.id}`}
-                      className={`block w-full text-left px-4 py-2 hover:bg-white/5 transition-colors first:rounded-t-xl last:rounded-b-xl ${
-                        activeTab === tab.id ? "text-neon-green bg-neon-green/10" : "text-gray-300"
-                      }`}
-                      onClick={() => setActiveTab(tab.id)}
-                    >
-                      {tab.label}
-                    </button>
-                  ))}
-                </div>
-              </li>
-            )}
-          </ul>
-
-          {/* Mobile Menu Button */}
-          <button 
-            className="md:hidden p-2"
-            onClick={() => setMobileMenuOpen(v => !v)}
-            data-testid="mobile-menu-button"
-          >
-            <svg className="w-6 h-6 text-neon-green" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16"></path>
-            </svg>
-          </button>
-        </nav>
-        
-        {/* Mobile Menu */}
-        {mobileMenuOpen && (
-          <div className="md:hidden px-4 py-2 space-y-2 border-t border-neon-green/20">
-            {tabs.map((tab) => (
-              <button
-                key={tab.id}
-                data-testid={`mobile-tab-${tab.id}`}
-                className={`block w-full text-left py-2 transition-colors ${
-                  activeTab === tab.id ? "text-neon-green" : "text-gray-300 hover:text-white"
-                }`}
-                onClick={() => {
-                  setActiveTab(tab.id);
-                  setMobileMenuOpen(false);
-                }}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
+            );
+          })}
+        </ul>
+      </nav>
     </header>
   );
 }
