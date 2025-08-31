@@ -1132,6 +1132,10 @@ export class MemStorage implements IStorage {
       category: insertLiveStream.category || null,
       quality: insertLiveStream.quality || null,
       tags: insertLiveStream.tags || [],
+      tournamentId: insertLiveStream.tournamentId || null,
+      streamerId: insertLiveStream.streamerId || null,
+      thumbnailUrl: insertLiveStream.thumbnailUrl || null,
+      language: insertLiveStream.language || "en",
       id,
       createdAt: new Date(),
     };
