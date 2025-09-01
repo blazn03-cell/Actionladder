@@ -3,8 +3,8 @@ import { SafeAreaView, ActivityIndicator, BackHandler, Platform, StatusBar } fro
 import { WebView } from "react-native-webview";
 
 // ActionLadder Production URL
-// Change this to your deployed Replit URL or custom domain
-const APP_URL = "https://YOUR-REPLIT-URL.replit.app";
+// Current Replit deployment URL
+const APP_URL = "https://55c116d9-0e49-4c49-84e1-5d6a7add994d-00-2zj3cxyq9sjki.worf.replit.dev";
 
 export default function App() {
   const webRef = useRef(null);
