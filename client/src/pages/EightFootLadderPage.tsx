@@ -1,5 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
+import { MembershipDisplay } from '@/components/membership-display';
+import { WeightRulesDisplay } from '@/components/weight-rules-display';
 
 interface Player {
   id: string;
@@ -117,6 +119,19 @@ export default function EightFootLadderPage() {
             </div>
           </div>
         )}
+      </div>
+
+      {/* Membership & Weight Rules */}
+      <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto mb-8">
+        <MembershipDisplay 
+          membershipTier="pro" 
+          onUpgrade={() => console.log('Upgrade membership')}
+        />
+        <WeightRulesDisplay 
+          weightOwed={true}
+          consecutiveLosses={2}
+          weightMultiplier={1.2}
+        />
       </div>
 
       {/* Top 3 Podium */}

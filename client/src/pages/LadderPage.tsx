@@ -1,6 +1,8 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import type { Player, Match, Bounty } from '../../../shared/schema';
+import { MembershipDisplay } from '@/components/membership-display';
+import { WeightRulesDisplay } from '@/components/weight-rules-display';
 
 interface PlayerWithRank extends Player {
   rank: number;
@@ -69,6 +71,19 @@ const LadderPage: React.FC = () => {
             </div>
           </div>
         )}
+      </div>
+
+      {/* Membership & Weight Rules */}
+      <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+        <MembershipDisplay 
+          membershipTier="basic" 
+          onUpgrade={() => console.log('Upgrade membership')}
+        />
+        <WeightRulesDisplay 
+          weightOwed={false}
+          consecutiveLosses={0}
+          weightMultiplier={1.0}
+        />
       </div>
 
       {/* Top 3 Podium */}
