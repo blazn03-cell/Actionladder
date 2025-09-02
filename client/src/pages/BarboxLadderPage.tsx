@@ -251,10 +251,10 @@ const BarboxLadderPage: React.FC = () => {
                 🎯 Rookie Barbox Games
               </h3>
               <ul className="text-green-500 text-sm space-y-2">
-                <li>• BCA 8-Ball (Race to 3)</li>
-                <li>• 9-Ball (Race to 3)</li>
-                <li>• Fast 8 (Race to 3)</li>
-                <li>• One Ball (Best of 3)</li>
+                <li>• BCA 8-Ball</li>
+                <li>• 9-Ball</li>
+                <li>• Fast 8</li>
+                <li>• One Ball</li>
               </ul>
             </div>
           </div>
@@ -285,37 +285,30 @@ const BarboxLadderPage: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <div className="bg-black/30 rounded border border-green-800/30 p-4">
             <h3 className="text-green-400 font-bold mb-2">BCA 8-Ball</h3>
-            <p className="text-green-500 text-sm">Race to 5</p>
           </div>
           
           <div className="bg-black/30 rounded border border-green-800/30 p-4">
             <h3 className="text-green-400 font-bold mb-2">Fast 8</h3>
-            <p className="text-green-500 text-sm">Race to 5</p>
           </div>
           
           <div className="bg-black/30 rounded border border-green-800/30 p-4">
             <h3 className="text-green-400 font-bold mb-2">Saratoga</h3>
-            <p className="text-green-500 text-sm">Race to 4</p>
           </div>
           
           <div className="bg-black/30 rounded border border-green-800/30 p-4">
             <h3 className="text-green-400 font-bold mb-2">9-Ball</h3>
-            <p className="text-green-500 text-sm">Race to 5</p>
           </div>
           
           <div className="bg-black/30 rounded border border-green-800/30 p-4">
             <h3 className="text-green-400 font-bold mb-2">10-Ball</h3>
-            <p className="text-green-500 text-sm">Race to 4</p>
           </div>
           
           <div className="bg-black/30 rounded border border-green-800/30 p-4">
             <h3 className="text-green-400 font-bold mb-2">Banks / 9-Ball Banks</h3>
-            <p className="text-green-500 text-sm">Race to 3</p>
           </div>
           
-          <div className="bg-black/30 rounded border border-green-800/30 p-4 md:col-span-2 lg:col-span-1">
+          <div className="bg-black/30 rounded border border-green-800/30 p-4">
             <h3 className="text-green-400 font-bold mb-2">One Ball (One & Done)</h3>
-            <p className="text-green-500 text-sm">Best of 5</p>
           </div>
         </div>
       </div>
