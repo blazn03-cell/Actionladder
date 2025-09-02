@@ -13,6 +13,7 @@ import LiveStream from "@/components/live-stream";
 import HallBattles from "@/components/hall-battles";
 import RookieSection from "@/pages/RookieSection";
 import BarboxLadderPage from "@/pages/BarboxLadderPage";
+import EightFootLadderPage from "@/pages/EightFootLadderPage";
 import EscrowChallenges from "@/components/escrow-challenges";
 import QRRegistration from "@/components/qr-registration";
 import LeagueStandings from "@/components/league-standings";
@@ -40,6 +41,7 @@ function Navigation({ activeTab, setActiveTab }: { activeTab: string; setActiveT
     { id: "dashboard", label: "Dashboard" },
     { id: "ladder", label: "Ladder" },
     { id: "barbox-ladder", label: "King of Barbox" },
+    { id: "eightfoot-ladder", label: "8ft Only Ladder" },
     { id: "rookie-section", label: "Rookie Section" },
     { id: "escrow-challenges", label: "Escrow Challenges" },
     { id: "hall-battles", label: "Hall Battles" },
@@ -193,6 +195,7 @@ function App() {
                 {activeTab === "dashboard" && <Dashboard />}
                 {activeTab === "ladder" && <Ladder />}
                 {activeTab === "barbox-ladder" && <BarboxLadderPage />}
+                {activeTab === "eightfoot-ladder" && <EightFootLadderPage />}
                 {activeTab === "rookie-section" && <RookieSection />}
                 {activeTab === "escrow-challenges" && <EscrowChallenges />}
                 {activeTab === "hall-battles" && <HallBattles />}
