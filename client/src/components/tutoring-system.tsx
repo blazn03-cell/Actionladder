@@ -20,7 +20,7 @@ export function TutoringSystem({
 }: TutoringSystemProps) {
   
   const canTutor = isPro && fargoRating >= 580;
-  const monthlyDiscount = monthlySessions * 15; // $15 per session
+  const monthlyDiscount = monthlySessions * 10; // $10 per session
   const effectiveCost = Math.max(0, 60 - monthlyDiscount);
   
   if (!canTutor) {
@@ -41,8 +41,8 @@ export function TutoringSystem({
               Tutoring available for Pro members (580+ Fargo)
             </p>
             <div className="text-sm text-gray-500">
-              • Earn $15 credit per 30-minute session
-              • Reduce membership cost to $45/month
+              • Earn $10 credit per 30-minute session
+              • Reduce membership cost to $50/month
               • Help grow the pool community
             </div>
           </div>
@@ -84,8 +84,8 @@ export function TutoringSystem({
             <div className="space-y-1 text-xs text-gray-300">
               <div>• Pay $60/month upfront</div>
               <div>• Tutor Rookies for 30+ minutes each</div>
-              <div>• Earn $15 credit per confirmed session</div>
-              <div>• Complete 2+ sessions → $45 effective cost</div>
+              <div>• Earn $10 credit per confirmed session</div>
+              <div>• Complete 2+ sessions → $50 effective cost</div>
             </div>
           </div>
           

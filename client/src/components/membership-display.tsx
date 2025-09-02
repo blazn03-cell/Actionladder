@@ -38,8 +38,8 @@ export function MembershipDisplay({ membershipTier, onUpgrade }: MembershipDispl
             'FREE tournament entry (worth $25–30)',
             'Lower league fees (3%)',
             'Premium perks (priority seeding, livestream)',
-            'Tutor Bonus: $15 credit per session',
-            'Effective cost: $45/month (with 2 sessions)'
+            'Tutor Bonus: $10 credit per session',
+            'Effective cost: $50/month (with 2 sessions)'
           ]
         };
       
@@ -89,7 +89,7 @@ export function MembershipDisplay({ membershipTier, onUpgrade }: MembershipDispl
           <div className="bg-amber-900/20 rounded p-3 mb-4 border border-amber-600/30">
             <div className="text-xs text-amber-300 font-semibold mb-1">📚 Tutor Bonus System</div>
             <div className="text-xs text-gray-300">
-              Effective cost: <span className="text-amber-400 font-bold">$45/month</span> (with 2 tutoring sessions)
+              Effective cost: <span className="text-amber-400 font-bold">$50/month</span> (with 2 tutoring sessions)
             </div>
           </div>
         )}

@@ -8,7 +8,7 @@ export interface TutoringSessionData {
   duration: number;
   status: 'scheduled' | 'completed' | 'cancelled';
   rookieConfirmed: boolean;
-  creditAmount: number; // $15 in cents
+  creditAmount: number; // $10 in cents
   creditApplied: boolean;
 }
 
@@ -21,15 +21,15 @@ export class TutoringSystem {
   
   // Calculate monthly discount based on completed sessions
   static calculateMonthlyDiscount(completedSessions: number): number {
-    const creditPerSession = 15; // $15 per session
-    return Math.min(completedSessions * creditPerSession, 30); // Max $30 discount
+    const creditPerSession = 10; // $10 per session
+    return Math.min(completedSessions * creditPerSession, 20); // Max $20 discount
   }
   
   // Calculate effective membership cost after tutoring credits
   static getEffectiveMembershipCost(completedSessions: number): number {
     const baseCost = 60; // $60/month for Pro
     const discount = this.calculateMonthlyDiscount(completedSessions);
-    return Math.max(baseCost - discount, 30); // Minimum $30 (50% discount)
+    return Math.max(baseCost - discount, 40); // Minimum $40 (33% discount)
   }
   
   // Create tutoring session
@@ -41,7 +41,7 @@ export class TutoringSystem {
       duration: 30, // 30 minutes minimum
       status: 'scheduled',
       rookieConfirmed: false,
-      creditAmount: 1500, // $15 in cents
+      creditAmount: 1000, // $10 in cents
       creditApplied: false
     };
   }
@@ -64,7 +64,7 @@ export class TutoringSystem {
     // For challenge fee: apply full credit amount
     
     if (applicationType === 'membership') {
-      const maxMonthlyCredit = 30; // $30 max discount per month
+      const maxMonthlyCredit = 20; // $20 max discount per month
       const appliedAmount = Math.min(creditAmount, maxMonthlyCredit);
       return {
         appliedAmount,
@@ -97,8 +97,8 @@ export class TutoringSystem {
       'Tutor at least 2 Rookies per month',
       'Each session must be 30+ minutes',
       'Rookie must confirm session completion',
-      '$15 credit per completed session',
-      'Max 2 sessions/month = $30 off → $45 effective cost'
+      '$10 credit per completed session',
+      'Max 2 sessions/month = $20 off → $50 effective cost'
     ];
   }
 }
