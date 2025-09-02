@@ -31,6 +31,9 @@ import Terms from "@/pages/Terms";
 import Privacy from "@/pages/Privacy";
 import Refund from "@/pages/Refund";
 import AcceptableUse from "@/pages/AcceptableUse";
+import TeamManagement from "@/pages/TeamManagement";
+import TeamMatches from "@/pages/TeamMatches";
+import OperatorSubscriptions from "@/pages/OperatorSubscriptions";
 import NotFound from "@/pages/not-found";
 import logoBackground from "@assets/assets_task_01k3jk55jwew0tmd764vvanv2x_1756192093_img_0_1756634613619.webp";
 
@@ -61,6 +64,9 @@ function Navigation({ activeTab, setActiveTab }: { activeTab: string; setActiveT
     { id: "players", label: "Players" },
     { id: "bounties", label: "Bounties" },
     { id: "charity", label: "Charity" },
+    { id: "team-management", label: "Team Management" },
+    { id: "team-matches", label: "Team Matches" },
+    { id: "operator-subscriptions", label: "Operator Subs" },
   ];
 
   return (
@@ -215,6 +221,9 @@ function App() {
                 {activeTab === "players" && <Players />}
                 {activeTab === "bounties" && <Bounties />}
                 {activeTab === "charity" && <Charity />}
+                {activeTab === "team-management" && <TeamManagement />}
+                {activeTab === "team-matches" && <TeamMatches />}
+                {activeTab === "operator-subscriptions" && <OperatorSubscriptions />}
               </div>
               <RealTimeNotifications />
             </Route>

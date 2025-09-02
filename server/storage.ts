@@ -16,6 +16,11 @@ import {
   type RookieEvent, type InsertRookieEvent,
   type RookieAchievement, type InsertRookieAchievement,
   type RookieSubscription, type InsertRookieSubscription,
+  type OperatorSubscription, type InsertOperatorSubscription,
+  type Team, type InsertTeam,
+  type TeamPlayer, type InsertTeamPlayer,
+  type TeamMatch, type InsertTeamMatch,
+  type TeamSet, type InsertTeamSet,
   type Wallet, type InsertWallet,
   type SidePot, type InsertSidePot,
   type SideBet, type InsertSideBet,
@@ -264,6 +269,38 @@ export interface IStorage {
   getResolution(id: string): Promise<Resolution | undefined>;
   getResolutionByPot(sidePotId: string): Promise<Resolution | undefined>;
   createResolution(resolution: InsertResolution): Promise<Resolution>;
+  
+  // Operator Subscriptions
+  getOperatorSubscription(operatorId: string): Promise<OperatorSubscription | undefined>;
+  getAllOperatorSubscriptions(): Promise<OperatorSubscription[]>;
+  createOperatorSubscription(subscription: InsertOperatorSubscription): Promise<OperatorSubscription>;
+  updateOperatorSubscription(operatorId: string, updates: Partial<OperatorSubscription>): Promise<OperatorSubscription | undefined>;
+  
+  // Team Division System
+  getTeam(id: string): Promise<Team | undefined>;
+  getTeamsByOperator(operatorId: string): Promise<Team[]>;
+  getTeamsByHall(hallId: string): Promise<Team[]>;
+  createTeam(team: InsertTeam): Promise<Team>;
+  updateTeam(id: string, updates: Partial<Team>): Promise<Team | undefined>;
+  deleteTeam(id: string): Promise<boolean>;
+  
+  getTeamPlayer(id: string): Promise<TeamPlayer | undefined>;
+  getTeamPlayersByTeam(teamId: string): Promise<TeamPlayer[]>;
+  getTeamPlayersByPlayer(playerId: string): Promise<TeamPlayer[]>;
+  createTeamPlayer(teamPlayer: InsertTeamPlayer): Promise<TeamPlayer>;
+  updateTeamPlayer(id: string, updates: Partial<TeamPlayer>): Promise<TeamPlayer | undefined>;
+  removeTeamPlayer(id: string): Promise<boolean>;
+  
+  getTeamMatch(id: string): Promise<TeamMatch | undefined>;
+  getTeamMatchesByTeam(teamId: string): Promise<TeamMatch[]>;
+  getTeamMatchesByOperator(operatorId: string): Promise<TeamMatch[]>;
+  createTeamMatch(teamMatch: InsertTeamMatch): Promise<TeamMatch>;
+  updateTeamMatch(id: string, updates: Partial<TeamMatch>): Promise<TeamMatch | undefined>;
+  
+  getTeamSet(id: string): Promise<TeamSet | undefined>;
+  getTeamSetsByMatch(teamMatchId: string): Promise<TeamSet[]>;
+  createTeamSet(teamSet: InsertTeamSet): Promise<TeamSet>;
+  updateTeamSet(id: string, updates: Partial<TeamSet>): Promise<TeamSet | undefined>;
 }
 
 export class MemStorage implements IStorage {
@@ -294,6 +331,15 @@ export class MemStorage implements IStorage {
   private sideBets = new Map<string, SideBet>();
   private ledgerEntries = new Map<string, LedgerEntry>();
   private resolutions = new Map<string, Resolution>();
+  
+  // Operator Subscription Storage
+  private operatorSubscriptions = new Map<string, OperatorSubscription>(); // keyed by operatorId
+  
+  // Team Division Storage
+  private teams = new Map<string, Team>();
+  private teamPlayers = new Map<string, TeamPlayer>();
+  private teamMatches = new Map<string, TeamMatch>();
+  private teamSets = new Map<string, TeamSet>();
 
   constructor() {
     // Initialize with seed data for demonstration (disabled in production)
@@ -1864,6 +1910,302 @@ export class MemStorage implements IStorage {
     };
     this.resolutions.set(id, resolution);
     return resolution;
+  }
+
+  // Operator Subscription Methods
+  async getOperatorSubscription(operatorId: string): Promise<OperatorSubscription | undefined> {
+    return this.operatorSubscriptions.get(operatorId);
+  }
+
+  async getAllOperatorSubscriptions(): Promise<OperatorSubscription[]> {
+    return Array.from(this.operatorSubscriptions.values());
+  }
+
+  async createOperatorSubscription(insertSubscription: InsertOperatorSubscription): Promise<OperatorSubscription> {
+    const id = randomUUID();
+    
+    // Calculate pricing based on tier and player count
+    const { basePriceMonthly, tier } = this.calculateSubscriptionPricing(
+      insertSubscription.playerCount || 0,
+      insertSubscription.extraLadders || 0,
+      insertSubscription.rookieModuleActive || false,
+      insertSubscription.rookiePassesActive || 0
+    );
+    
+    const subscription: OperatorSubscription = {
+      id,
+      operatorId: insertSubscription.operatorId,
+      hallName: insertSubscription.hallName,
+      playerCount: insertSubscription.playerCount || 0,
+      tier,
+      basePriceMonthly,
+      extraPlayersCharge: insertSubscription.extraPlayersCharge || 0,
+      extraLadders: insertSubscription.extraLadders || 0,
+      extraLadderCharge: (insertSubscription.extraLadders || 0) * 10000, // $100 per extra ladder
+      rookieModuleActive: insertSubscription.rookieModuleActive || false,
+      rookieModuleCharge: insertSubscription.rookieModuleActive ? 5000 : 0, // $50/mo
+      rookiePassesActive: insertSubscription.rookiePassesActive || 0,
+      rookiePassCharge: (insertSubscription.rookiePassesActive || 0) * 1500, // $15 per pass
+      stripeSubscriptionId: insertSubscription.stripeSubscriptionId,
+      stripeCustomerId: insertSubscription.stripeCustomerId,
+      status: insertSubscription.status || "active",
+      billingCycleStart: new Date(),
+      nextBillingDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
+      totalMonthlyCharge: this.calculateTotalMonthlyCharge(basePriceMonthly, insertSubscription),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    
+    this.operatorSubscriptions.set(insertSubscription.operatorId, subscription);
+    return subscription;
+  }
+
+  async updateOperatorSubscription(operatorId: string, updates: Partial<OperatorSubscription>): Promise<OperatorSubscription | undefined> {
+    const subscription = this.operatorSubscriptions.get(operatorId);
+    if (!subscription) return undefined;
+    
+    const updatedSubscription = { ...subscription, ...updates, updatedAt: new Date() };
+    this.operatorSubscriptions.set(operatorId, updatedSubscription);
+    return updatedSubscription;
+  }
+
+  // Helper method to calculate subscription pricing
+  private calculateSubscriptionPricing(playerCount: number, extraLadders: number, rookieModule: boolean, rookiePasses: number) {
+    let tier: string;
+    let basePriceMonthly: number;
+    
+    if (playerCount <= 15) {
+      tier = "small";
+      basePriceMonthly = 19900; // $199
+    } else if (playerCount <= 25) {
+      tier = "medium"; 
+      basePriceMonthly = 29900; // $299
+    } else if (playerCount <= 40) {
+      tier = "large";
+      basePriceMonthly = 39900; // $399
+    } else {
+      tier = "mega";
+      basePriceMonthly = 49900; // $499
+    }
+    
+    return { basePriceMonthly, tier };
+  }
+
+  private calculateTotalMonthlyCharge(basePriceMonthly: number, subscription: InsertOperatorSubscription): number {
+    let total = basePriceMonthly;
+    
+    // Add extra ladder charges
+    total += (subscription.extraLadders || 0) * 10000; // $100 per extra ladder
+    
+    // Add rookie module charge
+    if (subscription.rookieModuleActive) {
+      total += 5000; // $50/mo
+    }
+    
+    // Add rookie pass charges
+    total += (subscription.rookiePassesActive || 0) * 1500; // $15 per pass
+    
+    // Add extra player charges for players beyond tier limit
+    const tierLimits = { small: 15, medium: 25, large: 40, mega: 999 };
+    const playerCount = subscription.playerCount || 0;
+    
+    if (playerCount > 15 && subscription.tier === "small") {
+      total += Math.max(0, playerCount - 15) * 800; // $8 per extra player
+    } else if (playerCount > 25 && subscription.tier === "medium") {
+      total += Math.max(0, playerCount - 25) * 800;
+    } else if (playerCount > 40 && subscription.tier === "large") {
+      total += Math.max(0, playerCount - 40) * 800;
+    }
+    
+    return total;
+  }
+
+  // Team Division System Methods
+  async getTeam(id: string): Promise<Team | undefined> {
+    return this.teams.get(id);
+  }
+
+  async getTeamsByOperator(operatorId: string): Promise<Team[]> {
+    return Array.from(this.teams.values()).filter(team => team.operatorId === operatorId);
+  }
+
+  async getTeamsByHall(hallId: string): Promise<Team[]> {
+    return Array.from(this.teams.values()).filter(team => team.hallId === hallId);
+  }
+
+  async createTeam(insertTeam: InsertTeam): Promise<Team> {
+    const id = randomUUID();
+    const team: Team = {
+      id,
+      name: insertTeam.name,
+      operatorId: insertTeam.operatorId,
+      hallId: insertTeam.hallId,
+      captainId: insertTeam.captainId,
+      teamType: insertTeam.teamType,
+      maxPlayers: insertTeam.teamType === "3man" ? 3 : 5,
+      maxSubs: insertTeam.teamType === "3man" ? 2 : 3,
+      currentPlayers: 1, // Start with captain
+      currentSubs: 0,
+      rosterLocked: false,
+      status: insertTeam.status || "active",
+      seasonWins: 0,
+      seasonLosses: 0,
+      ladderPoints: 800,
+      consecutiveLosses: 0,
+      captainForcedNext: false,
+      createdAt: new Date(),
+    };
+    this.teams.set(id, team);
+    return team;
+  }
+
+  async updateTeam(id: string, updates: Partial<Team>): Promise<Team | undefined> {
+    const team = this.teams.get(id);
+    if (!team) return undefined;
+    
+    const updatedTeam = { ...team, ...updates };
+    this.teams.set(id, updatedTeam);
+    return updatedTeam;
+  }
+
+  async deleteTeam(id: string): Promise<boolean> {
+    return this.teams.delete(id);
+  }
+
+  // Team Player Methods
+  async getTeamPlayer(id: string): Promise<TeamPlayer | undefined> {
+    return this.teamPlayers.get(id);
+  }
+
+  async getTeamPlayersByTeam(teamId: string): Promise<TeamPlayer[]> {
+    return Array.from(this.teamPlayers.values()).filter(player => player.teamId === teamId);
+  }
+
+  async getTeamPlayersByPlayer(playerId: string): Promise<TeamPlayer[]> {
+    return Array.from(this.teamPlayers.values()).filter(player => player.playerId === playerId);
+  }
+
+  async createTeamPlayer(insertTeamPlayer: InsertTeamPlayer): Promise<TeamPlayer> {
+    const id = randomUUID();
+    const teamPlayer: TeamPlayer = {
+      id,
+      teamId: insertTeamPlayer.teamId,
+      playerId: insertTeamPlayer.playerId,
+      role: insertTeamPlayer.role,
+      position: insertTeamPlayer.position,
+      isActive: insertTeamPlayer.isActive ?? true,
+      seasonWins: 0,
+      seasonLosses: 0,
+      joinedAt: new Date(),
+    };
+    this.teamPlayers.set(id, teamPlayer);
+    return teamPlayer;
+  }
+
+  async updateTeamPlayer(id: string, updates: Partial<TeamPlayer>): Promise<TeamPlayer | undefined> {
+    const teamPlayer = this.teamPlayers.get(id);
+    if (!teamPlayer) return undefined;
+    
+    const updatedTeamPlayer = { ...teamPlayer, ...updates };
+    this.teamPlayers.set(id, updatedTeamPlayer);
+    return updatedTeamPlayer;
+  }
+
+  async removeTeamPlayer(id: string): Promise<boolean> {
+    return this.teamPlayers.delete(id);
+  }
+
+  // Team Match Methods
+  async getTeamMatch(id: string): Promise<TeamMatch | undefined> {
+    return this.teamMatches.get(id);
+  }
+
+  async getTeamMatchesByTeam(teamId: string): Promise<TeamMatch[]> {
+    return Array.from(this.teamMatches.values()).filter(match => 
+      match.homeTeamId === teamId || match.awayTeamId === teamId
+    );
+  }
+
+  async getTeamMatchesByOperator(operatorId: string): Promise<TeamMatch[]> {
+    return Array.from(this.teamMatches.values()).filter(match => match.operatorId === operatorId);
+  }
+
+  async createTeamMatch(insertTeamMatch: InsertTeamMatch): Promise<TeamMatch> {
+    const id = randomUUID();
+    const teamMatch: TeamMatch = {
+      id,
+      homeTeamId: insertTeamMatch.homeTeamId,
+      awayTeamId: insertTeamMatch.awayTeamId,
+      operatorId: insertTeamMatch.operatorId,
+      homeScore: 0,
+      awayScore: 0,
+      maxSets: insertTeamMatch.maxSets,
+      currentSet: 1,
+      status: insertTeamMatch.status || "scheduled",
+      winnerTeamId: insertTeamMatch.winnerTeamId,
+      isHillHill: false,
+      putUpRound: insertTeamMatch.putUpRound,
+      homeLineupOrder: insertTeamMatch.homeLineupOrder || [],
+      awayLineupOrder: insertTeamMatch.awayLineupOrder || [],
+      homeLineupRevealed: false,
+      awayLineupRevealed: false,
+      moneyBallActive: insertTeamMatch.moneyBallActive || false,
+      moneyBallAmount: insertTeamMatch.moneyBallAmount || 2000,
+      scheduledAt: insertTeamMatch.scheduledAt,
+      completedAt: insertTeamMatch.completedAt,
+      createdAt: new Date(),
+    };
+    this.teamMatches.set(id, teamMatch);
+    return teamMatch;
+  }
+
+  async updateTeamMatch(id: string, updates: Partial<TeamMatch>): Promise<TeamMatch | undefined> {
+    const teamMatch = this.teamMatches.get(id);
+    if (!teamMatch) return undefined;
+    
+    const updatedTeamMatch = { ...teamMatch, ...updates };
+    this.teamMatches.set(id, updatedTeamMatch);
+    return updatedTeamMatch;
+  }
+
+  // Team Set Methods
+  async getTeamSet(id: string): Promise<TeamSet | undefined> {
+    return this.teamSets.get(id);
+  }
+
+  async getTeamSetsByMatch(teamMatchId: string): Promise<TeamSet[]> {
+    return Array.from(this.teamSets.values()).filter(set => set.teamMatchId === teamMatchId);
+  }
+
+  async createTeamSet(insertTeamSet: InsertTeamSet): Promise<TeamSet> {
+    const id = randomUUID();
+    const teamSet: TeamSet = {
+      id,
+      teamMatchId: insertTeamSet.teamMatchId,
+      setNumber: insertTeamSet.setNumber,
+      homePlayerId: insertTeamSet.homePlayerId,
+      awayPlayerId: insertTeamSet.awayPlayerId,
+      winnerId: insertTeamSet.winnerId,
+      loserId: insertTeamSet.loserId,
+      isPutUpSet: insertTeamSet.isPutUpSet || false,
+      putUpType: insertTeamSet.putUpType,
+      isMoneyBallSet: insertTeamSet.isMoneyBallSet || false,
+      status: insertTeamSet.status || "scheduled",
+      completedAt: insertTeamSet.completedAt,
+      clipUrl: insertTeamSet.clipUrl,
+      createdAt: new Date(),
+    };
+    this.teamSets.set(id, teamSet);
+    return teamSet;
+  }
+
+  async updateTeamSet(id: string, updates: Partial<TeamSet>): Promise<TeamSet | undefined> {
+    const teamSet = this.teamSets.get(id);
+    if (!teamSet) return undefined;
+    
+    const updatedTeamSet = { ...teamSet, ...updates };
+    this.teamSets.set(id, updatedTeamSet);
+    return updatedTeamSet;
   }
 }
 

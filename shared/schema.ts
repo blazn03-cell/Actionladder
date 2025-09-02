@@ -321,6 +321,109 @@ export const insertOperatorSettingsSchema = createInsertSchema(operatorSettings)
   updatedAt: true,
 });
 
+// Operator Subscription Management
+export const operatorSubscriptions = pgTable("operator_subscriptions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  operatorId: text("operator_id").notNull().unique(), // Links to users table with globalRole "OPERATOR"
+  hallName: text("hall_name").notNull(),
+  playerCount: integer("player_count").notNull().default(0),
+  tier: text("tier").notNull(), // "small", "medium", "large", "mega"
+  basePriceMonthly: integer("base_price_monthly").notNull(), // Base price in cents
+  extraPlayersCharge: integer("extra_players_charge").default(0), // Extra player charges in cents
+  extraLadders: integer("extra_ladders").default(0), // Number of extra ladders/divisions
+  extraLadderCharge: integer("extra_ladder_charge").default(0), // Extra ladder charges in cents
+  rookieModuleActive: boolean("rookie_module_active").default(false),
+  rookieModuleCharge: integer("rookie_module_charge").default(0), // $50/mo in cents
+  rookiePassesActive: integer("rookie_passes_active").default(0), // Number of active rookie passes
+  rookiePassCharge: integer("rookie_pass_charge").default(0), // $15/pass/month in cents
+  stripeSubscriptionId: text("stripe_subscription_id").unique(),
+  stripeCustomerId: text("stripe_customer_id"),
+  status: text("status").default("active"), // "active", "cancelled", "past_due"
+  billingCycleStart: timestamp("billing_cycle_start").defaultNow(),
+  nextBillingDate: timestamp("next_billing_date"),
+  totalMonthlyCharge: integer("total_monthly_charge").notNull(), // Calculated total in cents
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Team Division System for 3-man and 5-man teams
+export const teams = pgTable("teams", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  operatorId: text("operator_id").notNull(), // Links to operator
+  hallId: text("hall_id"), // Links to pool halls
+  captainId: text("captain_id").notNull(), // Team captain player ID
+  teamType: text("team_type").notNull(), // "3man", "5man"
+  maxPlayers: integer("max_players").notNull(), // 3 or 5
+  maxSubs: integer("max_subs").notNull(), // 2 or 3
+  currentPlayers: integer("current_players").default(1), // Start with captain
+  currentSubs: integer("current_subs").default(0),
+  rosterLocked: boolean("roster_locked").default(false), // Locked for season
+  status: text("status").default("active"), // "active", "inactive", "disbanded"
+  seasonWins: integer("season_wins").default(0),
+  seasonLosses: integer("season_losses").default(0),
+  ladderPoints: integer("ladder_points").default(800), // Team ladder points
+  consecutiveLosses: integer("consecutive_losses").default(0), // For captain's burden rule
+  captainForcedNext: boolean("captain_forced_next").default(false), // Captain must play first after 2 losses
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Team rosters and player assignments
+export const teamPlayers = pgTable("team_players", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  teamId: text("team_id").notNull(),
+  playerId: text("player_id").notNull(),
+  role: text("role").notNull(), // "captain", "player", "substitute"
+  position: integer("position"), // Lineup order (1-3 for 3man, 1-5 for 5man)
+  isActive: boolean("is_active").default(true),
+  seasonWins: integer("season_wins").default(0),
+  seasonLosses: integer("season_losses").default(0),
+  joinedAt: timestamp("joined_at").defaultNow(),
+});
+
+// Team matches with special put-up rules
+export const teamMatches = pgTable("team_matches", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  homeTeamId: text("home_team_id").notNull(),
+  awayTeamId: text("away_team_id").notNull(),
+  operatorId: text("operator_id").notNull(),
+  homeScore: integer("home_score").default(0),
+  awayScore: integer("away_score").default(0),
+  maxSets: integer("max_sets").notNull(), // 3 for 3man, 5 for 5man
+  currentSet: integer("current_set").default(1),
+  status: text("status").default("scheduled"), // "scheduled", "in_progress", "completed"
+  winnerTeamId: text("winner_team_id"),
+  isHillHill: boolean("is_hill_hill").default(false), // If score tied and at final sets
+  putUpRound: text("put_up_round"), // "best_vs_best", "worst_vs_worst"
+  homeLineupOrder: text("home_lineup_order").array(), // Secret lineup order
+  awayLineupOrder: text("away_lineup_order").array(), // Secret lineup order
+  homeLineupRevealed: boolean("home_lineup_revealed").default(false),
+  awayLineupRevealed: boolean("away_lineup_revealed").default(false),
+  moneyBallActive: boolean("money_ball_active").default(false), // $20 bonus pot active
+  moneyBallAmount: integer("money_ball_amount").default(2000), // $20 in cents
+  scheduledAt: timestamp("scheduled_at"),
+  completedAt: timestamp("completed_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Individual sets within team matches
+export const teamSets = pgTable("team_sets", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  teamMatchId: text("team_match_id").notNull(),
+  setNumber: integer("set_number").notNull(),
+  homePlayerId: text("home_player_id").notNull(),
+  awayPlayerId: text("away_player_id").notNull(),
+  winnerId: text("winner_id"),
+  loserId: text("loser_id"),
+  isPutUpSet: boolean("is_put_up_set").default(false), // Special best vs best / worst vs worst
+  putUpType: text("put_up_type"), // "best_vs_best", "worst_vs_worst"
+  isMoneyBallSet: boolean("is_money_ball_set").default(false), // Final deciding set with bonus
+  status: text("status").default("scheduled"), // "scheduled", "in_progress", "completed"
+  completedAt: timestamp("completed_at"),
+  clipUrl: text("clip_url"), // Auto-generated highlight clip for social media
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 
 // Weight Rules tracking table for consecutive losses
 export const weightRules = pgTable("weight_rules", {
@@ -444,6 +547,16 @@ export type RookieAchievement = typeof rookieAchievements.$inferSelect;
 export type InsertRookieAchievement = z.infer<typeof insertRookieAchievementSchema>;
 export type RookieSubscription = typeof rookieSubscriptions.$inferSelect;
 export type InsertRookieSubscription = z.infer<typeof insertRookieSubscriptionSchema>;
+export type OperatorSubscription = typeof operatorSubscriptions.$inferSelect;
+export type InsertOperatorSubscription = z.infer<typeof insertOperatorSubscriptionSchema>;
+export type Team = typeof teams.$inferSelect;
+export type InsertTeam = z.infer<typeof insertTeamSchema>;
+export type TeamPlayer = typeof teamPlayers.$inferSelect;
+export type InsertTeamPlayer = z.infer<typeof insertTeamPlayerSchema>;
+export type TeamMatch = typeof teamMatches.$inferSelect;
+export type InsertTeamMatch = z.infer<typeof insertTeamMatchSchema>;
+export type TeamSet = typeof teamSets.$inferSelect;
+export type InsertTeamSet = z.infer<typeof insertTeamSetSchema>;
 
 // Side Betting System - Wallet and credit-based wagering
 export const wallets = pgTable("wallets", {
@@ -540,6 +653,35 @@ export const insertWeightRuleSchema = createInsertSchema(weightRules).omit({
   createdAt: true,
 });
 
+// Insert schemas for operator subscription system
+export const insertOperatorSubscriptionSchema = createInsertSchema(operatorSubscriptions).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertTeamSchema = createInsertSchema(teams).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertTeamPlayerSchema = createInsertSchema(teamPlayers).omit({
+  id: true,
+  joinedAt: true,
+});
+
+export const insertTeamMatchSchema = createInsertSchema(teamMatches).omit({
+  id: true,
+  createdAt: true,
+  completedAt: true,
+});
+
+export const insertTeamSetSchema = createInsertSchema(teamSets).omit({
+  id: true,
+  createdAt: true,
+  completedAt: true,
+});
+
 // Tutoring System for Pro members
 export const tutoringSession = pgTable("tutoring_sessions", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -549,7 +691,7 @@ export const tutoringSession = pgTable("tutoring_sessions", {
   duration: integer("duration").notNull().default(30), // Minutes
   status: text("status").notNull().default("scheduled"), // "scheduled", "completed", "cancelled"
   rookieConfirmed: boolean("rookie_confirmed").default(false),
-  creditAmount: integer("credit_amount").default(1500), // $15 in cents
+  creditAmount: integer("credit_amount").default(1000), // $10 in cents
   creditApplied: boolean("credit_applied").default(false),
   notes: text("notes"),
   completedAt: timestamp("completed_at"),

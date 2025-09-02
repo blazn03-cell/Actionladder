@@ -10,8 +10,11 @@ import {
   insertKellyPoolSchema, insertBountySchema, insertCharityEventSchema,
   insertSupportRequestSchema, insertLiveStreamSchema,
   insertWalletSchema, insertSidePotSchema, insertSideBetSchema,
-  insertLedgerSchema, insertResolutionSchema
+  insertLedgerSchema, insertResolutionSchema,
+  insertOperatorSubscriptionSchema, insertTeamSchema, insertTeamPlayerSchema,
+  insertTeamMatchSchema, insertTeamSetSchema
 } from "@shared/schema";
+import { OperatorSubscriptionCalculator } from "./operator-subscription-utils";
 
 if (!process.env.STRIPE_SECRET_KEY) {
   throw new Error('Missing required Stripe secret: STRIPE_SECRET_KEY');
@@ -1812,6 +1815,378 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error filing dispute:", error);
       res.status(500).json({ message: "Failed to file dispute" });
+    }
+  });
+
+  // Operator Subscription Routes
+  app.get("/api/operator-subscriptions", async (req, res) => {
+    try {
+      const subscriptions = await storage.getAllOperatorSubscriptions();
+      res.json(subscriptions);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/operator-subscriptions/:operatorId", async (req, res) => {
+    try {
+      const { operatorId } = req.params;
+      const subscription = await storage.getOperatorSubscription(operatorId);
+      if (!subscription) {
+        return res.status(404).json({ message: "Operator subscription not found" });
+      }
+      res.json(subscription);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/operator-subscriptions", async (req, res) => {
+    try {
+      const validatedData = insertOperatorSubscriptionSchema.parse(req.body);
+      const subscription = await storage.createOperatorSubscription(validatedData);
+      res.status(201).json(subscription);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  app.put("/api/operator-subscriptions/:operatorId", async (req, res) => {
+    try {
+      const { operatorId } = req.params;
+      const subscription = await storage.updateOperatorSubscription(operatorId, req.body);
+      if (!subscription) {
+        return res.status(404).json({ message: "Operator subscription not found" });
+      }
+      res.json(subscription);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Get subscription pricing calculator
+  app.post("/api/operator-subscriptions/calculate", async (req, res) => {
+    try {
+      const { playerCount, extraLadders = 0, rookieModuleActive = false, rookiePassesActive = 0 } = req.body;
+      
+      if (!playerCount || playerCount < 1) {
+        return res.status(400).json({ message: "Player count is required and must be at least 1" });
+      }
+      
+      const pricing = OperatorSubscriptionCalculator.calculateTotalCost({
+        playerCount,
+        extraLadders,
+        rookieModuleActive,
+        rookiePassesActive
+      });
+      
+      res.json(pricing);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Team Management Routes
+  app.get("/api/teams", async (req, res) => {
+    try {
+      const { operatorId, hallId } = req.query;
+      let teams;
+      
+      if (operatorId) {
+        teams = await storage.getTeamsByOperator(operatorId as string);
+      } else if (hallId) {
+        teams = await storage.getTeamsByHall(hallId as string);
+      } else {
+        return res.status(400).json({ message: "operatorId or hallId parameter required" });
+      }
+      
+      res.json(teams);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/teams/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const team = await storage.getTeam(id);
+      if (!team) {
+        return res.status(404).json({ message: "Team not found" });
+      }
+      res.json(team);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/teams", async (req, res) => {
+    try {
+      const validatedData = insertTeamSchema.parse(req.body);
+      const team = await storage.createTeam(validatedData);
+      res.status(201).json(team);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  app.put("/api/teams/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const team = await storage.updateTeam(id, req.body);
+      if (!team) {
+        return res.status(404).json({ message: "Team not found" });
+      }
+      res.json(team);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.delete("/api/teams/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const deleted = await storage.deleteTeam(id);
+      if (!deleted) {
+        return res.status(404).json({ message: "Team not found" });
+      }
+      res.status(204).send();
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Team Player Routes
+  app.get("/api/team-players", async (req, res) => {
+    try {
+      const { teamId, playerId } = req.query;
+      let teamPlayers;
+      
+      if (teamId) {
+        teamPlayers = await storage.getTeamPlayersByTeam(teamId as string);
+      } else if (playerId) {
+        teamPlayers = await storage.getTeamPlayersByPlayer(playerId as string);
+      } else {
+        return res.status(400).json({ message: "teamId or playerId parameter required" });
+      }
+      
+      res.json(teamPlayers);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/team-players", async (req, res) => {
+    try {
+      const validatedData = insertTeamPlayerSchema.parse(req.body);
+      
+      // Check if team has space
+      const team = await storage.getTeam(validatedData.teamId);
+      if (!team) {
+        return res.status(404).json({ message: "Team not found" });
+      }
+      
+      const existingPlayers = await storage.getTeamPlayersByTeam(validatedData.teamId);
+      const currentPlayerCount = existingPlayers.filter(p => p.role !== "substitute").length;
+      const currentSubCount = existingPlayers.filter(p => p.role === "substitute").length;
+      
+      if (validatedData.role === "substitute") {
+        if (currentSubCount >= team.maxSubs) {
+          return res.status(400).json({ message: `Team already has maximum substitutes (${team.maxSubs})` });
+        }
+      } else {
+        if (currentPlayerCount >= team.maxPlayers) {
+          return res.status(400).json({ message: `Team already has maximum players (${team.maxPlayers})` });
+        }
+      }
+      
+      const teamPlayer = await storage.createTeamPlayer(validatedData);
+      
+      // Update team player counts
+      if (validatedData.role === "substitute") {
+        await storage.updateTeam(validatedData.teamId, { currentSubs: currentSubCount + 1 });
+      } else {
+        await storage.updateTeam(validatedData.teamId, { currentPlayers: currentPlayerCount + 1 });
+      }
+      
+      res.status(201).json(teamPlayer);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  app.delete("/api/team-players/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const teamPlayer = await storage.getTeamPlayer(id);
+      if (!teamPlayer) {
+        return res.status(404).json({ message: "Team player not found" });
+      }
+      
+      const deleted = await storage.removeTeamPlayer(id);
+      if (!deleted) {
+        return res.status(404).json({ message: "Team player not found" });
+      }
+      
+      // Update team player counts
+      const team = await storage.getTeam(teamPlayer.teamId);
+      if (team) {
+        if (teamPlayer.role === "substitute") {
+          await storage.updateTeam(teamPlayer.teamId, { 
+            currentSubs: Math.max(0, team.currentSubs - 1) 
+          });
+        } else {
+          await storage.updateTeam(teamPlayer.teamId, { 
+            currentPlayers: Math.max(0, team.currentPlayers - 1) 
+          });
+        }
+      }
+      
+      res.status(204).send();
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Team Match Routes
+  app.get("/api/team-matches", async (req, res) => {
+    try {
+      const { teamId, operatorId } = req.query;
+      let matches;
+      
+      if (teamId) {
+        matches = await storage.getTeamMatchesByTeam(teamId as string);
+      } else if (operatorId) {
+        matches = await storage.getTeamMatchesByOperator(operatorId as string);
+      } else {
+        return res.status(400).json({ message: "teamId or operatorId parameter required" });
+      }
+      
+      res.json(matches);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/team-matches/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const teamMatch = await storage.getTeamMatch(id);
+      if (!teamMatch) {
+        return res.status(404).json({ message: "Team match not found" });
+      }
+      res.json(teamMatch);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/team-matches", async (req, res) => {
+    try {
+      const validatedData = insertTeamMatchSchema.parse(req.body);
+      const teamMatch = await storage.createTeamMatch(validatedData);
+      res.status(201).json(teamMatch);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  app.put("/api/team-matches/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const teamMatch = await storage.updateTeamMatch(id, req.body);
+      if (!teamMatch) {
+        return res.status(404).json({ message: "Team match not found" });
+      }
+      res.json(teamMatch);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Team Set Routes
+  app.get("/api/team-sets", async (req, res) => {
+    try {
+      const { teamMatchId } = req.query;
+      if (!teamMatchId) {
+        return res.status(400).json({ message: "teamMatchId parameter required" });
+      }
+      
+      const teamSets = await storage.getTeamSetsByMatch(teamMatchId as string);
+      res.json(teamSets);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/team-sets", async (req, res) => {
+    try {
+      const validatedData = insertTeamSetSchema.parse(req.body);
+      const teamSet = await storage.createTeamSet(validatedData);
+      res.status(201).json(teamSet);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  app.put("/api/team-sets/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const teamSet = await storage.updateTeamSet(id, req.body);
+      if (!teamSet) {
+        return res.status(404).json({ message: "Team set not found" });
+      }
+      res.json(teamSet);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Special team match operations
+  app.post("/api/team-matches/:id/reveal-lineup", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { side } = req.body; // "home" or "away"
+      
+      const teamMatch = await storage.getTeamMatch(id);
+      if (!teamMatch) {
+        return res.status(404).json({ message: "Team match not found" });
+      }
+      
+      const updates: any = {};
+      if (side === "home") {
+        updates.homeLineupRevealed = true;
+      } else if (side === "away") {
+        updates.awayLineupRevealed = true;
+      } else {
+        return res.status(400).json({ message: "Invalid side. Must be 'home' or 'away'" });
+      }
+      
+      const updatedMatch = await storage.updateTeamMatch(id, updates);
+      res.json(updatedMatch);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/team-matches/:id/trigger-captain-burden", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { teamId } = req.body;
+      
+      const team = await storage.getTeam(teamId);
+      if (!team) {
+        return res.status(404).json({ message: "Team not found" });
+      }
+      
+      // Captain's burden rule: after 2 consecutive losses, captain must play first
+      if (team.consecutiveLosses >= 2) {
+        await storage.updateTeam(teamId, { captainForcedNext: true });
+        res.json({ message: "Captain's burden activated - captain must play first next match" });
+      } else {
+        res.json({ message: "Captain's burden not triggered (need 2+ consecutive losses)" });
+      }
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
     }
   });
 
