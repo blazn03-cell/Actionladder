@@ -167,6 +167,115 @@ const BarboxLadderPage: React.FC = () => {
         </div>
       </div>
 
+      {/* Barbox Rookie Section */}
+      <div className="felt-bg rounded-lg border border-green-700/30 p-6">
+        <h2 className="text-3xl font-bold text-green-400 mb-6 text-center">
+          🌟 Barbox Rookie Division (7ft Tables Only)
+        </h2>
+        <p className="text-green-500 text-center mb-8">
+          New to barbox play? Start here! Under 400 Fargo Rating • 7ft Tables Only
+        </p>
+        
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Rookie Leaderboard */}
+          <div className="bg-black/30 rounded border border-green-800/30 p-6">
+            <h3 className="text-xl font-bold text-green-400 mb-4 flex items-center gap-2">
+              🏆 Rookie Barbox Leaders
+            </h3>
+            <div className="space-y-3">
+              {rankedPlayers
+                .filter(p => p.isRookie && p.rating < 400)
+                .slice(0, 8)
+                .map((player, index) => (
+                <div
+                  key={player.id}
+                  className="flex justify-between items-center p-3 bg-green-900/10 rounded border border-green-800/20"
+                  data-testid={`barbox-rookie-${player.id}`}
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="text-green-400 font-bold w-6">#{index + 1}</span>
+                    <div>
+                      <div className="font-medium flex items-center gap-2">
+                        {player.name}
+                        {player.rookiePassActive && (
+                          <span className="text-xs bg-green-600/20 text-green-400 px-2 py-1 rounded">PASS</span>
+                        )}
+                      </div>
+                      <div className="text-xs text-green-600">{player.rating} Rating • {player.city}</div>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-green-400 font-bold">${player.rookiePoints || 0}</div>
+                    <div className="text-xs text-green-600">{player.rookieWins || 0}W-{player.rookieLosses || 0}L</div>
+                  </div>
+                </div>
+              ))}
+              {rankedPlayers.filter(p => p.isRookie && p.rating < 400).length === 0 && (
+                <div className="text-green-600 text-center py-8">
+                  No rookie barbox players yet. Be the first to join!
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Rookie Features */}
+          <div className="space-y-4">
+            <div className="bg-black/30 rounded border border-green-800/30 p-4">
+              <h3 className="text-green-400 font-bold mb-3 flex items-center gap-2">
+                📐 Barbox Rookie Rules
+              </h3>
+              <ul className="text-green-500 text-sm space-y-2">
+                <li>• 7ft tables exclusively</li>
+                <li>• Under 400 Fargo rating only</li>
+                <li>• $5 entry fee per match</li>
+                <li>• Winner takes $8, operator gets $2</li>
+                <li>• Graduate at 400+ rating</li>
+              </ul>
+            </div>
+            
+            <div className="bg-black/30 rounded border border-green-800/30 p-4">
+              <h3 className="text-green-400 font-bold mb-3 flex items-center gap-2">
+                💳 Rookie Pass Benefits ($5/month)
+              </h3>
+              <ul className="text-green-500 text-sm space-y-2">
+                <li>• Free tournament entries</li>
+                <li>• Bonus points for wins</li>
+                <li>• Exclusive rookie events</li>
+                <li>• Priority table booking</li>
+                <li>• Mentorship program access</li>
+              </ul>
+            </div>
+            
+            <div className="bg-black/30 rounded border border-green-800/30 p-4">
+              <h3 className="text-green-400 font-bold mb-3 flex items-center gap-2">
+                🎯 Rookie Barbox Games
+              </h3>
+              <ul className="text-green-500 text-sm space-y-2">
+                <li>• BCA 8-Ball (Race to 3)</li>
+                <li>• 9-Ball (Race to 3)</li>
+                <li>• Fast 8 (Race to 3)</li>
+                <li>• One Ball (Best of 3)</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+        
+        {/* Rookie Quick Actions */}
+        <div className="mt-6 text-center">
+          <div className="flex justify-center gap-4 flex-wrap">
+            <button className="bg-green-600 hover:bg-green-700 text-black font-bold px-4 py-2 rounded text-sm transition-colors">
+              Join Rookie Barbox
+            </button>
+            <button className="border border-green-600 text-green-400 hover:bg-green-600/20 font-bold px-4 py-2 rounded text-sm transition-colors">
+              Get Rookie Pass
+            </button>
+            <button className="border border-green-600 text-green-400 hover:bg-green-600/20 font-bold px-4 py-2 rounded text-sm transition-colors">
+              Schedule Match
+            </button>
+          </div>
+        </div>
+      </div>
+
       {/* Games in Rotation */}
       <div className="felt-bg rounded-lg border border-green-700/30 p-6">
         <h2 className="text-3xl font-bold text-green-400 mb-6 text-center">
