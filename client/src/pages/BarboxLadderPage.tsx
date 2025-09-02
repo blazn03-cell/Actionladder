@@ -235,7 +235,7 @@ const BarboxLadderPage: React.FC = () => {
             
             <div className="bg-black/30 rounded border border-green-800/30 p-4">
               <h3 className="text-green-400 font-bold mb-3 flex items-center gap-2">
-                💳 Rookie Pass Benefits ($5/month)
+                💳 Rookie Pass Benefits ($15/month)
               </h3>
               <ul className="text-green-500 text-sm space-y-2">
                 <li>• Free tournament entries</li>
