@@ -35,7 +35,7 @@ async function createProducts() {
       name: 'Pro Monthly Membership', 
       description: 'Premium monthly membership with advanced features',
       prices: [
-        { amount: 4000, interval: 'month' } // $40/month
+        { amount: 4500, interval: 'month' } // $45/month
       ]
     },
     {

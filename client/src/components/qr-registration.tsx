@@ -372,7 +372,7 @@ function QuickRegistrationForm({ sessionId }: { sessionId: string }) {
                     <SelectContent>
                       <SelectItem value="none">No Membership (Free)</SelectItem>
                       <SelectItem value="basic">Basic - $25/month</SelectItem>
-                      <SelectItem value="pro">Pro - $40/month</SelectItem>
+                      <SelectItem value="pro">Pro - $45/month</SelectItem>
                     </SelectContent>
                   </Select>
                   <div className="text-xs text-gray-400 mt-1">

@@ -74,7 +74,7 @@ const PaymentsPage: React.FC = () => {
     },
     {
       priceId: 'price_1QZtpFJKQVJqL5dGYJhCyGP7',
-      amount: '$40/month',
+      amount: '$45/month',
       description: 'Pro Membership',
       mode: 'subscription',
       metadata: { type: 'membership', tier: 'pro' }

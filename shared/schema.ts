@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, integer, boolean, real, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, integer, boolean, real, timestamp, index, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -60,6 +60,7 @@ export const players = pgTable("players", {
   rookiePassActive: boolean("rookie_pass_active").default(false), // $20/month subscription
   rookiePassExpiresAt: timestamp("rookie_pass_expires_at"), // When subscription expires
   graduatedAt: timestamp("graduated_at"), // When they left rookie division
+  membershipTier: text("membership_tier").default("none"), // "none", "basic", "pro"
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -77,6 +78,8 @@ export const matches = pgTable("matches", {
   winner: text("winner"),
   commission: integer("commission"),
   bountyAward: integer("bounty_award").default(0),
+  weightMultiplierBps: integer("weight_multiplier_bps").default(100), // Weight multiplier in basis points (100 = 1.00x)
+  owedWeight: boolean("owed_weight").default(false), // Whether challenger owes weight
   reportedAt: timestamp("reported_at"),
   createdAt: timestamp("created_at").defaultNow(),
 });
@@ -318,6 +321,19 @@ export const insertOperatorSettingsSchema = createInsertSchema(operatorSettings)
   updatedAt: true,
 });
 
+
+// Weight Rules tracking table for consecutive losses
+export const weightRules = pgTable("weight_rules", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  playerId: text("player_id").notNull(),
+  opponentId: text("opponent_id").notNull(), 
+  consecutiveLosses: integer("consecutive_losses").default(0),
+  totalLosses: integer("total_losses").default(0),
+  weightOwed: boolean("weight_owed").default(false),
+  lastLossAt: timestamp("last_loss_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Rookie-specific tables
 export const rookieMatches = pgTable("rookie_matches", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -519,6 +535,11 @@ export const insertResolutionSchema = createInsertSchema(resolutions).omit({
   decidedAt: true,
 });
 
+export const insertWeightRuleSchema = createInsertSchema(weightRules).omit({
+  id: true,
+  createdAt: true,
+});
+
 // Side betting types
 export type Wallet = typeof wallets.$inferSelect;
 export type InsertWallet = z.infer<typeof insertWalletSchema>;
@@ -530,3 +551,5 @@ export type LedgerEntry = typeof ledger.$inferSelect;
 export type InsertLedgerEntry = z.infer<typeof insertLedgerSchema>;
 export type Resolution = typeof resolutions.$inferSelect;
 export type InsertResolution = z.infer<typeof insertResolutionSchema>;
+export type WeightRule = typeof weightRules.$inferSelect;
+export type InsertWeightRule = z.infer<typeof insertWeightRuleSchema>;

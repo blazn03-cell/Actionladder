@@ -33,7 +33,7 @@ Complete production-ready side betting infrastructure featuring:
 ## Betting & Financial Features
 - **Betting Range**: $60 minimum to $500,000 maximum for qualified high-stakes players
 - **Commission Structure**: 5% for members, 15% for non-members
-- **Membership Tiers**: Basic ($25/month), Pro ($40/month)
+- **Membership Tiers**: Basic ($25/month), Pro ($45/month)
 - **Payment Methods**: Stripe integration with test mode enabled
 
 ## Special Community Features
