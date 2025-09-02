@@ -45,7 +45,7 @@ const BarboxLadderPage: React.FC = () => {
       {/* Hero Section */}
       <div className="text-center py-12 felt-bg rounded-lg border border-green-700/30">
         <h1 className="text-5xl font-bold text-green-400 neon-glow mb-4">
-          KING OF THE BARBOXES
+          KIDDIE BOX KING
         </h1>
         <p className="text-green-500 text-xl mb-2">
           📐 7ft Tables Only
@@ -279,36 +279,43 @@ const BarboxLadderPage: React.FC = () => {
       {/* Games in Rotation */}
       <div className="felt-bg rounded-lg border border-green-700/30 p-6">
         <h2 className="text-3xl font-bold text-green-400 mb-6 text-center">
-          🎮 Games in Rotation (Barbox Only)
+          🎮 Barbox (7') Games
         </h2>
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <div className="bg-black/30 rounded border border-green-800/30 p-4">
-            <h3 className="text-green-400 font-bold mb-2">BCA 8-Ball</h3>
+            <h3 className="text-green-400 font-bold mb-2">BCA 8-Ball (classic)</h3>
+            <p className="text-green-600 text-sm">Traditional barbox 8-ball</p>
           </div>
           
           <div className="bg-black/30 rounded border border-green-800/30 p-4">
             <h3 className="text-green-400 font-bold mb-2">Fast 8</h3>
+            <p className="text-green-600 text-sm">Speed variation of 8-ball</p>
           </div>
           
           <div className="bg-black/30 rounded border border-green-800/30 p-4">
             <h3 className="text-green-400 font-bold mb-2">Saratoga</h3>
+            <p className="text-green-600 text-sm">Regional specialty game</p>
           </div>
           
           <div className="bg-black/30 rounded border border-green-800/30 p-4">
             <h3 className="text-green-400 font-bold mb-2">9-Ball</h3>
+            <p className="text-green-600 text-sm">Rotation game, low to high</p>
           </div>
           
           <div className="bg-black/30 rounded border border-green-800/30 p-4">
             <h3 className="text-green-400 font-bold mb-2">10-Ball</h3>
+            <p className="text-green-600 text-sm">Call shot rotation</p>
           </div>
           
           <div className="bg-black/30 rounded border border-green-800/30 p-4">
             <h3 className="text-green-400 font-bold mb-2">Banks / 9-Ball Banks</h3>
+            <p className="text-green-600 text-sm">Banking variations</p>
           </div>
           
           <div className="bg-black/30 rounded border border-green-800/30 p-4">
             <h3 className="text-green-400 font-bold mb-2">One Ball (One & Done)</h3>
+            <p className="text-green-600 text-sm">Single ball elimination</p>
           </div>
         </div>
       </div>

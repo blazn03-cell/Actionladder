@@ -78,7 +78,7 @@ export default function EightFootLadderPage() {
       {/* Hero Section */}
       <div className="text-center py-12 felt-bg rounded-lg border border-green-700/30">
         <h1 className="text-5xl font-bold text-green-400 neon-glow mb-4">
-          8-FT ONLY LADDER
+          ALMOST BIG TIME
         </h1>
         <p className="text-green-500 text-xl mb-2">
           📏 8ft Tables Only
@@ -282,13 +282,33 @@ export default function EightFootLadderPage() {
       {/* Games in Rotation */}
       <div className="felt-bg rounded-lg border border-green-700/30 p-6">
         <h2 className="text-3xl font-bold text-green-400 mb-6 text-center">
-          🎮 Games in Rotation (8ft Tables Only)
+          🎮 Main 8-Foot Table Games
         </h2>
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <div className="bg-black/30 rounded border border-green-800/30 p-4">
-            <h3 className="text-green-400 font-bold mb-2">8-Ball</h3>
-            <p className="text-green-600 text-sm">Classic stripes and solids</p>
+            <h3 className="text-green-400 font-bold mb-2">Straight 8 (Open)</h3>
+            <p className="text-green-600 text-sm">Open table 8-ball format</p>
+          </div>
+          
+          <div className="bg-black/30 rounded border border-green-800/30 p-4">
+            <h3 className="text-green-400 font-bold mb-2">BCA 8-Ball</h3>
+            <p className="text-green-600 text-sm">Official tournament rules</p>
+          </div>
+          
+          <div className="bg-black/30 rounded border border-green-800/30 p-4">
+            <h3 className="text-green-400 font-bold mb-2">Fast 8</h3>
+            <p className="text-green-600 text-sm">Speed variation of 8-ball</p>
+          </div>
+          
+          <div className="bg-black/30 rounded border border-green-800/30 p-4">
+            <h3 className="text-green-400 font-bold mb-2">14.1 (Straight Pool)</h3>
+            <p className="text-green-600 text-sm">Continuous rack format</p>
+          </div>
+          
+          <div className="bg-black/30 rounded border border-green-800/30 p-4">
+            <h3 className="text-green-400 font-bold mb-2">Saratoga</h3>
+            <p className="text-green-600 text-sm">Regional specialty game</p>
           </div>
           
           <div className="bg-black/30 rounded border border-green-800/30 p-4">
@@ -312,13 +332,13 @@ export default function EightFootLadderPage() {
           </div>
           
           <div className="bg-black/30 rounded border border-green-800/30 p-4">
-            <h3 className="text-green-400 font-bold mb-2">Straight Pool</h3>
-            <p className="text-green-600 text-sm">Call every shot, 14.1 continuous</p>
+            <h3 className="text-green-400 font-bold mb-2">9-Ball Banks</h3>
+            <p className="text-green-600 text-sm">Banking rotation game</p>
           </div>
           
           <div className="bg-black/30 rounded border border-green-800/30 p-4">
-            <h3 className="text-green-400 font-bold mb-2">Cut Throat</h3>
-            <p className="text-green-600 text-sm">3-player elimination</p>
+            <h3 className="text-green-400 font-bold mb-2">1 Ball 1 Pocket</h3>
+            <p className="text-green-600 text-sm">Single ball pocket game</p>
           </div>
         </div>
       </div>

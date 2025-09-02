@@ -41,8 +41,11 @@ const LadderPage: React.FC = () => {
       {/* Hero Section */}
       <div className="text-center py-12 felt-bg rounded-lg border border-green-700/30">
         <h1 className="text-5xl font-bold text-green-400 neon-glow mb-4">
-          THE LADDER
+          BIG DOG THRONE
         </h1>
+        <p className="text-green-500 text-xl mb-2">
+          📏 9ft Tables Only
+        </p>
         <p className="text-green-500 text-xl mb-4">
           Where legends are made and wallets are emptied
         </p>
@@ -211,6 +214,99 @@ const LadderPage: React.FC = () => {
               </div>
             );
           })}
+        </div>
+      </div>
+
+      {/* Games in Rotation */}
+      <div className="felt-bg rounded-lg border border-green-700/30 p-6">
+        <h2 className="text-3xl font-bold text-green-400 mb-6 text-center">
+          🎮 Main 9-Foot Table Games (Action Ladder Core)
+        </h2>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="bg-black/30 rounded border border-green-800/30 p-4">
+            <h3 className="text-green-400 font-bold mb-2">Straight 8 (Open)</h3>
+            <p className="text-green-600 text-sm">Open table 8-ball format</p>
+          </div>
+          
+          <div className="bg-black/30 rounded border border-green-800/30 p-4">
+            <h3 className="text-green-400 font-bold mb-2">BCA 8-Ball</h3>
+            <p className="text-green-600 text-sm">Official tournament rules</p>
+          </div>
+          
+          <div className="bg-black/30 rounded border border-green-800/30 p-4">
+            <h3 className="text-green-400 font-bold mb-2">Fast 8</h3>
+            <p className="text-green-600 text-sm">Speed variation of 8-ball</p>
+          </div>
+          
+          <div className="bg-black/30 rounded border border-green-800/30 p-4">
+            <h3 className="text-green-400 font-bold mb-2">14.1 (Straight Pool)</h3>
+            <p className="text-green-600 text-sm">Continuous rack format</p>
+          </div>
+          
+          <div className="bg-black/30 rounded border border-green-800/30 p-4">
+            <h3 className="text-green-400 font-bold mb-2">Saratoga</h3>
+            <p className="text-green-600 text-sm">Regional specialty game</p>
+          </div>
+          
+          <div className="bg-black/30 rounded border border-green-800/30 p-4">
+            <h3 className="text-green-400 font-bold mb-2">9-Ball</h3>
+            <p className="text-green-600 text-sm">Rotation game, low to high</p>
+          </div>
+          
+          <div className="bg-black/30 rounded border border-green-800/30 p-4">
+            <h3 className="text-green-400 font-bold mb-2">10-Ball</h3>
+            <p className="text-green-600 text-sm">Call shot rotation</p>
+          </div>
+          
+          <div className="bg-black/30 rounded border border-green-800/30 p-4">
+            <h3 className="text-green-400 font-bold mb-2">1-Pocket (9ft only)</h3>
+            <p className="text-green-600 text-sm">Strategic pocket game</p>
+          </div>
+          
+          <div className="bg-black/30 rounded border border-green-800/30 p-4">
+            <h3 className="text-green-400 font-bold mb-2">Banks</h3>
+            <p className="text-green-600 text-sm">All shots must bank</p>
+          </div>
+          
+          <div className="bg-black/30 rounded border border-green-800/30 p-4">
+            <h3 className="text-green-400 font-bold mb-2">9-Ball Banks</h3>
+            <p className="text-green-600 text-sm">Banking rotation game</p>
+          </div>
+          
+          <div className="bg-black/30 rounded border border-green-800/30 p-4">
+            <h3 className="text-green-400 font-bold mb-2">1 Ball 1 Pocket</h3>
+            <p className="text-green-600 text-sm">Single ball pocket game</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Special / Gambling Style Games */}
+      <div className="felt-bg rounded-lg border border-amber-700/30 p-6">
+        <h2 className="text-3xl font-bold text-amber-400 mb-6 text-center">
+          🎰 Special / Gambling Style Games
+        </h2>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="bg-black/30 rounded border border-amber-800/30 p-4">
+            <h3 className="text-amber-400 font-bold mb-2">Money Ball</h3>
+            <p className="text-green-600 text-sm">Cue ball lands on cash</p>
+          </div>
+          
+          <div className="bg-black/30 rounded border border-amber-800/30 p-4">
+            <h3 className="text-amber-400 font-bold mb-2">Object Ball Carom</h3>
+            <p className="text-green-600 text-sm">Hit object → carom cue ball</p>
+          </div>
+          
+          <div className="bg-black/30 rounded border border-amber-800/30 p-4">
+            <h3 className="text-amber-400 font-bold mb-2">Poolhall vs. Poolhall</h3>
+            <p className="text-green-600 text-sm">Team vs team matches</p>
+          </div>
+          
+          <div className="bg-black/30 rounded border border-amber-800/30 p-4">
+            <h3 className="text-amber-400 font-bold mb-2">Game of the Month</h3>
+            <p className="text-green-600 text-sm">Voting system for featured game</p>
+          </div>
         </div>
       </div>
 

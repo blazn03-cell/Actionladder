@@ -39,9 +39,9 @@ const queryClient = new QueryClient();
 function Navigation({ activeTab, setActiveTab }: { activeTab: string; setActiveTab: (tab: string) => void }) {
   const tabs = [
     { id: "dashboard", label: "Dashboard" },
-    { id: "ladder", label: "Ladder" },
-    { id: "barbox-ladder", label: "King of Barbox" },
-    { id: "eightfoot-ladder", label: "8ft Only Ladder" },
+    { id: "ladder", label: "Big Dog Throne (9ft)" },
+    { id: "eightfoot-ladder", label: "Almost Big Time (8ft)" },
+    { id: "barbox-ladder", label: "Kiddie Box King (7ft)" },
     { id: "rookie-section", label: "Rookie Section" },
     { id: "escrow-challenges", label: "Escrow Challenges" },
     { id: "hall-battles", label: "Hall Battles" },
