@@ -87,8 +87,8 @@ export default function SideBetOperator() {
       queryClient.invalidateQueries({ queryKey: ["/api/side-pots"] });
       queryClient.invalidateQueries({ queryKey: ["/api/side-pots", selectedPot, "details"] });
       toast({
-        title: "Side Pot Resolved",
-        description: `Pot resolved with ${data.winners} winners and ${data.losers} losers. Total pot: ${formatCurrency(data.totalPot)}, Service Fee: ${formatCurrency(data.serviceFee)}`,
+        title: "Pool Resolved",
+        description: `Winner receives the pool minus service fee. ${data.winners} winners, ${data.losers} losers. Total pool: ${formatCurrency(data.totalPot)}, Service Fee: ${formatCurrency(data.serviceFee)}`,
       });
       setSelectedPot(null);
       setSelectedWinner("");
@@ -113,8 +113,8 @@ export default function SideBetOperator() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/side-pots"] });
       toast({
-        title: "Side Pot Locked",
-        description: "No more bets can be placed on this pot",
+        title: "Pool Locked",
+        description: "The pool is locked, no more entries accepted",
       });
     },
     onError: (error: any) => {
@@ -154,25 +154,25 @@ export default function SideBetOperator() {
   return (
     <div className="container mx-auto p-6 space-y-6">
       <div className="text-center">
-        <h1 className="text-3xl font-bold mb-2">Side Bet Operations</h1>
-        <p className="text-green-400">Manage side betting and pot resolutions</p>
+        <h1 className="text-3xl font-bold mb-2">Match Pool Operations</h1>
+        <p className="text-green-400">Lock pools and resolve match results</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <Card data-testid="stats-open-pots">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Open Pots</CardTitle>
+            <CardTitle className="text-sm font-medium">Open Pools</CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-green-400">{openPots.length}</div>
-            <p className="text-xs text-muted-foreground">Accepting bets</p>
+            <p className="text-xs text-muted-foreground">Accepting entries</p>
           </CardContent>
         </Card>
 
         <Card data-testid="stats-locked-pots">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Locked Pots</CardTitle>
+            <CardTitle className="text-sm font-medium">Locked Pools</CardTitle>
             <AlertTriangle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -183,7 +183,7 @@ export default function SideBetOperator() {
 
         <Card data-testid="stats-resolved-pots">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Resolved Pots</CardTitle>
+            <CardTitle className="text-sm font-medium">Resolved Pools</CardTitle>
             <Gavel className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -195,16 +195,16 @@ export default function SideBetOperator() {
 
       <Tabs defaultValue="open" className="w-full">
         <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="open" data-testid="tab-open-pots">Open Pots</TabsTrigger>
-          <TabsTrigger value="locked" data-testid="tab-locked-pots">Locked Pots</TabsTrigger>
-          <TabsTrigger value="resolved" data-testid="tab-resolved-pots">Resolved Pots</TabsTrigger>
+          <TabsTrigger value="open" data-testid="tab-open-pots">Open Pools</TabsTrigger>
+          <TabsTrigger value="locked" data-testid="tab-locked-pots">Locked Pools</TabsTrigger>
+          <TabsTrigger value="resolved" data-testid="tab-resolved-pots">Resolved Pools</TabsTrigger>
         </TabsList>
 
         <TabsContent value="open" className="space-y-4">
           <div className="grid gap-4">
             {openPots.length === 0 ? (
               <p className="text-muted-foreground text-center py-8" data-testid="no-open-pots">
-                No open pots
+                No open pools
               </p>
             ) : (
               openPots.map((pot) => (
@@ -234,7 +234,7 @@ export default function SideBetOperator() {
                         disabled={lockPotMutation.isPending}
                         data-testid={`button-lock-pot-${pot.id}`}
                       >
-                        Lock Pot
+                        Lock Pool
                       </Button>
                       <Button 
                         variant="outline" 
@@ -256,7 +256,7 @@ export default function SideBetOperator() {
           <div className="grid gap-4">
             {lockedPots.length === 0 ? (
               <p className="text-muted-foreground text-center py-8" data-testid="no-locked-pots">
-                No locked pots
+                No locked pools
               </p>
             ) : (
               lockedPots.map((pot) => (
@@ -285,39 +285,39 @@ export default function SideBetOperator() {
                             data-testid={`button-resolve-pot-${pot.id}`}
                           >
                             <Gavel className="mr-2 h-4 w-4" />
-                            Resolve Pot
+                            Resolve Pool
                           </Button>
                         </DialogTrigger>
                         <DialogContent data-testid={`resolve-dialog-${pot.id}`}>
                           <DialogHeader>
-                            <DialogTitle>Resolve Side Pot</DialogTitle>
+                            <DialogTitle>Resolve Match Pool</DialogTitle>
                           </DialogHeader>
                           
                           {potDetails && (
                             <div className="space-y-4">
                               <div>
-                                <h3 className="font-semibold mb-2">Pot Details</h3>
+                                <h3 className="font-semibold mb-2">Pool Details</h3>
                                 <p>{potDetails.pot.sideALabel} vs {potDetails.pot.sideBLabel}</p>
                                 <p className="text-sm text-muted-foreground">
-                                  Total Bets: {potDetails.bets.length} • 
+                                  Total Entries: {potDetails.bets.length} • 
                                   Total Amount: {formatCurrency(potDetails.bets.reduce((sum, bet) => sum + bet.amount, 0))}
                                 </p>
                               </div>
 
                               <div>
-                                <h3 className="font-semibold mb-2">Bet Distribution</h3>
+                                <h3 className="font-semibold mb-2">Entry Distribution</h3>
                                 <div className="grid grid-cols-2 gap-4">
                                   <div>
                                     <p className="font-medium">Side A: {potDetails.pot.sideALabel}</p>
                                     <p className="text-sm">
-                                      {potDetails.bets.filter(bet => bet.side === "A").length} bets • 
+                                      {potDetails.bets.filter(bet => bet.side === "A").length} entries • 
                                       {formatCurrency(potDetails.bets.filter(bet => bet.side === "A").reduce((sum, bet) => sum + bet.amount, 0))}
                                     </p>
                                   </div>
                                   <div>
                                     <p className="font-medium">Side B: {potDetails.pot.sideBLabel}</p>
                                     <p className="text-sm">
-                                      {potDetails.bets.filter(bet => bet.side === "B").length} bets • 
+                                      {potDetails.bets.filter(bet => bet.side === "B").length} entries • 
                                       {formatCurrency(potDetails.bets.filter(bet => bet.side === "B").reduce((sum, bet) => sum + bet.amount, 0))}
                                     </p>
                                   </div>
@@ -380,7 +380,7 @@ export default function SideBetOperator() {
           <div className="grid gap-4">
             {resolvedPots.length === 0 ? (
               <p className="text-muted-foreground text-center py-8" data-testid="no-resolved-pots">
-                No resolved pots
+                No resolved pools
               </p>
             ) : (
               resolvedPots.map((pot) => (
