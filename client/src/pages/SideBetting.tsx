@@ -63,7 +63,6 @@ export default function SideBetting() {
   // Fetch wallet data
   const { data: wallet, isLoading: walletLoading } = useQuery<Wallet>({
     queryKey: ["/api/wallet", userId],
-    queryFn: () => apiRequest(`/api/wallet/${userId}`),
   });
 
   // Fetch side pots
@@ -74,32 +73,24 @@ export default function SideBetting() {
   // Fetch user's bets
   const { data: userBets = [], isLoading: betsLoading } = useQuery<SideBet[]>({
     queryKey: ["/api/side-bets/user", userId],
-    queryFn: () => apiRequest(`/api/side-bets/user/${userId}`),
   });
 
   // Fetch transaction history
   const { data: ledger = [], isLoading: ledgerLoading } = useQuery<LedgerEntry[]>({
     queryKey: ["/api/wallet", userId, "ledger"],
-    queryFn: () => apiRequest(`/api/wallet/${userId}/ledger`),
   });
 
   // Wallet top-up mutation
   const topUpMutation = useMutation({
     mutationFn: async (amount: number) => {
-      const response = await apiRequest(`/api/wallet/${userId}/topup`, {
-        method: "POST",
-        body: JSON.stringify({ amount }),
-      });
+      const response = await apiRequest("POST", `/api/wallet/${userId}/topup`, { amount });
       
       // Simulate Stripe payment completion for demo
       await new Promise(resolve => setTimeout(resolve, 2000));
       
-      return apiRequest(`/api/wallet/${userId}/topup/complete`, {
-        method: "POST",
-        body: JSON.stringify({ 
-          paymentIntentId: `pi_demo_${Date.now()}`, 
-          amount 
-        }),
+      return apiRequest("POST", `/api/wallet/${userId}/topup/complete`, { 
+        paymentIntentId: `pi_demo_${Date.now()}`, 
+        amount 
       });
     },
     onSuccess: () => {
@@ -121,10 +112,7 @@ export default function SideBetting() {
 
   // Create side pot mutation
   const createPotMutation = useMutation({
-    mutationFn: (data: any) => apiRequest("/api/side-pots", {
-      method: "POST",
-      body: JSON.stringify(data),
-    }),
+    mutationFn: (data: any) => apiRequest("POST", "/api/side-pots", data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/side-pots"] });
       toast({
@@ -146,10 +134,7 @@ export default function SideBetting() {
 
   // Place bet mutation
   const placeBetMutation = useMutation({
-    mutationFn: (data: any) => apiRequest("/api/side-bets", {
-      method: "POST",
-      body: JSON.stringify(data),
-    }),
+    mutationFn: (data: any) => apiRequest("POST", "/api/side-bets", data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/wallet", userId] });
       queryClient.invalidateQueries({ queryKey: ["/api/side-bets/user", userId] });
