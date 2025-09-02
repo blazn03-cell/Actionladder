@@ -110,8 +110,8 @@ export default function RookieSection() {
       game,
       table,
       time: new Date(time),
-      fee: 800, // $8 in cents
-      commission: 200, // $2 in cents
+      fee: 6000, // $60 in cents
+      commission: 600, // $6 in cents
       pointsAwarded: 10,
     });
   };
@@ -124,7 +124,7 @@ export default function RookieSection() {
     const eventData = {
       name: type === "tournament" ? "Rookie Mini-Tournament" : "Break & Run Jackpot",
       type,
-      buyIn: 500, // $5
+      buyIn: 6000, // $60
       maxPlayers: 8,
       prizeType: type === "tournament" ? "credit" : "voucher",
       description: type === "tournament" 
@@ -143,7 +143,7 @@ export default function RookieSection() {
           <p className="text-gray-400">Entry-level pool for players building their skills</p>
           <div className="mt-4 flex justify-center space-x-4">
             <div className="px-4 py-2 bg-green-600/20 border border-green-500/30 rounded-lg">
-              <p className="text-sm text-green-400">💰 $8 flat match fee • $2 operator commission</p>
+              <p className="text-sm text-green-400">💰 $60 challenger fee • $6 operator commission</p>
             </div>
             <div className="px-4 py-2 bg-blue-600/20 border border-blue-500/30 rounded-lg">
               <p className="text-sm text-blue-400">🎯 10 points for win • 5 points for loss</p>

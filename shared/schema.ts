@@ -325,7 +325,7 @@ export const rookieMatches = pgTable("rookie_matches", {
   opponent: text("opponent").notNull(),
   game: text("game").notNull(),
   table: text("table").notNull(),
-  fee: integer("fee").notNull().default(800), // $8 in cents
+  fee: integer("fee").notNull().default(6000), // $60 in cents
   commission: integer("commission").notNull().default(200), // $2 in cents
   time: timestamp("time").notNull(),
   notes: text("notes"),
@@ -340,7 +340,7 @@ export const rookieEvents = pgTable("rookie_events", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
   type: text("type").notNull(), // "tournament", "jackpot", "achievement"
-  buyIn: integer("buy_in").default(500), // $5 in cents
+  buyIn: integer("buy_in").default(6000), // $60 in cents
   prizePool: integer("prize_pool").default(0),
   maxPlayers: integer("max_players").default(8),
   currentPlayers: integer("current_players").default(0),

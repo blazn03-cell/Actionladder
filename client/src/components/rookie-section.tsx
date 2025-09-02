@@ -317,7 +317,7 @@ function RookieRules() {
           <div className="flex items-start space-x-2">
             <span className="text-blue-400 font-bold">•</span>
             <span className="text-gray-300">
-              <span className="text-white font-semibold">Challenge Fees:</span> Low stakes only ($5-$10 maximum)
+              <span className="text-white font-semibold">Challenge Fees:</span> Standard challenger fee ($60 minimum, same as main ladders)
             </span>
           </div>
           <div className="flex items-start space-x-2">
