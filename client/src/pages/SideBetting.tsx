@@ -27,6 +27,8 @@ interface SidePot {
   feeBps: number;
   status: string;
   lockCutoffAt?: string;
+  description?: string; // Custom bet description
+  customCreatedBy?: string; // Who created this custom bet
   createdAt: string;
 }
 
@@ -57,6 +59,7 @@ export default function SideBetting() {
   const [newPotStake, setNewPotStake] = useState("");
   const [sideALabel, setSideALabel] = useState("");
   const [sideBLabel, setSideBLabel] = useState("");
+  const [description, setDescription] = useState(""); // Custom bet description
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -122,6 +125,7 @@ export default function SideBetting() {
       setNewPotStake("");
       setSideALabel("");
       setSideBLabel("");
+      setDescription("");
     },
     onError: (error: any) => {
       toast({
@@ -173,6 +177,7 @@ export default function SideBetting() {
         sideALabel,
         sideBLabel,
         stakePerSide: stake * 100, // Convert to cents
+        description: description.trim() || null, // Include description
         status: "open",
       });
     }
@@ -284,13 +289,26 @@ export default function SideBetting() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
+              <div>
+                <Label htmlFor="description">Bet Description (optional)</Label>
+                <textarea
+                  id="description"
+                  data-testid="input-description"
+                  className="w-full border rounded p-2 bg-background text-foreground resize-none"
+                  rows={2}
+                  placeholder="e.g., Tyga breaks and runs the first rack, Match goes hill-hill, Player scratches on the 8-ball"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                />
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="side-a-label">Side A Label</Label>
                   <Input
                     id="side-a-label"
                     data-testid="input-side-a-label"
-                    placeholder="e.g., Player 1 Wins"
+                    placeholder="e.g., Yes, Player 1 Wins"
                     value={sideALabel}
                     onChange={(e) => setSideALabel(e.target.value)}
                   />
@@ -300,7 +318,7 @@ export default function SideBetting() {
                   <Input
                     id="side-b-label"
                     data-testid="input-side-b-label"
-                    placeholder="e.g., Player 2 Wins"
+                    placeholder="e.g., No, Player 2 Wins"
                     value={sideBLabel}
                     onChange={(e) => setSideBLabel(e.target.value)}
                   />
@@ -356,6 +374,13 @@ export default function SideBetting() {
                   </div>
                 </CardHeader>
                 <CardContent>
+                  {pot.description && (
+                    <div className="mb-4 p-3 bg-muted/30 rounded border-l-4 border-l-green-500">
+                      <p className="text-sm text-muted-foreground italic" data-testid={`pot-description-${pot.id}`}>
+                        "{pot.description}"
+                      </p>
+                    </div>
+                  )}
                   {pot.status === "open" && (
                     <div className="flex gap-2">
                       <Button 

@@ -1444,6 +1444,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const potData = {
         ...validatedData,
         feeBps: serviceFeesBps,
+        customCreatedBy: validatedData.creatorId, // Track who created this custom bet
       };
       
       const pot = await storage.createSidePot(potData);

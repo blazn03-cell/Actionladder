@@ -448,6 +448,8 @@ export const sidePots = pgTable("side_pots", {
   feeBps: integer("fee_bps").default(800), // 8% default
   status: varchar("status").default("open"), // open|locked|resolved|canceled
   lockCutoffAt: timestamp("lock_cutoff_at"),
+  description: text("description"), // Custom bet description
+  customCreatedBy: varchar("custom_created_by").references(() => users.id), // Track who created custom bet
   createdAt: timestamp("created_at").defaultNow(),
 });
 
