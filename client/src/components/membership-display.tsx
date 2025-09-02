@@ -15,13 +15,13 @@ export function MembershipDisplay({ membershipTier, onUpgrade }: MembershipDispl
         return {
           name: 'Basic Member',
           price: '$25/month',
-          commission: '5%',
+          leagueFees: '5%',
           tournamentEntry: '$25-30',
           icon: <Star className="w-5 h-5" />,
           color: 'bg-blue-600/20 text-blue-400 border-blue-500/30',
           perks: [
             'Jump in the ladder',
-            '5% commission (rounded up)',
+            '5% league dues (rounded up)',
             'Tournament entry: $25–30'
           ]
         };
@@ -30,13 +30,13 @@ export function MembershipDisplay({ membershipTier, onUpgrade }: MembershipDispl
         return {
           name: 'Pro Member (580+ Fargo)',
           price: '$60/month',
-          commission: '3%',
+          leagueFees: '3%',
           tournamentEntry: 'FREE',
           icon: <Crown className="w-5 h-5" />,
           color: 'bg-amber-600/20 text-amber-400 border-amber-500/30',
           perks: [
             'FREE tournament entry (worth $25–30)',
-            'Lower commission (3%)',
+            'Lower league fees (3%)',
             'Premium perks (priority seeding, livestream)',
             'Tutor Bonus: $15 credit per session',
             'Effective cost: $45/month (with 2 sessions)'
@@ -47,13 +47,13 @@ export function MembershipDisplay({ membershipTier, onUpgrade }: MembershipDispl
         return {
           name: 'No Membership',
           price: 'Free',
-          commission: '15%',
+          leagueFees: '15%',
           tournamentEntry: '$30',
           icon: <Trophy className="w-5 h-5" />,
           color: 'bg-gray-600/20 text-gray-400 border-gray-500/30',
           perks: [
             'Basic ladder access',
-            '15% commission for non-members',
+            '15% league fees for non-members',
             'Tournament entry: $30'
           ]
         };
@@ -76,8 +76,8 @@ export function MembershipDisplay({ membershipTier, onUpgrade }: MembershipDispl
       <CardContent>
         <div className="grid grid-cols-2 gap-4 mb-4">
           <div className="text-center">
-            <div className="text-lg font-bold">{info.commission}</div>
-            <div className="text-xs text-gray-400">Commission</div>
+            <div className="text-lg font-bold">{info.leagueFees}</div>
+            <div className="text-xs text-gray-400">League Fees</div>
           </div>
           <div className="text-center">
             <div className="text-lg font-bold">{info.tournamentEntry}</div>

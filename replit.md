@@ -13,16 +13,16 @@ Dark, gritty billiards tournament ladder system with live streaming integration,
 - **Respect Points System**: Community recognition beyond just winning
 - **Side Betting System**: Credit-based wagering with closed-loop funds and pre-funding to prevent ghosting
 
-## Side Betting System
-Complete production-ready side betting infrastructure featuring:
-- **Credit-Based Wagering**: Closed-loop system with wallet management and Stripe top-ups
-- **Side Pot Creation**: Players create custom betting markets with configurable stakes and fees
-- **Operator Controls**: Administrative dashboard for locking pots and resolving bets
-- **Automated Resolution**: Winner determination with automatic payout distribution
+## Challenge Pool System
+Complete production-ready challenge pool infrastructure featuring:
+- **Credit-Based Entries**: Closed-loop system with wallet management and Stripe top-ups
+- **Challenge Pool Creation**: Players create custom challenge markets with configurable entry fees and prizes
+- **Operator Controls**: Administrative dashboard for locking pools and resolving challenges
+- **Automated Resolution**: Winner determination with automatic prize distribution
 - **Transaction Ledger**: Complete audit trail of all financial activities
-- **Anti-Ghosting Protection**: Pre-funding requirement ensures all bets are backed by real credits
-- **Service Fee Management**: Tiered fee structure (8.5% default, 5% for pots over $500)
-- **Real-Time Updates**: Live betting status and pot tracking across all interfaces
+- **Anti-Ghosting Protection**: Pre-funding requirement ensures all entries are backed by real credits
+- **Service Fee Management**: Tiered fee structure (8.5% default, 5% for pools over $500)
+- **Real-Time Updates**: Live challenge status and pool tracking across all interfaces
 
 ## Theme & Branding
 - **Slogan**: "In here, respect is earned in racks, not words"
@@ -30,10 +30,10 @@ Complete production-ready side betting infrastructure featuring:
 - **Color Scheme**: Black backgrounds with bright green (#00ff00) accents
 - **Typography**: Monospace fonts for that underground tech feel
 
-## Betting & Financial Features
-- **Betting Range**: $60 minimum to $500,000 maximum for qualified high-stakes players
-- **Commission Structure**: 5% for members, 15% for non-members
-- **Membership Tiers**: Basic ($25/month), Pro ($45/month)
+## Challenge & Financial Features
+- **Entry Range**: $60 minimum to $500,000 maximum for qualified high-stakes players
+- **League Fee Structure**: 5% for members, 15% for non-members  
+- **Membership Tiers**: Basic ($25/month), Pro ($60/month with tutoring credits)
 - **Payment Methods**: Stripe integration with test mode enabled
 
 ## Special Community Features
@@ -59,19 +59,20 @@ Complete production-ready side betting infrastructure featuring:
 
 ## Recent Changes
 - Updated slogan to reflect street hustle mentality
-- Increased betting limits to accommodate high-stakes players
+- Increased challenge limits to accommodate high-stakes players
 - Added Stripe Checkout API integration with proper price IDs
 - Implemented dark green pool hall theme throughout
 - Created comprehensive player support and community features
 - Enhanced Live Streams with geographic filtering and 6 platform support
 - Built complete React Native mobile app with Expo
-- Added "Money on the Table" gambling game with multiple variants
+- Added "Money on the Table" challenge game with multiple variants
 - Integrated OCR capabilities with tesseract.js for tournament features
-- **Implemented complete side betting system with credit-based wagering** (December 2024)
-- Extended database schema for wallet management and side pot tracking
-- Created comprehensive API infrastructure for betting operations and resolution
-- Built React UI components for both user betting and operator management
+- **Implemented complete challenge pool system with credit-based entries** (December 2024)
+- Extended database schema for wallet management and challenge pool tracking
+- Created comprehensive API infrastructure for challenge operations and resolution
+- Built React UI components for both user entries and operator management
 - Integrated Stripe payment processing for wallet top-ups
+- **Updated all language to league-safe terminology** - replaced gambling terms with league/competition language for legal compliance
 
 ## Development Setup
 - Uses Vite for frontend development server

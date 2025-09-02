@@ -55,16 +55,16 @@ interface LedgerEntry {
   createdAt?: string;
 }
 
-export default function SideBetting() {
+export default function ChallengePools() {
   const [userId] = useState("user-123"); // This would come from auth context
   const [topUpAmount, setTopUpAmount] = useState("");
-  const [newPotStake, setNewPotStake] = useState("");
+  const [newPoolEntry, setNewPoolEntry] = useState("");
   const [sideALabel, setSideALabel] = useState("");
   const [sideBLabel, setSideBLabel] = useState("");
-  const [description, setDescription] = useState(""); // Custom bet description
-  const [betType, setBetType] = useState("yes_no");
+  const [description, setDescription] = useState(""); // Custom challenge description
+  const [challengeType, setChallengeType] = useState("yes_no");
   const [verificationSource, setVerificationSource] = useState("Official Stream");
-  const [showHighStakeWarning, setShowHighStakeWarning] = useState(false);
+  const [showHighEntryWarning, setShowHighEntryWarning] = useState(false);
   const [isDescriptionValid, setIsDescriptionValid] = useState(true);
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -95,14 +95,14 @@ export default function SideBetting() {
     queryKey: ["/api/wallet", userId],
   });
 
-  // Fetch side pots
-  const { data: sidePots = [], isLoading: potsLoading } = useQuery<SidePot[]>({
-    queryKey: ["/api/side-pots"],
+  // Fetch challenge pools
+  const { data: challengePools = [], isLoading: poolsLoading } = useQuery<SidePot[]>({
+    queryKey: ["/api/challenge-pools"],
   });
 
-  // Fetch user's bets
-  const { data: userBets = [], isLoading: betsLoading } = useQuery<SideBet[]>({
-    queryKey: ["/api/side-bets/user", userId],
+  // Fetch user's entries
+  const { data: userEntries = [], isLoading: entriesLoading } = useQuery<SideBet[]>({
+    queryKey: ["/api/challenge-entries/user", userId],
   });
 
   // Fetch transaction history
@@ -163,9 +163,9 @@ export default function SideBetting() {
     },
   });
 
-  // Place bet mutation
-  const placeBetMutation = useMutation({
-    mutationFn: (data: any) => apiRequest("POST", "/api/side-bets", data),
+  // Place entry mutation
+  const placeEntryMutation = useMutation({
+    mutationFn: (data: any) => apiRequest("POST", "/api/challenge-entries", data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/wallet", userId] });
       queryClient.invalidateQueries({ queryKey: ["/api/side-bets/user", userId] });

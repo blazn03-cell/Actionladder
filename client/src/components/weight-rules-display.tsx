@@ -17,19 +17,19 @@ export function WeightRulesDisplay({
   const getWeightStatus = () => {
     if (consecutiveLosses >= 3) {
       return {
-        status: 'High Stakes',
+        status: 'High Challenge',
         color: 'bg-red-600/20 text-red-400 border-red-500/30',
         icon: <AlertTriangle className="w-5 h-5" />,
-        description: '3+ losses → 1.5× the normal wager or more weight',
-        multiplier: '1.5× wager'
+        description: '3+ losses → 1.5× the normal entry fee or more handicap',
+        multiplier: '1.5× entry'
       };
     } else if (consecutiveLosses >= 2) {
       return {
-        status: 'Weight Owed',
+        status: 'Handicap Owed',
         color: 'bg-yellow-600/20 text-yellow-400 border-yellow-500/30',
         icon: <Scale className="w-5 h-5" />,
-        description: '2 losses in a row → opponent owes you weight',
-        multiplier: '1.2× weight'
+        description: '2 losses in a row → opponent owes you handicap advantage',
+        multiplier: '1.2× handicap'
       };
     } else {
       return {
@@ -49,7 +49,7 @@ export function WeightRulesDisplay({
       <CardHeader>
         <CardTitle className="flex items-center gap-3">
           {status.icon}
-          Weight Rule Status
+          Challenge Handicap Status
           <Badge className={status.color}>
             {status.status}
           </Badge>
@@ -73,12 +73,12 @@ export function WeightRulesDisplay({
           </div>
           
           <div className="space-y-2">
-            <h4 className="text-sm font-semibold text-white">Weight Rules (Where It Gets Spicy)</h4>
+            <h4 className="text-sm font-semibold text-white">Challenge Handicap System</h4>
             <div className="space-y-1 text-xs text-gray-400">
-              <div>• Lose 2 in a row to same higher-ranked player → they owe you weight</div>
-              <div>• Lose 3 in a row → weight or 1.5× the cash</div>
-              <div>• Challenger Rule: get more weight or winner bets 1.5× normal wager</div>
-              <div>• No cheap shots allowed</div>
+              <div>• Lose 2 in a row to same higher-ranked player → they owe you handicap points</div>
+              <div>• Lose 3 in a row → handicap points or 1.5× the normal entry fee</div>
+              <div>• Challenger Rule: receive handicap advantage or opponent pays 1.5× entry fee</div>
+              <div>• Fair play enforcement</div>
             </div>
           </div>
         </div>
