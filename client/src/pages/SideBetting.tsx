@@ -146,8 +146,8 @@ export default function SideBetting() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/side-pots"] });
       toast({
-        title: "Match Pool Created",
-        description: "Your pool is now accepting entries",
+        title: "Side Pot Created",
+        description: "The pool is locked once both sides are in",
       });
       setNewPotStake("");
       setSideALabel("");
@@ -171,8 +171,8 @@ export default function SideBetting() {
       queryClient.invalidateQueries({ queryKey: ["/api/side-bets/user", userId] });
       queryClient.invalidateQueries({ queryKey: ["/api/side-pots"] });
       toast({
-        title: "Pool Entry Confirmed",
-        description: "You're locked into the pool before the break",
+        title: "Joined Side Pot",
+        description: "Your credits are locked until result",
       });
     },
     onError: (error: any) => {
@@ -209,7 +209,7 @@ export default function SideBetting() {
     
     // Validation
     if (stake < 5) {
-      toast({ title: "Error", description: "Minimum stake is 500 credits ($5)", variant: "destructive" });
+      toast({ title: "Error", description: "Minimum challenge is 500 credits ($5)", variant: "destructive" });
       return;
     }
     
@@ -303,8 +303,8 @@ export default function SideBetting() {
   return (
     <div className="container mx-auto p-6 space-y-6">
       <div className="text-center">
-        <h1 className="text-3xl font-bold mb-2">Match Pools</h1>
-        <p className="text-green-400">Lock into the action before the break</p>
+        <h1 className="text-3xl font-bold mb-2">Side Pots</h1>
+        <p className="text-green-400">Lock into the side pot before the break</p>
       </div>
 
       <Tabs defaultValue="wallet" className="w-full">
@@ -315,7 +315,7 @@ export default function SideBetting() {
           </TabsTrigger>
           <TabsTrigger value="pots" data-testid="tab-side-pots">
             <TrendingUp className="mr-2 h-4 w-4" />
-            Match Pools
+            Side Pots
           </TabsTrigger>
           <TabsTrigger value="bets" data-testid="tab-my-bets">My Entries</TabsTrigger>
           <TabsTrigger value="history" data-testid="tab-history">
@@ -378,7 +378,7 @@ export default function SideBetting() {
               <div className="flex justify-between items-center">
                 <CardTitle>
                   <Plus className="mr-2 h-5 w-5 inline" />
-                  Create Match Pool
+                  Create Side Pot
                 </CardTitle>
                 <Button
                   size="sm"
@@ -481,7 +481,7 @@ export default function SideBetting() {
                 </div>
               </div>
               <div>
-                <Label htmlFor="stake-amount">Entry Per Side ($5 - $100,000)</Label>
+                <Label htmlFor="stake-amount">Challenge Credits Per Side (500 - 10,000,000)</Label>
                 
                 {/* Preset Amount Buttons */}
                 <div className="flex gap-2 mt-2 mb-3 flex-wrap">
@@ -500,12 +500,12 @@ export default function SideBetting() {
 
                 {newPotStake && parseFloat(newPotStake) >= 5 && (
                   <div className="text-sm p-3 bg-muted/30 rounded border mb-3">
-                    <div className="font-medium text-green-600 mb-1">Pool Summary:</div>
+                    <div className="font-medium text-green-600 mb-1">Side Pot Summary:</div>
                     <div className="grid grid-cols-2 gap-2 text-sm">
-                      <div>Entry per side: <span className="font-mono">${parseFloat(newPotStake).toLocaleString()}</span></div>
-                      <div>Total pool: <span className="font-mono">${(parseFloat(newPotStake) * 2).toLocaleString()}</span></div>
+                      <div>Each side puts up: <span className="font-mono">${parseFloat(newPotStake).toLocaleString()}</span></div>
+                      <div>Total pot: <span className="font-mono">${(parseFloat(newPotStake) * 2).toLocaleString()}</span></div>
                       <div>Service fee: <span className="font-mono">{calculateServiceFee(parseFloat(newPotStake))}%</span></div>
-                      <div className="text-green-600 font-semibold">Winner gets: <span className="font-mono">${((parseFloat(newPotStake) * 2) * (1 - calculateServiceFee(parseFloat(newPotStake)) / 100)).toLocaleString()}</span></div>
+                      <div className="text-green-600 font-semibold">Winner receives the pot minus service fee: <span className="font-mono">${((parseFloat(newPotStake) * 2) * (1 - calculateServiceFee(parseFloat(newPotStake)) / 100)).toLocaleString()}</span></div>
                     </div>
                   </div>
                 )}
@@ -527,7 +527,7 @@ export default function SideBetting() {
                     disabled={createPotMutation.isPending || !sideALabel || !sideBLabel || !newPotStake || parseFloat(newPotStake) < 5 || parseFloat(newPotStake) > 100000 || !validateDescription(description.trim())}
                     data-testid="button-create-pot"
                   >
-                    {createPotMutation.isPending ? "Creating..." : "Create Custom Side Pot"}
+                    {createPotMutation.isPending ? "Creating..." : "Lock Into Side Pot"}
                   </Button>
                 </div>
               </div>
@@ -544,7 +544,7 @@ export default function SideBetting() {
                         {pot.sideALabel} vs {pot.sideBLabel}
                       </CardTitle>
                       <CardDescription>
-                        Entry: {formatCurrency(pot.stakePerSide)} per side • Service Fee: {(pot.feeBps / 100).toFixed(1)}%
+                        Each side puts up {formatCurrency(pot.stakePerSide)} • Winner receives the pot minus service fee ({(pot.feeBps / 100).toFixed(1)}%)
                       </CardDescription>
                       
                       {/* Dispute Period Indicator */}
@@ -603,7 +603,7 @@ export default function SideBetting() {
                         disabled={placeBetMutation.isPending}
                         data-testid={`button-bet-side-a-${pot.id}`}
                       >
-                        Join {pot.sideALabel}
+                        {pot.sideALabel} - {formatCurrency(pot.stakePerSide)}
                       </Button>
                       <Button 
                         variant="outline" 
@@ -611,7 +611,7 @@ export default function SideBetting() {
                         disabled={placeBetMutation.isPending}
                         data-testid={`button-bet-side-b-${pot.id}`}
                       >
-                        Join {pot.sideBLabel}
+                        {pot.sideBLabel} - {formatCurrency(pot.stakePerSide)}
                       </Button>
                     </div>
                   )}

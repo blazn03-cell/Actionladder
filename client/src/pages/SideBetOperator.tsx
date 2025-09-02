@@ -94,8 +94,8 @@ export default function SideBetOperator() {
       queryClient.invalidateQueries({ queryKey: ["/api/side-pots"] });
       queryClient.invalidateQueries({ queryKey: ["/api/side-pots", selectedPot, "details"] });
       toast({
-        title: "Pool Resolved",
-        description: `Winner receives the pool minus service fee. ${data.winners} winners, ${data.losers} losers. Total pool: ${formatCurrency(data.totalPot)}, Service Fee: ${formatCurrency(data.serviceFee)}`,
+        title: "Side Pot Resolved",
+        description: `Winner receives the pot minus service fee. ${data.winners} winners, ${data.losers} losers. Total pot: ${formatCurrency(data.totalPot)}, Service Fee: ${formatCurrency(data.serviceFee)}`,
       });
       setSelectedPot(null);
       setSelectedWinner("");
@@ -120,8 +120,8 @@ export default function SideBetOperator() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/side-pots"] });
       toast({
-        title: "Pool Locked",
-        description: "The pool is locked, no more entries accepted",
+        title: "Side Pot Locked",
+        description: "The pool is locked once both sides are in",
       });
     },
     onError: (error: any) => {
@@ -146,8 +146,8 @@ export default function SideBetOperator() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/side-pots"] });
       toast({
-        title: "Pool Put On Hold",
-        description: "Evidence has been requested. Pool will be resolved within 24 hours.",
+        title: "Side Pot On Hold",
+        description: "Evidence requested. Your credits are locked until result.",
       });
       setSelectedPot(null);
       setResolutionNotes("");
@@ -176,8 +176,8 @@ export default function SideBetOperator() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/side-pots"] });
       toast({
-        title: "Pool Voided",
-        description: "All locked credits have been refunded to participants.",
+        title: "Side Pot Voided",
+        description: "Your credits are locked until result - refund complete.",
       });
       setSelectedPot(null);
       setResolutionNotes("");
@@ -249,8 +249,8 @@ export default function SideBetOperator() {
   return (
     <div className="container mx-auto p-6 space-y-6">
       <div className="text-center">
-        <h1 className="text-3xl font-bold mb-2">Match Pool Operations</h1>
-        <p className="text-green-400">Lock pools and resolve match results</p>
+        <h1 className="text-3xl font-bold mb-2">Side Pot Operations</h1>
+        <p className="text-green-400">Lock pots and resolve side results</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
@@ -353,7 +353,7 @@ export default function SideBetOperator() {
                         disabled={lockPotMutation.isPending}
                         data-testid={`button-lock-pot-${pot.id}`}
                       >
-                        Lock Pool
+                        Lock Side Pot
                       </Button>
                       <Button 
                         variant="outline" 
@@ -404,7 +404,7 @@ export default function SideBetOperator() {
                             data-testid={`button-resolve-pot-${pot.id}`}
                           >
                             <Gavel className="mr-2 h-4 w-4" />
-                            Resolve Pool
+                            Resolve Side Pot
                           </Button>
                         </DialogTrigger>
                         <DialogContent data-testid={`resolve-dialog-${pot.id}`}>
