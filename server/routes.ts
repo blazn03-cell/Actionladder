@@ -23,7 +23,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
 
 // Stripe Price IDs
 const prices = {
-  rookie_monthly: "prod_Sy1Pr1q0qu3UoL", // $5/month Rookie Pass
+  rookie_monthly: "prod_Sy1Pr1q0qu3UoL", // $20/month Rookie Pass
   small: process.env.SMALL_PRICE_ID,
   medium: process.env.MEDIUM_PRICE_ID,
   large: process.env.LARGE_PRICE_ID,

@@ -213,7 +213,7 @@ function RookieLadderTable({ players }: { players: Player[] }) {
           </Badge>
         </CardTitle>
         <div className="text-sm text-gray-400 mt-2">
-          Lower stakes ($5-$10 max) • Graduate at 500+ rating or 10 wins
+          Standard challenger fee ($60 minimum) • Graduate at 500+ rating or 10 wins
         </div>
       </CardHeader>
       <CardContent>

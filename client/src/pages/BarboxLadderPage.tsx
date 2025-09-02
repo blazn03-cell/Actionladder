@@ -227,15 +227,15 @@ const BarboxLadderPage: React.FC = () => {
               <ul className="text-green-500 text-sm space-y-2">
                 <li>• 7ft tables exclusively</li>
                 <li>• Under 400 Fargo rating only</li>
-                <li>• $5 entry fee per match</li>
-                <li>• Winner takes $8, operator gets $2</li>
+                <li>• $60 challenger fee per match</li>
+                <li>• Winner takes $54, operator gets $6</li>
                 <li>• Graduate at 400+ rating</li>
               </ul>
             </div>
             
             <div className="bg-black/30 rounded border border-green-800/30 p-4">
               <h3 className="text-green-400 font-bold mb-3 flex items-center gap-2">
-                💳 Rookie Pass Benefits ($15/month)
+                💳 Rookie Pass Benefits ($20/month)
               </h3>
               <ul className="text-green-500 text-sm space-y-2">
                 <li>• Free tournament entries</li>

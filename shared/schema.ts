@@ -57,7 +57,7 @@ export const players = pgTable("players", {
   rookieLosses: integer("rookie_losses").default(0), // Track rookie division losses
   rookiePoints: integer("rookie_points").default(0), // Separate rookie points system
   rookieStreak: integer("rookie_streak").default(0), // Current rookie win streak
-  rookiePassActive: boolean("rookie_pass_active").default(false), // $5/month subscription
+  rookiePassActive: boolean("rookie_pass_active").default(false), // $20/month subscription
   rookiePassExpiresAt: timestamp("rookie_pass_expires_at"), // When subscription expires
   graduatedAt: timestamp("graduated_at"), // When they left rookie division
   createdAt: timestamp("created_at").defaultNow(),
@@ -365,7 +365,7 @@ export const rookieSubscriptions = pgTable("rookie_subscriptions", {
   playerId: text("player_id").notNull().unique(),
   stripeSubscriptionId: text("stripe_subscription_id").unique(),
   status: text("status").notNull().default("active"), // "active", "cancelled", "expired"
-  monthlyFee: integer("monthly_fee").default(500), // $5 in cents
+  monthlyFee: integer("monthly_fee").default(2000), // $20 in cents
   startedAt: timestamp("started_at").defaultNow(),
   expiresAt: timestamp("expires_at"),
   cancelledAt: timestamp("cancelled_at"),

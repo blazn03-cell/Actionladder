@@ -406,7 +406,7 @@ export default function RookieSection() {
                     data-testid="button-create-tournament"
                   >
                     <Trophy className="w-4 h-4 mr-2" />
-                    Create Mini-Tournament ($5 buy-in)
+                    Create Mini-Tournament ($60 buy-in)
                   </Button>
                   <Button
                     onClick={() => createRookieEvent("jackpot")}
@@ -468,7 +468,7 @@ export default function RookieSection() {
               <CardHeader>
                 <CardTitle className="text-neon-green flex items-center">
                   <Crown className="w-6 h-6 mr-2" />
-                  Rookie Pass - $5/month
+                  Rookie Pass - $20/month
                 </CardTitle>
                 <CardDescription>Optional subscription for enhanced rookie experience</CardDescription>
               </CardHeader>
@@ -498,7 +498,7 @@ export default function RookieSection() {
                     data-testid="button-subscribe-rookie-pass"
                   >
                     <Crown className="w-4 h-4 mr-2" />
-                    {subscribeRookiePassMutation.isPending ? "Processing..." : "Subscribe to Rookie Pass ($5/month)"}
+                    {subscribeRookiePassMutation.isPending ? "Processing..." : "Subscribe to Rookie Pass ($20/month)"}
                   </Button>
                   <p className="text-sm text-gray-400 mt-2">Secure payment via Stripe • Operator decides where fee goes</p>
                 </div>

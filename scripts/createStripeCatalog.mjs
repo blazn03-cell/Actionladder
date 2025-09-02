@@ -63,7 +63,7 @@ async function createProducts() {
       name: 'Analytics Add-on',
       description: 'Advanced player analytics and insights',
       prices: [
-        { amount: 1500, interval: 'month' } // $15/month add-on
+        { amount: 2000, interval: 'month' } // $20/month add-on
       ]
     }
   ];
