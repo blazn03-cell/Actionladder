@@ -11,7 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Gavel, TrendingUp, Users, AlertTriangle } from "lucide-react";
+import { Gavel, TrendingUp, Users, AlertTriangle, Pause, Ban, CheckCircle } from "lucide-react";
 
 interface SidePot {
   id: string;
@@ -23,6 +23,10 @@ interface SidePot {
   feeBps: number;
   status: string;
   lockCutoffAt?: string;
+  description?: string;
+  betType?: string;
+  evidenceJson?: string;
+  verificationSource?: string;
   createdAt: string;
 }
 
@@ -55,6 +59,9 @@ interface PotDetails {
 export default function SideBetOperator() {
   const [operatorId] = useState("operator-123"); // This would come from auth context
   const [resolutionNotes, setResolutionNotes] = useState("");
+  const [evidenceUrl, setEvidenceUrl] = useState("");
+  const [evidenceTimestamp, setEvidenceTimestamp] = useState("");
+  const [evidenceNotes, setEvidenceNotes] = useState("");
   const [selectedPot, setSelectedPot] = useState<string | null>(null);
   const [selectedWinner, setSelectedWinner] = useState<string>("");
   const { toast } = useToast();
@@ -126,6 +133,64 @@ export default function SideBetOperator() {
     },
   });
 
+  // Hold side pot mutation
+  const holdPotMutation = useMutation({
+    mutationFn: (data: { potId: string; reason: string; evidence: any }) => 
+      apiRequest(`/api/side-pots/${data.potId}/hold`, {
+        method: "POST",
+        body: JSON.stringify({
+          reason: data.reason,
+          evidence: data.evidence,
+        }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/side-pots"] });
+      toast({
+        title: "Pool Put On Hold",
+        description: "Evidence has been requested. Pool will be resolved within 24 hours.",
+      });
+      setSelectedPot(null);
+      setResolutionNotes("");
+      setEvidenceUrl("");
+      setEvidenceTimestamp("");
+      setEvidenceNotes("");
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to put pool on hold",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Void side pot mutation
+  const voidPotMutation = useMutation({
+    mutationFn: (data: { potId: string; reason: string }) => 
+      apiRequest(`/api/side-pots/${data.potId}/void`, {
+        method: "POST",
+        body: JSON.stringify({
+          reason: data.reason,
+        }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/side-pots"] });
+      toast({
+        title: "Pool Voided",
+        description: "All locked credits have been refunded to participants.",
+      });
+      setSelectedPot(null);
+      setResolutionNotes("");
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to void pool",
+        variant: "destructive",
+      });
+    },
+  });
+
   const formatCurrency = (cents: number) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
@@ -135,16 +200,46 @@ export default function SideBetOperator() {
 
   const openPots = sidePots.filter(pot => pot.status === "open");
   const lockedPots = sidePots.filter(pot => pot.status === "locked");
+  const onHoldPots = sidePots.filter(pot => pot.status === "on_hold");
   const resolvedPots = sidePots.filter(pot => pot.status === "resolved");
+  const voidedPots = sidePots.filter(pot => pot.status === "voided");
 
   const handleResolvePot = () => {
     if (selectedPot && selectedWinner && potDetails) {
+      const evidence = {
+        url: evidenceUrl.trim() || null,
+        timestamp: evidenceTimestamp.trim() || null,
+        notes: evidenceNotes.trim() || null,
+      };
+      
       resolvePotMutation.mutate({
         sidePotId: selectedPot,
         winnerSide: selectedWinner,
         notes: resolutionNotes,
+        evidence,
       });
     }
+  };
+
+  const handleHoldPot = (potId: string, reason: string) => {
+    const evidence = {
+      url: evidenceUrl.trim() || null,
+      timestamp: evidenceTimestamp.trim() || null,
+      notes: evidenceNotes.trim() || null,
+    };
+    
+    holdPotMutation.mutate({
+      potId,
+      reason,
+      evidence,
+    });
+  };
+
+  const handleVoidPot = (potId: string, reason: string) => {
+    voidPotMutation.mutate({
+      potId,
+      reason,
+    });
   };
 
   if (potsLoading) {
@@ -158,46 +253,70 @@ export default function SideBetOperator() {
         <p className="text-green-400">Lock pools and resolve match results</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
         <Card data-testid="stats-open-pots">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Open Pools</CardTitle>
+            <CardTitle className="text-sm font-medium">Open</CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-green-400">{openPots.length}</div>
-            <p className="text-xs text-muted-foreground">Accepting entries</p>
+            <p className="text-xs text-muted-foreground">Funding window</p>
           </CardContent>
         </Card>
 
         <Card data-testid="stats-locked-pots">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Locked Pools</CardTitle>
+            <CardTitle className="text-sm font-medium">Locked</CardTitle>
             <AlertTriangle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-yellow-400">{lockedPots.length}</div>
-            <p className="text-xs text-muted-foreground">Awaiting resolution</p>
+            <p className="text-xs text-muted-foreground">Betting closed</p>
+          </CardContent>
+        </Card>
+
+        <Card data-testid="stats-hold-pots">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Hold</CardTitle>
+            <Pause className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-orange-400">{onHoldPots.length}</div>
+            <p className="text-xs text-muted-foreground">Need evidence</p>
           </CardContent>
         </Card>
 
         <Card data-testid="stats-resolved-pots">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Resolved Pools</CardTitle>
-            <Gavel className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Resolved</CardTitle>
+            <CheckCircle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-gray-400">{resolvedPots.length}</div>
-            <p className="text-xs text-muted-foreground">Completed</p>
+            <div className="text-2xl font-bold text-blue-400">{resolvedPots.length}</div>
+            <p className="text-xs text-muted-foreground">Credits released</p>
+          </CardContent>
+        </Card>
+
+        <Card data-testid="stats-voided-pots">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Voided</CardTitle>
+            <Ban className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-gray-400">{voidedPots.length}</div>
+            <p className="text-xs text-muted-foreground">Refunded</p>
           </CardContent>
         </Card>
       </div>
 
-      <Tabs defaultValue="open" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="open" data-testid="tab-open-pots">Open Pools</TabsTrigger>
-          <TabsTrigger value="locked" data-testid="tab-locked-pots">Locked Pools</TabsTrigger>
-          <TabsTrigger value="resolved" data-testid="tab-resolved-pots">Resolved Pools</TabsTrigger>
+      <Tabs defaultValue="locked" className="w-full">
+        <TabsList className="grid w-full grid-cols-5">
+          <TabsTrigger value="open" data-testid="tab-open-pots">Open ({openPots.length})</TabsTrigger>
+          <TabsTrigger value="locked" data-testid="tab-locked-pots">Locked ({lockedPots.length})</TabsTrigger>
+          <TabsTrigger value="hold" data-testid="tab-hold-pots">On Hold ({onHoldPots.length})</TabsTrigger>
+          <TabsTrigger value="resolved" data-testid="tab-resolved-pots">Resolved ({resolvedPots.length})</TabsTrigger>
+          <TabsTrigger value="voided" data-testid="tab-voided-pots">Voided ({voidedPots.length})</TabsTrigger>
         </TabsList>
 
         <TabsContent value="open" className="space-y-4">
@@ -337,6 +456,45 @@ export default function SideBetOperator() {
                                 </Select>
                               </div>
 
+                              <div className="border-t pt-4">
+                                <h3 className="font-semibold mb-3">Evidence Tracking</h3>
+                                <div className="space-y-3">
+                                  <div>
+                                    <Label htmlFor="evidence-url">Evidence URL (Stream/Screenshot)</Label>
+                                    <Input
+                                      id="evidence-url"
+                                      data-testid="input-evidence-url"
+                                      placeholder="https://... (stream link, image URL, etc.)"
+                                      value={evidenceUrl}
+                                      onChange={(e) => setEvidenceUrl(e.target.value)}
+                                    />
+                                  </div>
+                                  
+                                  <div>
+                                    <Label htmlFor="evidence-timestamp">Evidence Timestamp</Label>
+                                    <Input
+                                      id="evidence-timestamp"
+                                      data-testid="input-evidence-timestamp"
+                                      placeholder="e.g., 2:15:30 in stream, Game 3, rack 5"
+                                      value={evidenceTimestamp}
+                                      onChange={(e) => setEvidenceTimestamp(e.target.value)}
+                                    />
+                                  </div>
+                                  
+                                  <div>
+                                    <Label htmlFor="evidence-notes">Evidence Notes</Label>
+                                    <Textarea
+                                      id="evidence-notes"
+                                      data-testid="textarea-evidence-notes"
+                                      placeholder="Describe what the evidence shows..."
+                                      value={evidenceNotes}
+                                      onChange={(e) => setEvidenceNotes(e.target.value)}
+                                      rows={2}
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+
                               <div>
                                 <Label htmlFor="resolution-notes">Resolution Notes (Optional)</Label>
                                 <Textarea
@@ -348,14 +506,36 @@ export default function SideBetOperator() {
                                 />
                               </div>
 
-                              <Button 
-                                onClick={handleResolvePot}
-                                disabled={!selectedWinner || resolvePotMutation.isPending}
-                                className="w-full"
-                                data-testid="button-confirm-resolution"
-                              >
-                                {resolvePotMutation.isPending ? "Resolving..." : "Confirm Resolution"}
-                              </Button>
+                              <div className="flex gap-2">
+                                <Button 
+                                  onClick={handleResolvePot}
+                                  disabled={!selectedWinner || resolvePotMutation.isPending}
+                                  className="flex-1"
+                                  data-testid="button-confirm-resolution"
+                                >
+                                  {resolvePotMutation.isPending ? "Resolving..." : "Resolve & Pay Out"}
+                                </Button>
+                                
+                                <Button 
+                                  variant="outline"
+                                  onClick={() => handleHoldPot(selectedPot!, "Evidence requested for verification")}
+                                  disabled={holdPotMutation.isPending}
+                                  data-testid="button-hold-pot"
+                                >
+                                  <Pause className="mr-2 h-4 w-4" />
+                                  Hold for Evidence
+                                </Button>
+                                
+                                <Button 
+                                  variant="destructive"
+                                  onClick={() => handleVoidPot(selectedPot!, "Cannot be verified objectively")}
+                                  disabled={voidPotMutation.isPending}
+                                  data-testid="button-void-pot"
+                                >
+                                  <Ban className="mr-2 h-4 w-4" />
+                                  Void & Refund
+                                </Button>
+                              </div>
                             </div>
                           )}
                         </DialogContent>
@@ -367,6 +547,154 @@ export default function SideBetOperator() {
                         data-testid={`button-view-locked-details-${pot.id}`}
                       >
                         View Details
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))
+            )}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="hold" className="space-y-4">
+          <div className="grid gap-4">
+            {onHoldPots.length === 0 ? (
+              <p className="text-muted-foreground text-center py-8" data-testid="no-hold-pots">
+                No pools on hold
+              </p>
+            ) : (
+              onHoldPots.map((pot) => (
+                <Card key={pot.id} data-testid={`hold-pot-${pot.id}`}>
+                  <CardHeader>
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <CardTitle className="text-lg">
+                          {pot.sideALabel} vs {pot.sideBLabel}
+                        </CardTitle>
+                        <CardDescription>
+                          Stake: {formatCurrency(pot.stakePerSide)} • Service Fee: {(pot.feeBps / 100).toFixed(1)}%
+                        </CardDescription>
+                        <div className="text-sm text-muted-foreground">
+                          On Hold: Awaiting evidence verification
+                        </div>
+                      </div>
+                      <Badge variant="outline" className="text-orange-600 border-orange-600">On Hold</Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex gap-2">
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <Button 
+                            variant="default"
+                            size="sm"
+                            onClick={() => setSelectedPot(pot.id)}
+                            data-testid={`button-resolve-hold-pot-${pot.id}`}
+                          >
+                            <CheckCircle className="mr-2 h-4 w-4" />
+                            Resolve with Evidence
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent data-testid={`resolve-hold-dialog-${pot.id}`}>
+                          <DialogHeader>
+                            <DialogTitle>Resolve Pool on Hold</DialogTitle>
+                          </DialogHeader>
+                          
+                          {potDetails && (
+                            <div className="space-y-4">
+                              <div>
+                                <h3 className="font-semibold mb-2">Pool Details</h3>
+                                <p>{potDetails.pot.sideALabel} vs {potDetails.pot.sideBLabel}</p>
+                                <p className="text-sm text-muted-foreground">
+                                  On Hold - Evidence required for resolution
+                                </p>
+                              </div>
+
+                              <div>
+                                <Label htmlFor="winner-selection-hold">Select Winner</Label>
+                                <Select value={selectedWinner} onValueChange={setSelectedWinner}>
+                                  <SelectTrigger data-testid="select-winner-hold">
+                                    <SelectValue placeholder="Choose winning side" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="A">{potDetails.pot.sideALabel}</SelectItem>
+                                    <SelectItem value="B">{potDetails.pot.sideBLabel}</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+
+                              <div className="border-t pt-4">
+                                <h3 className="font-semibold mb-3 text-orange-600">Evidence Required</h3>
+                                <div className="space-y-3">
+                                  <div>
+                                    <Label htmlFor="evidence-url-hold">Evidence URL (Required)</Label>
+                                    <Input
+                                      id="evidence-url-hold"
+                                      data-testid="input-evidence-url-hold"
+                                      placeholder="https://... (stream link, image URL, etc.)"
+                                      value={evidenceUrl}
+                                      onChange={(e) => setEvidenceUrl(e.target.value)}
+                                    />
+                                  </div>
+                                  
+                                  <div>
+                                    <Label htmlFor="evidence-timestamp-hold">Evidence Timestamp (Required)</Label>
+                                    <Input
+                                      id="evidence-timestamp-hold"
+                                      data-testid="input-evidence-timestamp-hold"
+                                      placeholder="e.g., 2:15:30 in stream, Game 3, rack 5"
+                                      value={evidenceTimestamp}
+                                      onChange={(e) => setEvidenceTimestamp(e.target.value)}
+                                    />
+                                  </div>
+                                  
+                                  <div>
+                                    <Label htmlFor="evidence-notes-hold">Evidence Notes (Required)</Label>
+                                    <Textarea
+                                      id="evidence-notes-hold"
+                                      data-testid="textarea-evidence-notes-hold"
+                                      placeholder="Describe what the evidence shows..."
+                                      value={evidenceNotes}
+                                      onChange={(e) => setEvidenceNotes(e.target.value)}
+                                      rows={2}
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="flex gap-2">
+                                <Button 
+                                  onClick={handleResolvePot}
+                                  disabled={!selectedWinner || !evidenceUrl.trim() || !evidenceTimestamp.trim() || !evidenceNotes.trim() || resolvePotMutation.isPending}
+                                  className="flex-1"
+                                  data-testid="button-confirm-resolution-hold"
+                                >
+                                  {resolvePotMutation.isPending ? "Resolving..." : "Resolve & Pay Out"}
+                                </Button>
+                                
+                                <Button 
+                                  variant="destructive"
+                                  onClick={() => handleVoidPot(selectedPot!, "Insufficient evidence to verify objectively")}
+                                  disabled={voidPotMutation.isPending}
+                                  data-testid="button-void-hold-pot"
+                                >
+                                  <Ban className="mr-2 h-4 w-4" />
+                                  Void & Refund
+                                </Button>
+                              </div>
+                            </div>
+                          )}
+                        </DialogContent>
+                      </Dialog>
+                      <Button 
+                        variant="destructive" 
+                        size="sm"
+                        onClick={() => handleVoidPot(pot.id, "Evidence not provided within 24 hours")}
+                        disabled={voidPotMutation.isPending}
+                        data-testid={`button-timeout-void-pot-${pot.id}`}
+                      >
+                        <Ban className="mr-2 h-4 w-4" />
+                        Timeout Void
                       </Button>
                     </div>
                   </CardContent>
@@ -407,6 +735,55 @@ export default function SideBetOperator() {
                     >
                       View Details
                     </Button>
+                  </CardContent>
+                </Card>
+              ))
+            )}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="voided" className="space-y-4">
+          <div className="grid gap-4">
+            {voidedPots.length === 0 ? (
+              <p className="text-muted-foreground text-center py-8" data-testid="no-voided-pots">
+                No voided pools
+              </p>
+            ) : (
+              voidedPots.map((pot) => (
+                <Card key={pot.id} data-testid={`voided-pot-${pot.id}`}>
+                  <CardHeader>
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <CardTitle className="text-lg">
+                          {pot.sideALabel} vs {pot.sideBLabel}
+                        </CardTitle>
+                        <CardDescription>
+                          Stake: {formatCurrency(pot.stakePerSide)} • Service Fee: {(pot.feeBps / 100).toFixed(1)}%
+                        </CardDescription>
+                        <div className="text-sm text-muted-foreground">
+                          {pot.description && <p className="text-xs">"{pot.description}"</p>}
+                          <p className="mt-1">Voided: Credits refunded to all participants</p>
+                        </div>
+                      </div>
+                      <Badge variant="outline" className="text-gray-600 border-gray-600">Voided</Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      <div className="text-sm text-muted-foreground">
+                        <div>Bet Type: <span className="capitalize">{pot.betType?.replace('_', ' ') || 'Standard'}</span></div>
+                        <div>Verification Source: {pot.verificationSource || 'N/A'}</div>
+                        <div>Voided: {new Date(pot.createdAt).toLocaleString()}</div>
+                      </div>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => setSelectedPot(pot.id)}
+                        data-testid={`button-view-voided-details-${pot.id}`}
+                      >
+                        View Details
+                      </Button>
+                    </div>
                   </CardContent>
                 </Card>
               ))

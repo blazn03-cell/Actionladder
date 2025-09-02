@@ -1536,7 +1536,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Resolution management (operator only)
   app.post("/api/side-pots/:id/resolve", async (req, res) => {
     try {
-      const { winnerSide, decidedBy, notes } = req.body;
+      const { winnerSide, decidedBy, notes, evidence } = req.body;
       const sidePotId = req.params.id;
       
       // Check if already resolved
@@ -1550,7 +1550,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Side pot not found" });
       }
       
-      // Create resolution
+      // Check if pot is in lockable status
+      if (!["locked", "on_hold"].includes(pot.status)) {
+        return res.status(400).json({ message: "Side pot cannot be resolved in current status" });
+      }
+      
+      // Create resolution with evidence tracking
       const resolution = await storage.createResolution({
         sidePotId,
         winnerSide,
@@ -1562,25 +1567,79 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const now = new Date();
       const disputeDeadline = new Date(now.getTime() + 12 * 60 * 60 * 1000); // 12 hours from now
       
-      // Update pot status with dispute tracking
+      // Update pot status with dispute tracking and evidence
       await storage.updateSidePot(sidePotId, { 
         status: "resolved",
         winningSide: winnerSide,
         resolvedAt: now,
         disputeDeadline: disputeDeadline,
-        disputeStatus: "none"
+        disputeStatus: "none",
+        evidenceJson: evidence ? JSON.stringify(evidence) : null,
       });
       
-      // DON'T process payouts immediately - wait for dispute period
-      // The payouts will be processed after 12 hours if no disputes filed
-      console.log(`Side pot ${sidePotId} resolved. Dispute period ends at ${disputeDeadline.toISOString()}`);
+      // Process payouts immediately for operator resolutions
+      const bets = await storage.getSideBetsByPot(sidePotId);
+      const winners = bets.filter(bet => bet.side === winnerSide);
+      const losers = bets.filter(bet => bet.side !== winnerSide);
+      
+      const totalPool = bets.reduce((sum, bet) => sum + bet.amount, 0);
+      const serviceFee = Math.floor(totalPool * (pot.feeBps / 10000));
+      const winnerPool = totalPool - serviceFee;
+      const totalWinnerAmount = winners.reduce((sum, bet) => sum + bet.amount, 0);
+      
+      // Distribute winnings
+      for (const bet of winners) {
+        const proportion = bet.amount / totalWinnerAmount;
+        const winnings = Math.floor(winnerPool * proportion);
+        
+        // Credit the user
+        await storage.unlockCredits(bet.userId, bet.amount); // Unlock locked funds
+        await storage.addCredits(bet.userId, winnings); // Add winnings
+        
+        // Create ledger entries
+        await storage.createLedgerEntry({
+          userId: bet.userId,
+          type: "pot_win",
+          amount: winnings,
+          refId: bet.id,
+          metaJson: JSON.stringify({ sidePotId, originalBet: bet.amount }),
+        });
+        
+        await storage.createLedgerEntry({
+          userId: bet.userId,
+          type: "pot_unlock",
+          amount: bet.amount,
+          refId: bet.id,
+          metaJson: JSON.stringify({ sidePotId }),
+        });
+      }
+      
+      // Unlock losing bets (they lose their credits)
+      for (const bet of losers) {
+        await storage.unlockCredits(bet.userId, bet.amount);
+        
+        await storage.createLedgerEntry({
+          userId: bet.userId,
+          type: "pot_loss",
+          amount: -bet.amount,
+          refId: bet.id,
+          metaJson: JSON.stringify({ sidePotId }),
+        });
+      }
+      
+      console.log(`Side pot ${sidePotId} resolved with immediate payout. ${winners.length} winners, ${losers.length} losers.`);
       
       res.json({ 
         resolution, 
+        winners: winners.length,
+        losers: losers.length,
+        totalPot: totalPool,
+        serviceFee,
         disputeDeadline: disputeDeadline.toISOString(),
-        message: "Side pot resolved. Payouts will be processed after 12-hour dispute period unless disputed."
+        message: "Side pot resolved and payouts distributed immediately."
       });
     } catch (error: any) {
+      console.error("Error resolving side pot:", error);
       res.status(500).json({ message: error.message });
     }
   });
@@ -1615,6 +1674,105 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error auto-resolving disputes:", error);
       res.status(500).json({ message: "Failed to auto-resolve disputes" });
+    }
+  });
+
+  // Put side pot on hold for evidence review
+  app.post("/api/side-pots/:id/hold", async (req, res) => {
+    try {
+      const { reason, evidence } = req.body;
+      const sidePotId = req.params.id;
+      
+      const pot = await storage.getSidePot(sidePotId);
+      if (!pot) {
+        return res.status(404).json({ message: "Side pot not found" });
+      }
+      
+      if (pot.status !== "locked") {
+        return res.status(400).json({ message: "Only locked pots can be put on hold" });
+      }
+      
+      // Update pot status to on_hold with evidence request
+      const now = new Date();
+      const holdDeadline = new Date(now.getTime() + 24 * 60 * 60 * 1000); // 24 hours from now
+      
+      await storage.updateSidePot(sidePotId, { 
+        status: "on_hold",
+        holdReason: reason,
+        holdDeadline,
+        evidenceJson: evidence ? JSON.stringify(evidence) : null,
+      });
+      
+      console.log(`Side pot ${sidePotId} put on hold for evidence review. Deadline: ${holdDeadline.toISOString()}`);
+      
+      res.json({ 
+        message: "Side pot put on hold for evidence review",
+        holdDeadline: holdDeadline.toISOString(),
+        reason
+      });
+    } catch (error: any) {
+      console.error("Error putting pot on hold:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Void side pot and refund all participants
+  app.post("/api/side-pots/:id/void", async (req, res) => {
+    try {
+      const { reason } = req.body;
+      const sidePotId = req.params.id;
+      
+      const pot = await storage.getSidePot(sidePotId);
+      if (!pot) {
+        return res.status(404).json({ message: "Side pot not found" });
+      }
+      
+      if (!["locked", "on_hold"].includes(pot.status)) {
+        return res.status(400).json({ message: "Only locked or on-hold pots can be voided" });
+      }
+      
+      // Get all bets for this pot
+      const bets = await storage.getSideBetsByPot(sidePotId);
+      let refundCount = 0;
+      let totalRefunded = 0;
+      
+      // Refund all participants
+      for (const bet of bets) {
+        // Unlock and refund the credits
+        await storage.unlockCredits(bet.userId, bet.amount);
+        
+        // Create refund ledger entry
+        await storage.createLedgerEntry({
+          userId: bet.userId,
+          type: "pot_void_refund",
+          amount: bet.amount,
+          refId: bet.id,
+          metaJson: JSON.stringify({ sidePotId, voidReason: reason }),
+        });
+        
+        refundCount++;
+        totalRefunded += bet.amount;
+      }
+      
+      // Update pot status to voided
+      const now = new Date();
+      await storage.updateSidePot(sidePotId, { 
+        status: "voided",
+        voidReason: reason,
+        voidedAt: now,
+      });
+      
+      console.log(`Side pot ${sidePotId} voided. Refunded ${refundCount} participants, total: ${totalRefunded} credits`);
+      
+      res.json({ 
+        message: "Side pot voided and all participants refunded",
+        refundCount,
+        totalRefunded,
+        reason
+      });
+    } catch (error: any) {
+      console.error("Error voiding side pot:", error);
+      res.status(500).json({ message: error.message });
     }
   });
 

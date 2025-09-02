@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -61,7 +62,10 @@ export default function SideBetting() {
   const [sideALabel, setSideALabel] = useState("");
   const [sideBLabel, setSideBLabel] = useState("");
   const [description, setDescription] = useState(""); // Custom bet description
+  const [betType, setBetType] = useState("yes_no");
+  const [verificationSource, setVerificationSource] = useState("Official Stream");
   const [showHighStakeWarning, setShowHighStakeWarning] = useState(false);
+  const [isDescriptionValid, setIsDescriptionValid] = useState(true);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -188,9 +192,38 @@ export default function SideBetting() {
     }
   };
 
+  const validateDescription = (desc: string) => {
+    const trimmed = desc.trim();
+    return trimmed.length >= 5 && trimmed.length <= 200;
+  };
+
+  const handleDescriptionChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const value = e.target.value;
+    setDescription(value);
+    setIsDescriptionValid(validateDescription(value));
+  };
+
   const handleCreatePot = () => {
     const stake = parseFloat(newPotStake);
-    if (stake >= 5 && stake <= 100000 && sideALabel && sideBLabel) {
+    const trimmedDesc = description.trim();
+    
+    // Validation
+    if (stake < 5) {
+      toast({ title: "Error", description: "Minimum stake is 500 credits ($5)", variant: "destructive" });
+      return;
+    }
+    
+    if (!validateDescription(trimmedDesc)) {
+      toast({ title: "Error", description: "Description must be 5-200 characters and objective", variant: "destructive" });
+      return;
+    }
+    
+    if (!sideALabel || !sideBLabel) {
+      toast({ title: "Error", description: "Both side labels are required", variant: "destructive" });
+      return;
+    }
+    
+    if (stake >= 5 && stake <= 100000 && sideALabel && sideBLabel && validateDescription(trimmedDesc)) {
       // Show warning for high stakes to prevent mistakes
       if (stake >= 1000 && !showHighStakeWarning) {
         setShowHighStakeWarning(true);
@@ -201,12 +234,19 @@ export default function SideBetting() {
       const totalPot = stake * 2;
       const serviceFeePercent = totalPot > 500 ? 5 : 8.5;
       
+      // Calculate lock cutoff (T-5 minutes default)
+      const lockCutoffAt = new Date();
+      lockCutoffAt.setMinutes(lockCutoffAt.getMinutes() + 5);
+      
       createPotMutation.mutate({
         creatorId: userId,
         sideALabel,
         sideBLabel,
         stakePerSide: stake * 100, // Convert to cents
-        description: description.trim() || null, // Include description
+        description: trimmedDesc,
+        betType,
+        verificationSource,
+        lockCutoffAt: lockCutoffAt.toISOString(),
         status: "open",
       });
       setShowHighStakeWarning(false);
@@ -216,13 +256,21 @@ export default function SideBetting() {
   const confirmHighStake = () => {
     setShowHighStakeWarning(false);
     const stake = parseFloat(newPotStake);
+    const trimmedDesc = description.trim();
+    
+    // Calculate lock cutoff (T-5 minutes default)
+    const lockCutoffAt = new Date();
+    lockCutoffAt.setMinutes(lockCutoffAt.getMinutes() + 5);
     
     createPotMutation.mutate({
       creatorId: userId,
       sideALabel,
       sideBLabel,
       stakePerSide: stake * 100, // Convert to cents
-      description: description.trim() || null,
+      description: trimmedDesc,
+      betType,
+      verificationSource,
+      lockCutoffAt: lockCutoffAt.toISOString(),
       status: "open",
     });
   };
@@ -345,35 +393,88 @@ export default function SideBetting() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
-                <Label htmlFor="description">Bet Description (optional)</Label>
+                <Label htmlFor="description" className="flex items-center gap-2">
+                  Bet Description (required)
+                  <span className="text-red-500">*</span>
+                </Label>
                 <textarea
                   id="description"
                   data-testid="input-description"
-                  className="w-full border rounded p-2 bg-background text-foreground resize-none"
-                  rows={2}
+                  className={`w-full border rounded p-2 bg-background text-foreground resize-none ${!isDescriptionValid && description ? 'border-red-500' : ''}`}
+                  rows={3}
                   placeholder="e.g., Tyga breaks and runs the first rack, Match goes hill-hill, Player scratches on the 8-ball"
                   value={description}
-                  onChange={(e) => setDescription(e.target.value)}
+                  onChange={handleDescriptionChange}
+                  maxLength={200}
                 />
+                <div className="flex justify-between text-xs mt-1">
+                  <span className="text-muted-foreground">
+                    Make it objective. If we can't verify, operators will void.
+                  </span>
+                  <span className={`${!isDescriptionValid && description ? 'text-red-500' : 'text-muted-foreground'}`}>
+                    {description.length}/200
+                  </span>
+                </div>
+                {!isDescriptionValid && description && (
+                  <p className="text-red-500 text-xs mt-1">Description must be 5-200 characters</p>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="bet-type">Bet Type</Label>
+                  <Select value={betType} onValueChange={setBetType} data-testid="select-bet-type">
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select bet type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="yes_no">Yes / No (Proposition)</SelectItem>
+                      <SelectItem value="over_under">Over / Under (Numeric)</SelectItem>
+                      <SelectItem value="player_prop">Side A / Side B (Player Event)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div>
+                  <Label htmlFor="verification-source">Verification Source</Label>
+                  <Select value={verificationSource} onValueChange={setVerificationSource} data-testid="select-verification-source">
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select source" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Official Stream">Official Stream</SelectItem>
+                      <SelectItem value="Table Referee">Table Referee</SelectItem>
+                      <SelectItem value="Score App Screenshot">Score App Screenshot</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="side-a-label">Side A Label</Label>
+                  <Label htmlFor="side-a-label">
+                    {betType === 'yes_no' ? 'Yes Label' : 
+                     betType === 'over_under' ? 'Over Label' : 'Side A Label'}
+                  </Label>
                   <Input
                     id="side-a-label"
                     data-testid="input-side-a-label"
-                    placeholder="e.g., Yes, Player 1 Wins"
+                    placeholder={betType === 'yes_no' ? 'Yes' : 
+                               betType === 'over_under' ? 'Over' : 'Player 1'}
                     value={sideALabel}
                     onChange={(e) => setSideALabel(e.target.value)}
                   />
                 </div>
                 <div>
-                  <Label htmlFor="side-b-label">Side B Label</Label>
+                  <Label htmlFor="side-b-label">
+                    {betType === 'yes_no' ? 'No Label' : 
+                     betType === 'over_under' ? 'Under Label' : 'Side B Label'}
+                  </Label>
                   <Input
                     id="side-b-label"
                     data-testid="input-side-b-label"
-                    placeholder="e.g., No, Player 2 Wins"
+                    placeholder={betType === 'yes_no' ? 'No' : 
+                               betType === 'over_under' ? 'Under' : 'Player 2'}
                     value={sideBLabel}
                     onChange={(e) => setSideBLabel(e.target.value)}
                   />
@@ -423,10 +524,10 @@ export default function SideBetting() {
                   />
                   <Button 
                     onClick={handleCreatePot}
-                    disabled={createPotMutation.isPending || !sideALabel || !sideBLabel || !newPotStake || parseFloat(newPotStake) < 5 || parseFloat(newPotStake) > 100000}
+                    disabled={createPotMutation.isPending || !sideALabel || !sideBLabel || !newPotStake || parseFloat(newPotStake) < 5 || parseFloat(newPotStake) > 100000 || !validateDescription(description.trim())}
                     data-testid="button-create-pot"
                   >
-                    {createPotMutation.isPending ? "Creating..." : "Create Pool"}
+                    {createPotMutation.isPending ? "Creating..." : "Create Custom Side Pot"}
                   </Button>
                 </div>
               </div>

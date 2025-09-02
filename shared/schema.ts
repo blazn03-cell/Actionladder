@@ -446,9 +446,12 @@ export const sidePots = pgTable("side_pots", {
   sideBLabel: varchar("side_b_label"),
   stakePerSide: integer("stake_per_side").notNull(), // in credits (cents)
   feeBps: integer("fee_bps").default(800), // 8% default
-  status: varchar("status").default("open"), // open|locked|resolved|canceled
+  status: varchar("status").default("open"), // open|locked|on_hold|resolved|voided
   lockCutoffAt: timestamp("lock_cutoff_at"),
-  description: text("description"), // Custom bet description
+  description: text("description"), // Custom bet description (5-200 chars)
+  betType: varchar("bet_type").default("yes_no"), // yes_no|over_under|player_prop
+  evidenceJson: text("evidence_json"), // Evidence links, timestamps, notes
+  verificationSource: varchar("verification_source"), // Official Stream|Table Referee|Score App Screenshot
   customCreatedBy: varchar("custom_created_by").references(() => users.id), // Track who created custom bet
   winningSide: varchar("winning_side"), // A or B - winner of the bet
   resolvedAt: timestamp("resolved_at"), // When pot was resolved/winner declared
