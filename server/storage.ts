@@ -245,6 +245,8 @@ export interface IStorage {
   getSidePotsByStatus(status: string): Promise<SidePot[]>;
   createSidePot(pot: InsertSidePot): Promise<SidePot>;
   updateSidePot(id: string, updates: Partial<SidePot>): Promise<SidePot | undefined>;
+  getExpiredDisputePots(now: Date): Promise<SidePot[]>;
+  processDelayedPayouts(potId: string, winningSide: string): Promise<any>;
   
   // Side Betting - Side Bets
   getSideBet(id: string): Promise<SideBet | undefined>;
@@ -1706,6 +1708,75 @@ export class MemStorage implements IStorage {
     const updatedPot = { ...pot, ...updates };
     this.sidePots.set(id, updatedPot);
     return updatedPot;
+  }
+
+  async getExpiredDisputePots(now: Date): Promise<SidePot[]> {
+    return Array.from(this.sidePots.values()).filter(pot => 
+      pot.status === "resolved" && 
+      pot.disputeDeadline && 
+      now > pot.disputeDeadline && 
+      pot.disputeStatus === "none" &&
+      !pot.autoResolvedAt
+    );
+  }
+
+  async processDelayedPayouts(potId: string, winningSide: string): Promise<any> {
+    const pot = await this.getSidePot(potId);
+    if (!pot) throw new Error("Side pot not found");
+
+    // Get all bets for this pot
+    const bets = await this.getSideBetsByPot(potId);
+    const winners = bets.filter(bet => bet.side === winningSide);
+    const losers = bets.filter(bet => bet.side !== winningSide);
+    
+    // Calculate total pot and service fee
+    const totalPot = bets.reduce((sum, bet) => sum + (bet.amount || 0), 0);
+    const serviceFee = Math.floor(totalPot * (pot.feeBps || 850) / 10000);
+    const netPot = totalPot - serviceFee;
+    
+    // Calculate winnings for each winner
+    const totalWinnerStake = winners.reduce((sum, bet) => sum + (bet.amount || 0), 0);
+    const payouts = [];
+    
+    for (const winner of winners) {
+      const winnerShare = totalWinnerStake > 0 ? (winner.amount || 0) / totalWinnerStake : 0;
+      const winnings = Math.floor(winnerShare * netPot);
+      
+      // Credit winner's wallet
+      await this.creditWallet(winner.userId!, winnings);
+      
+      // Update bet status
+      await this.updateSideBet(winner.id, { status: "paid" });
+      
+      // Create ledger entry
+      await this.createLedgerEntry({
+        userId: winner.userId!,
+        type: "pot_release_win",
+        amount: winnings,
+        refId: winner.id,
+        metaJson: JSON.stringify({ sidePotId: potId, winnings, originalStake: winner.amount }),
+      });
+
+      payouts.push({
+        userId: winner.userId,
+        amount: winnings,
+        originalStake: winner.amount
+      });
+    }
+    
+    // Mark losers as lost (no payout)
+    for (const loser of losers) {
+      await this.updateSideBet(loser.id, { status: "lost" });
+    }
+
+    return {
+      totalPot,
+      serviceFee,
+      netPot,
+      winnersCount: winners.length,
+      losersCount: losers.length,
+      payouts
+    };
   }
 
   // Side Betting - Side Bets

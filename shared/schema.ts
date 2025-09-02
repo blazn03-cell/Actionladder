@@ -450,6 +450,11 @@ export const sidePots = pgTable("side_pots", {
   lockCutoffAt: timestamp("lock_cutoff_at"),
   description: text("description"), // Custom bet description
   customCreatedBy: varchar("custom_created_by").references(() => users.id), // Track who created custom bet
+  winningSide: varchar("winning_side"), // A or B - winner of the bet
+  resolvedAt: timestamp("resolved_at"), // When pot was resolved/winner declared
+  disputeDeadline: timestamp("dispute_deadline"), // 12 hours after resolution
+  disputeStatus: varchar("dispute_status").default("none"), // "none", "pending", "resolved"
+  autoResolvedAt: timestamp("auto_resolved_at"), // When auto-resolution happened (12hrs after dispute deadline)
   createdAt: timestamp("created_at").defaultNow(),
 });
 

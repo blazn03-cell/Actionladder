@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Coins, TrendingUp, History, Plus } from "lucide-react";
@@ -60,8 +61,30 @@ export default function SideBetting() {
   const [sideALabel, setSideALabel] = useState("");
   const [sideBLabel, setSideBLabel] = useState("");
   const [description, setDescription] = useState(""); // Custom bet description
+  const [showHighStakeWarning, setShowHighStakeWarning] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  // Auto-resolution check mutation
+  const checkAutoResolveMutation = useMutation({
+    mutationFn: async () => await apiRequest("/api/side-pots/check-auto-resolve", { method: "POST" }),
+    onSuccess: (data) => {
+      toast({
+        title: "Auto-Resolution Check Complete",
+        description: `${data.autoResolvedCount} pots auto-resolved after dispute period expired.`,
+        variant: "default"
+      });
+      // Refetch side pots to show updated status
+      queryClient.invalidateQueries({ queryKey: ["/api/side-pots"] });
+    },
+    onError: (error) => {
+      toast({
+        title: "Auto-Resolution Failed",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  });
 
   // Fetch wallet data
   const { data: wallet, isLoading: walletLoading } = useQuery<Wallet>({
@@ -168,6 +191,12 @@ export default function SideBetting() {
   const handleCreatePot = () => {
     const stake = parseFloat(newPotStake);
     if (stake >= 5 && stake <= 100000 && sideALabel && sideBLabel) {
+      // Show warning for high stakes to prevent mistakes
+      if (stake >= 1000 && !showHighStakeWarning) {
+        setShowHighStakeWarning(true);
+        return;
+      }
+      
       // Calculate service fee based on total pot
       const totalPot = stake * 2;
       const serviceFeePercent = totalPot > 500 ? 5 : 8.5;
@@ -180,7 +209,22 @@ export default function SideBetting() {
         description: description.trim() || null, // Include description
         status: "open",
       });
+      setShowHighStakeWarning(false);
     }
+  };
+
+  const confirmHighStake = () => {
+    setShowHighStakeWarning(false);
+    const stake = parseFloat(newPotStake);
+    
+    createPotMutation.mutate({
+      creatorId: userId,
+      sideALabel,
+      sideBLabel,
+      stakePerSide: stake * 100, // Convert to cents
+      description: description.trim() || null,
+      status: "open",
+    });
   };
 
   const calculateServiceFee = (stakePerSide: number) => {
@@ -283,10 +327,21 @@ export default function SideBetting() {
         <TabsContent value="pots" className="space-y-4">
           <Card data-testid="create-pot-card">
             <CardHeader>
-              <CardTitle>
-                <Plus className="mr-2 h-5 w-5 inline" />
-                Create Match Pool
-              </CardTitle>
+              <div className="flex justify-between items-center">
+                <CardTitle>
+                  <Plus className="mr-2 h-5 w-5 inline" />
+                  Create Match Pool
+                </CardTitle>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => checkAutoResolveMutation.mutate()}
+                  disabled={checkAutoResolveMutation.isPending}
+                  data-testid="button-check-auto-resolve"
+                >
+                  {checkAutoResolveMutation.isPending ? "Checking..." : "Check Auto-Resolve"}
+                </Button>
+              </div>
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
@@ -326,12 +381,35 @@ export default function SideBetting() {
               </div>
               <div>
                 <Label htmlFor="stake-amount">Entry Per Side ($5 - $100,000)</Label>
+                
+                {/* Preset Amount Buttons */}
+                <div className="flex gap-2 mt-2 mb-3 flex-wrap">
+                  {[25, 50, 100, 250, 500].map(amount => (
+                    <Button 
+                      key={amount}
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => setNewPotStake(amount.toString())}
+                      data-testid={`preset-${amount}`}
+                    >
+                      ${amount}
+                    </Button>
+                  ))}
+                </div>
+
                 {newPotStake && parseFloat(newPotStake) >= 5 && (
-                  <div className="text-sm text-muted-foreground mt-1">
-                    Service Fee: {calculateServiceFee(parseFloat(newPotStake))}% • Total Pot: ${(parseFloat(newPotStake) * 2).toLocaleString()}
+                  <div className="text-sm p-3 bg-muted/30 rounded border mb-3">
+                    <div className="font-medium text-green-600 mb-1">Pool Summary:</div>
+                    <div className="grid grid-cols-2 gap-2 text-sm">
+                      <div>Entry per side: <span className="font-mono">${parseFloat(newPotStake).toLocaleString()}</span></div>
+                      <div>Total pool: <span className="font-mono">${(parseFloat(newPotStake) * 2).toLocaleString()}</span></div>
+                      <div>Service fee: <span className="font-mono">{calculateServiceFee(parseFloat(newPotStake))}%</span></div>
+                      <div className="text-green-600 font-semibold">Winner gets: <span className="font-mono">${((parseFloat(newPotStake) * 2) * (1 - calculateServiceFee(parseFloat(newPotStake)) / 100)).toLocaleString()}</span></div>
+                    </div>
                   </div>
                 )}
-                <div className="flex gap-2 mt-2">
+                
+                <div className="flex gap-2">
                   <Input
                     id="stake-amount"
                     data-testid="input-stake-amount"
@@ -339,7 +417,7 @@ export default function SideBetting() {
                     min="5"
                     max="100000"
                     step="1"
-                    placeholder="Entry amount per side"
+                    placeholder="Custom amount"
                     value={newPotStake}
                     onChange={(e) => setNewPotStake(e.target.value)}
                   />
@@ -367,9 +445,44 @@ export default function SideBetting() {
                       <CardDescription>
                         Entry: {formatCurrency(pot.stakePerSide)} per side • Service Fee: {(pot.feeBps / 100).toFixed(1)}%
                       </CardDescription>
+                      
+                      {/* Dispute Period Indicator */}
+                      {pot.status === "resolved" && pot.disputeDeadline && (
+                        <div className="mt-2 p-2 bg-yellow-100 dark:bg-yellow-900 border border-yellow-300 dark:border-yellow-700 rounded text-sm">
+                          <div className="flex items-center gap-1">
+                            <span className="text-yellow-600 dark:text-yellow-400">⏰</span>
+                            <span className="font-medium">Dispute Period Active</span>
+                          </div>
+                          <div className="text-xs text-yellow-700 dark:text-yellow-300 mt-1">
+                            Expires: {new Date(pot.disputeDeadline).toLocaleString()}
+                          </div>
+                          {pot.disputeStatus === "pending" && (
+                            <div className="text-xs text-red-600 dark:text-red-400 font-medium">
+                              ⚠️ Dispute Filed - Payouts on Hold
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Auto-Resolution Indicator */}
+                      {pot.autoResolvedAt && (
+                        <div className="mt-2 p-2 bg-green-100 dark:bg-green-900 border border-green-300 dark:border-green-700 rounded text-sm">
+                          <div className="flex items-center gap-1">
+                            <span className="text-green-600 dark:text-green-400">✅</span>
+                            <span className="font-medium">Auto-Resolved</span>
+                          </div>
+                          <div className="text-xs text-green-700 dark:text-green-300 mt-1">
+                            Completed: {new Date(pot.autoResolvedAt).toLocaleString()}
+                          </div>
+                        </div>
+                      )}
                     </div>
-                    <Badge variant={pot.status === "open" ? "default" : "secondary"} data-testid={`pot-status-${pot.id}`}>
+                    <Badge 
+                      variant={pot.status === "open" ? "default" : pot.status === "resolved" ? "destructive" : "secondary"}
+                      data-testid={`pot-status-${pot.id}`}
+                    >
                       {pot.status}
+                      {pot.winningSide && ` (${pot.winningSide} wins)`}
                     </Badge>
                   </div>
                 </CardHeader>
@@ -475,6 +588,36 @@ export default function SideBetting() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* High Stake Confirmation Dialog */}
+      <AlertDialog open={showHighStakeWarning} onOpenChange={setShowHighStakeWarning}>
+        <AlertDialogContent data-testid="high-stake-warning">
+          <AlertDialogHeader>
+            <AlertDialogTitle>⚠️ High Stakes Warning</AlertDialogTitle>
+            <AlertDialogDescription className="space-y-2">
+              <p>You're about to create a pool with <strong className="text-yellow-600">${parseFloat(newPotStake || "0").toLocaleString()}</strong> per side.</p>
+              <p className="text-sm text-muted-foreground">
+                Total pool: <span className="font-mono">${(parseFloat(newPotStake || "0") * 2).toLocaleString()}</span><br/>
+                Winner receives: <span className="font-mono text-green-600">${((parseFloat(newPotStake || "0") * 2) * (1 - calculateServiceFee(parseFloat(newPotStake || "0")) / 100)).toLocaleString()}</span>
+              </p>
+              <p className="text-red-600 font-medium">⚡ Once created, this cannot be canceled!</p>
+              <p className="text-sm">Disputes must be filed within 12 hours or the winner automatically takes the pool.</p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="cancel-high-stake">
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={confirmHighStake}
+              data-testid="confirm-high-stake"
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              Create ${parseFloat(newPotStake || "0").toLocaleString()} Pool
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

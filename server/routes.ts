@@ -1558,50 +1558,102 @@ export async function registerRoutes(app: Express): Promise<Server> {
         notes,
       });
       
-      // Update pot status
-      await storage.updateSidePot(sidePotId, { status: "resolved" });
+      // Set resolution timestamp and 12-hour dispute deadline
+      const now = new Date();
+      const disputeDeadline = new Date(now.getTime() + 12 * 60 * 60 * 1000); // 12 hours from now
       
-      // Get all bets for this pot
-      const bets = await storage.getSideBetsByPot(sidePotId);
-      const winners = bets.filter(bet => bet.side === winnerSide);
-      const losers = bets.filter(bet => bet.side !== winnerSide);
+      // Update pot status with dispute tracking
+      await storage.updateSidePot(sidePotId, { 
+        status: "resolved",
+        winningSide: winnerSide,
+        resolvedAt: now,
+        disputeDeadline: disputeDeadline,
+        disputeStatus: "none"
+      });
       
-      // Calculate total pot and service fee
-      const totalPot = bets.reduce((sum, bet) => sum + bet.amount, 0);
-      const serviceFee = Math.floor(totalPot * (pot.feeBps || 850) / 10000);
-      const netPot = totalPot - serviceFee;
+      // DON'T process payouts immediately - wait for dispute period
+      // The payouts will be processed after 12 hours if no disputes filed
+      console.log(`Side pot ${sidePotId} resolved. Dispute period ends at ${disputeDeadline.toISOString()}`);
       
-      // Calculate winnings for each winner
-      const totalWinnerStake = winners.reduce((sum, bet) => sum + bet.amount, 0);
-      
-      for (const winner of winners) {
-        const winnerShare = totalWinnerStake > 0 ? winner.amount / totalWinnerStake : 0;
-        const winnings = Math.floor(winnerShare * netPot);
-        
-        // Credit winner's wallet
-        await storage.creditWallet(winner.userId!, winnings);
-        
-        // Update bet status
-        await storage.updateSideBet(winner.id, { status: "paid" });
-        
-        // Create ledger entry
-        await storage.createLedgerEntry({
-          userId: winner.userId,
-          type: "pot_release_win",
-          amount: winnings,
-          refId: winner.id,
-          metaJson: JSON.stringify({ sidePotId, winnings, originalStake: winner.amount }),
-        });
-      }
-      
-      // Mark losers as lost (no payout)
-      for (const loser of losers) {
-        await storage.updateSideBet(loser.id, { status: "lost" });
-      }
-      
-      res.json({ resolution, totalPot, serviceFee, winners: winners.length, losers: losers.length });
+      res.json({ 
+        resolution, 
+        disputeDeadline: disputeDeadline.toISOString(),
+        message: "Side pot resolved. Payouts will be processed after 12-hour dispute period unless disputed."
+      });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Check for auto-resolution of expired dispute periods
+  app.post("/api/side-pots/check-auto-resolve", async (req, res) => {
+    try {
+      const now = new Date();
+      
+      // Find resolved pots where dispute deadline has passed and no dispute filed
+      const expiredPots = await storage.getExpiredDisputePots(now);
+      const autoResolvedPots = [];
+      
+      for (const pot of expiredPots) {
+        // Process the final payouts
+        const payoutResult = await storage.processDelayedPayouts(pot.id, pot.winningSide || "A");
+        
+        // Mark as auto-resolved
+        await storage.updateSidePot(pot.id, { 
+          autoResolvedAt: now,
+          disputeStatus: "resolved" 
+        });
+        
+        autoResolvedPots.push({ potId: pot.id, payoutResult });
+        console.log(`Auto-resolved side pot ${pot.id} after dispute period expired`);
+      }
+      
+      res.json({ 
+        autoResolvedCount: autoResolvedPots.length,
+        resolvedPots: autoResolvedPots 
+      });
+    } catch (error) {
+      console.error("Error auto-resolving disputes:", error);
+      res.status(500).json({ message: "Failed to auto-resolve disputes" });
+    }
+  });
+
+  // File a dispute (within 12 hours of resolution)
+  app.post("/api/side-pots/:id/dispute", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { reason } = req.body;
+
+      const sidePot = await storage.getSidePot(id);
+      if (!sidePot) {
+        return res.status(404).json({ message: "Side pot not found" });
+      }
+
+      if (sidePot.status !== "resolved") {
+        return res.status(400).json({ message: "Side pot is not resolved" });
+      }
+
+      if (!sidePot.disputeDeadline || new Date() > sidePot.disputeDeadline) {
+        return res.status(400).json({ message: "Dispute period has expired (12 hours max)" });
+      }
+
+      if (sidePot.disputeStatus === "pending") {
+        return res.status(400).json({ message: "Dispute already filed for this pot" });
+      }
+
+      // Mark dispute as pending
+      await storage.updateSidePot(id, { disputeStatus: "pending" });
+      
+      // In a real system, you might create a separate disputes table
+      // For now, we'll just update the pot status
+      
+      res.json({ 
+        message: "Dispute filed successfully. Payouts are now on hold pending review.",
+        disputeDeadline: sidePot.disputeDeadline
+      });
+    } catch (error) {
+      console.error("Error filing dispute:", error);
+      res.status(500).json({ message: "Failed to file dispute" });
     }
   });
 
