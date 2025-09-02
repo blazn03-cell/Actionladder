@@ -12,6 +12,7 @@ import Charity from "@/components/charity";
 import LiveStream from "@/components/live-stream";
 import HallBattles from "@/components/hall-battles";
 import RookieSection from "@/pages/RookieSection";
+import BarboxLadderPage from "@/pages/BarboxLadderPage";
 import EscrowChallenges from "@/components/escrow-challenges";
 import QRRegistration from "@/components/qr-registration";
 import LeagueStandings from "@/components/league-standings";
@@ -38,6 +39,7 @@ function Navigation({ activeTab, setActiveTab }: { activeTab: string; setActiveT
   const tabs = [
     { id: "dashboard", label: "Dashboard" },
     { id: "ladder", label: "Ladder" },
+    { id: "barbox-ladder", label: "King of Barbox" },
     { id: "rookie-section", label: "Rookie Section" },
     { id: "escrow-challenges", label: "Escrow Challenges" },
     { id: "hall-battles", label: "Hall Battles" },
@@ -190,6 +192,7 @@ function App() {
               <div className="container mx-auto px-4 py-8">
                 {activeTab === "dashboard" && <Dashboard />}
                 {activeTab === "ladder" && <Ladder />}
+                {activeTab === "barbox-ladder" && <BarboxLadderPage />}
                 {activeTab === "rookie-section" && <RookieSection />}
                 {activeTab === "escrow-challenges" && <EscrowChallenges />}
                 {activeTab === "hall-battles" && <HallBattles />}
