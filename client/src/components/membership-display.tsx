@@ -28,8 +28,8 @@ export function MembershipDisplay({ membershipTier, onUpgrade }: MembershipDispl
       
       case 'pro':
         return {
-          name: 'Pro Member',
-          price: '$45/month',
+          name: 'Pro Member (580+ Fargo)',
+          price: '$60/month',
           commission: '3%',
           tournamentEntry: 'FREE',
           icon: <Crown className="w-5 h-5" />,
@@ -37,9 +37,9 @@ export function MembershipDisplay({ membershipTier, onUpgrade }: MembershipDispl
           perks: [
             'FREE tournament entry (worth $25–30)',
             'Lower commission (3%)',
-            'Premium perks → play like a boss',
-            'Priority table booking',
-            'Advanced analytics'
+            'Premium perks (priority seeding, livestream)',
+            'Tutor Bonus: $15 credit per session',
+            'Effective cost: $45/month (with 2 sessions)'
           ]
         };
       
@@ -84,6 +84,15 @@ export function MembershipDisplay({ membershipTier, onUpgrade }: MembershipDispl
             <div className="text-xs text-gray-400">Tournament Entry</div>
           </div>
         </div>
+        
+        {membershipTier === 'pro' && (
+          <div className="bg-amber-900/20 rounded p-3 mb-4 border border-amber-600/30">
+            <div className="text-xs text-amber-300 font-semibold mb-1">📚 Tutor Bonus System</div>
+            <div className="text-xs text-gray-300">
+              Effective cost: <span className="text-amber-400 font-bold">$45/month</span> (with 2 tutoring sessions)
+            </div>
+          </div>
+        )}
         
         <div className="space-y-2">
           {info.perks.map((perk, index) => (

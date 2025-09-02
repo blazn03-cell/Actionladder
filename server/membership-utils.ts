@@ -29,9 +29,9 @@ export function getMembershipBenefits(membershipTier: string): MembershipBenefit
         perks: [
           'FREE tournament entry (worth $25–30)',
           'Lower commission (3%)',
-          'Premium perks → play like a boss',
-          'Priority table booking',
-          'Advanced analytics'
+          'Premium perks (priority seeding, livestream)',
+          'Tutor Bonus: $15 credit per session',
+          'Effective cost: $45/month (with 2 tutoring sessions)'
         ]
       };
     

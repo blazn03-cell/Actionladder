@@ -540,6 +540,33 @@ export const insertWeightRuleSchema = createInsertSchema(weightRules).omit({
   createdAt: true,
 });
 
+// Tutoring System for Pro members
+export const tutoringSession = pgTable("tutoring_sessions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tutorId: text("tutor_id").notNull(), // Pro member (580+ Fargo)
+  rookieId: text("rookie_id").notNull(), // Rookie being tutored
+  scheduledAt: timestamp("scheduled_at").notNull(),
+  duration: integer("duration").notNull().default(30), // Minutes
+  status: text("status").notNull().default("scheduled"), // "scheduled", "completed", "cancelled"
+  rookieConfirmed: boolean("rookie_confirmed").default(false),
+  creditAmount: integer("credit_amount").default(1500), // $15 in cents
+  creditApplied: boolean("credit_applied").default(false),
+  notes: text("notes"),
+  completedAt: timestamp("completed_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const tutoringCredits = pgTable("tutoring_credits", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tutorId: text("tutor_id").notNull(),
+  sessionId: varchar("session_id").references(() => tutoringSession.id),
+  amount: integer("amount").notNull(), // Credits in cents
+  applied: boolean("applied").default(false),
+  appliedTo: text("applied_to"), // "membership" or "challenge_fee"
+  appliedAt: timestamp("applied_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Side betting types
 export type Wallet = typeof wallets.$inferSelect;
 export type InsertWallet = z.infer<typeof insertWalletSchema>;
@@ -553,3 +580,20 @@ export type Resolution = typeof resolutions.$inferSelect;
 export type InsertResolution = z.infer<typeof insertResolutionSchema>;
 export type WeightRule = typeof weightRules.$inferSelect;
 export type InsertWeightRule = z.infer<typeof insertWeightRuleSchema>;
+
+export const insertTutoringSessionSchema = createInsertSchema(tutoringSession).omit({
+  id: true,
+  createdAt: true,
+  completedAt: true,
+});
+
+export const insertTutoringCreditsSchema = createInsertSchema(tutoringCredits).omit({
+  id: true,
+  createdAt: true,
+  appliedAt: true,
+});
+
+export type TutoringSession = typeof tutoringSession.$inferSelect;
+export type InsertTutoringSession = z.infer<typeof insertTutoringSessionSchema>;
+export type TutoringCredits = typeof tutoringCredits.$inferSelect;
+export type InsertTutoringCredits = z.infer<typeof insertTutoringCreditsSchema>;

@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { MembershipDisplay } from '@/components/membership-display';
 import { WeightRulesDisplay } from '@/components/weight-rules-display';
+import { TutoringSystem } from '@/components/tutoring-system';
 
 interface Player {
   id: string;
@@ -131,6 +132,17 @@ export default function EightFootLadderPage() {
           weightOwed={true}
           consecutiveLosses={2}
           weightMultiplier={1.2}
+        />
+      </div>
+
+      {/* Tutoring System for Pro Members */}
+      <div className="max-w-2xl mx-auto mb-8">
+        <TutoringSystem 
+          isPro={true}
+          fargoRating={650}
+          monthlySessions={1}
+          availableCredits={15}
+          onScheduleSession={() => console.log('Schedule tutoring session')}
         />
       </div>
 
