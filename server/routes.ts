@@ -1427,7 +1427,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/side-pots", async (req, res) => {
     try {
       const validatedData = insertSidePotSchema.parse(req.body);
-      const pot = await storage.createSidePot(validatedData);
+      
+      // Validate pot size limits
+      const stakePerSideDollars = validatedData.stakePerSide / 100;
+      if (stakePerSideDollars < 5) {
+        return res.status(400).json({ message: "Minimum stake per side is $5" });
+      }
+      if (stakePerSideDollars > 100000) {
+        return res.status(400).json({ message: "Maximum stake per side is $100,000" });
+      }
+      
+      // Calculate tiered service fee
+      const totalPotDollars = (validatedData.stakePerSide * 2) / 100;
+      const serviceFeesBps = totalPotDollars > 500 ? 500 : 850; // 5% vs 8.5%
+      
+      const potData = {
+        ...validatedData,
+        feeBps: serviceFeesBps,
+      };
+      
+      const pot = await storage.createSidePot(potData);
       res.status(201).json(pot);
     } catch (error: any) {
       res.status(400).json({ message: error.message });
@@ -1546,10 +1565,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const winners = bets.filter(bet => bet.side === winnerSide);
       const losers = bets.filter(bet => bet.side !== winnerSide);
       
-      // Calculate total pot and fee
+      // Calculate total pot and service fee
       const totalPot = bets.reduce((sum, bet) => sum + bet.amount, 0);
-      const fee = Math.floor(totalPot * (pot.feeBps || 800) / 10000);
-      const netPot = totalPot - fee;
+      const serviceFee = Math.floor(totalPot * (pot.feeBps || 850) / 10000);
+      const netPot = totalPot - serviceFee;
       
       // Calculate winnings for each winner
       const totalWinnerStake = winners.reduce((sum, bet) => sum + bet.amount, 0);
@@ -1579,7 +1598,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         await storage.updateSideBet(loser.id, { status: "lost" });
       }
       
-      res.json({ resolution, totalPot, fee, winners: winners.length, losers: losers.length });
+      res.json({ resolution, totalPot, serviceFee, winners: winners.length, losers: losers.length });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }

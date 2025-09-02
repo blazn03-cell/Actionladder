@@ -88,7 +88,7 @@ export default function SideBetOperator() {
       queryClient.invalidateQueries({ queryKey: ["/api/side-pots", selectedPot, "details"] });
       toast({
         title: "Side Pot Resolved",
-        description: `Pot resolved with ${data.winners} winners and ${data.losers} losers. Total pot: ${formatCurrency(data.totalPot)}, Fee: ${formatCurrency(data.fee)}`,
+        description: `Pot resolved with ${data.winners} winners and ${data.losers} losers. Total pot: ${formatCurrency(data.totalPot)}, Service Fee: ${formatCurrency(data.serviceFee)}`,
       });
       setSelectedPot(null);
       setSelectedWinner("");
@@ -216,7 +216,7 @@ export default function SideBetOperator() {
                           {pot.sideALabel} vs {pot.sideBLabel}
                         </CardTitle>
                         <CardDescription>
-                          Stake: {formatCurrency(pot.stakePerSide)} • Fee: {(pot.feeBps / 100).toFixed(1)}%
+                          Stake: {formatCurrency(pot.stakePerSide)} • Service Fee: {(pot.feeBps / 100).toFixed(1)}%
                         </CardDescription>
                         <div className="text-sm text-muted-foreground">
                           Created: {new Date(pot.createdAt).toLocaleString()}
@@ -268,7 +268,7 @@ export default function SideBetOperator() {
                           {pot.sideALabel} vs {pot.sideBLabel}
                         </CardTitle>
                         <CardDescription>
-                          Stake: {formatCurrency(pot.stakePerSide)} • Fee: {(pot.feeBps / 100).toFixed(1)}%
+                          Stake: {formatCurrency(pot.stakePerSide)} • Service Fee: {(pot.feeBps / 100).toFixed(1)}%
                         </CardDescription>
                       </div>
                       <Badge variant="secondary">Locked</Badge>
@@ -392,7 +392,7 @@ export default function SideBetOperator() {
                           {pot.sideALabel} vs {pot.sideBLabel}
                         </CardTitle>
                         <CardDescription>
-                          Stake: {formatCurrency(pot.stakePerSide)} • Fee: {(pot.feeBps / 100).toFixed(1)}%
+                          Stake: {formatCurrency(pot.stakePerSide)} • Service Fee: {(pot.feeBps / 100).toFixed(1)}%
                         </CardDescription>
                       </div>
                       <Badge variant="outline">Resolved</Badge>

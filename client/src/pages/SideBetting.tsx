@@ -178,16 +178,24 @@ export default function SideBetting() {
 
   const handleCreatePot = () => {
     const stake = parseFloat(newPotStake);
-    if (stake > 0 && sideALabel && sideBLabel) {
+    if (stake >= 5 && stake <= 100000 && sideALabel && sideBLabel) {
+      // Calculate service fee based on total pot
+      const totalPot = stake * 2;
+      const serviceFeePercent = totalPot > 500 ? 5 : 8.5;
+      
       createPotMutation.mutate({
         creatorId: userId,
         sideALabel,
         sideBLabel,
         stakePerSide: stake * 100, // Convert to cents
-        feeBps: 800, // 8% fee
         status: "open",
       });
     }
+  };
+
+  const calculateServiceFee = (stakePerSide: number) => {
+    const totalPot = stakePerSide * 2;
+    return totalPot > 500 ? 5 : 8.5;
   };
 
   const handlePlaceBet = (sidePotId: string, side: string, amount: number) => {
@@ -314,21 +322,27 @@ export default function SideBetting() {
                 </div>
               </div>
               <div>
-                <Label htmlFor="stake-amount">Stake Per Side ($)</Label>
+                <Label htmlFor="stake-amount">Stake Per Side ($5 - $100,000)</Label>
+                {newPotStake && parseFloat(newPotStake) >= 5 && (
+                  <div className="text-sm text-muted-foreground mt-1">
+                    Service Fee: {calculateServiceFee(parseFloat(newPotStake))}% • Total Pot: ${(parseFloat(newPotStake) * 2).toLocaleString()}
+                  </div>
+                )}
                 <div className="flex gap-2 mt-2">
                   <Input
                     id="stake-amount"
                     data-testid="input-stake-amount"
                     type="number"
-                    min="1"
+                    min="5"
+                    max="100000"
                     step="1"
-                    placeholder="Amount per side"
+                    placeholder="$5 to $100,000 per side"
                     value={newPotStake}
                     onChange={(e) => setNewPotStake(e.target.value)}
                   />
                   <Button 
                     onClick={handleCreatePot}
-                    disabled={createPotMutation.isPending || !sideALabel || !sideBLabel || !newPotStake}
+                    disabled={createPotMutation.isPending || !sideALabel || !sideBLabel || !newPotStake || parseFloat(newPotStake) < 5 || parseFloat(newPotStake) > 100000}
                     data-testid="button-create-pot"
                   >
                     {createPotMutation.isPending ? "Creating..." : "Create Pot"}
@@ -348,7 +362,7 @@ export default function SideBetting() {
                         {pot.sideALabel} vs {pot.sideBLabel}
                       </CardTitle>
                       <CardDescription>
-                        Stake: {formatCurrency(pot.stakePerSide)} per side • Fee: {(pot.feeBps / 100).toFixed(1)}%
+                        Stake: {formatCurrency(pot.stakePerSide)} per side • Service Fee: {(pot.feeBps / 100).toFixed(1)}%
                       </CardDescription>
                     </div>
                     <Badge variant={pot.status === "open" ? "default" : "secondary"} data-testid={`pot-status-${pot.id}`}>

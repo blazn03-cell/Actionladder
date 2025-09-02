@@ -21,7 +21,7 @@ Complete production-ready side betting infrastructure featuring:
 - **Automated Resolution**: Winner determination with automatic payout distribution
 - **Transaction Ledger**: Complete audit trail of all financial activities
 - **Anti-Ghosting Protection**: Pre-funding requirement ensures all bets are backed by real credits
-- **House Edge Management**: Configurable fee structure (default 8% commission)
+- **Service Fee Management**: Tiered fee structure (8.5% default, 5% for pots over $500)
 - **Real-Time Updates**: Live betting status and pot tracking across all interfaces
 
 ## Theme & Branding
