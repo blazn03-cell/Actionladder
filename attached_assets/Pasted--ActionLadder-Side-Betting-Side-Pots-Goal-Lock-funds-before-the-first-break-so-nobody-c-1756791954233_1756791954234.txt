@@ -1,0 +1,570 @@
+# ActionLadder Side Betting (Side Pots)
+
+**Goal:** Lock funds *before the first break* so nobody can ghost.
+
+**Scope:** Closed‑loop credits **only** (Path A). Users buy platform Credits via Stripe Checkout; credits are locked into side pots; winners receive credits; **no direct cash payouts from side pots**. (You can optionally add KYC + withdrawals later, but this blueprint omits real‑money Connect entirely.)
+
+> Copy‑paste the code blocks into your project. Replace placeholders with your keys and URLs.
+
+---
+
+## 0) Project Structure (example)
+
+```
+root/
+  .env
+  server/
+    index.ts (or index.js)
+    stripe.ts
+    db.ts
+    schema.sql
+  web/
+    src/
+      components/
+        WalletTopUpButton.tsx
+        SidePotCreator.tsx
+        SidePotCard.tsx
+      pages/
+        SidePotsPage.tsx
+```
+
+---
+
+## 1) Environment & Packages
+
+**.env (Test mode first)**
+
+```
+# General
+PUBLIC_URL=https://yourapp.example
+
+# Stripe (TEST KEYS FIRST!)
+STRIPE_SECRET_KEY=sk_test_XXX
+STRIPE_PUBLISHABLE_KEY=pk_test_XXX
+STRIPE_WEBHOOK_SECRET=whsec_XXX
+```
+
+**Install packages**
+
+````bash
+# Server
+npm i express cors body-parser stripe better-sqlite3
+npm i -D @types/express @types/cors @types/node ts-node typescript nodemon
+
+# Client
+npm i @stripe/stripe-js
+```bash
+# Server
+npm i express cors body-parser stripe better-sqlite3
+npm i -D @types/express @types/cors @types/node ts-node typescript nodemon
+
+# Client
+npm i @stripe/stripe-js
+````
+
+---
+
+## 2) Database Schema (SQLite for speed; swap to Postgres later)
+
+**server/schema.sql**
+
+```sql
+PRAGMA foreign_keys = ON;
+
+CREATE TABLE IF NOT EXISTS users (
+  id TEXT PRIMARY KEY,
+  name TEXT,
+  email TEXT UNIQUE,
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS connected_accounts (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  stripe_account_id TEXT NOT NULL,
+  status TEXT,
+  type TEXT,
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY(user_id) REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS wallets (
+  user_id TEXT PRIMARY KEY,
+  balance_credits INTEGER DEFAULT 0, -- credits are in integer cents (1 = $0.01)
+  balance_locked_credits INTEGER DEFAULT 0,
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY(user_id) REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS matches (
+  id TEXT PRIMARY KEY,
+  hall_id TEXT,
+  title TEXT,
+  starts_at TEXT,
+  status TEXT -- planned|live|final
+);
+
+CREATE TABLE IF NOT EXISTS side_pots (
+  id TEXT PRIMARY KEY,
+  match_id TEXT NOT NULL,
+  creator_id TEXT NOT NULL,
+  side_a_label TEXT,
+  side_b_label TEXT,
+  stake_per_side INTEGER NOT NULL,    -- in credits (cents)
+  fee_bps INTEGER NOT NULL DEFAULT 800, -- 8% default
+  status TEXT NOT NULL DEFAULT 'open',  -- open|locked|resolved|canceled|on_hold
+  lock_cutoff_at TEXT,
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY(match_id) REFERENCES matches(id),
+  FOREIGN KEY(creator_id) REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS side_bets (
+  id TEXT PRIMARY KEY,
+  side_pot_id TEXT NOT NULL,
+  user_id TEXT NOT NULL,
+  side TEXT CHECK(side IN ('A','B')),
+  amount INTEGER NOT NULL,            -- credits locked
+  status TEXT NOT NULL,               -- pending_fund|funded|refunded|paid
+  funded_at TEXT,
+  FOREIGN KEY(side_pot_id) REFERENCES side_pots(id),
+  FOREIGN KEY(user_id) REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS ledger (
+  id TEXT PRIMARY KEY,
+  user_id TEXT,
+  type TEXT,
+  amount INTEGER, -- signed (credits)
+  ref_id TEXT,
+  meta_json TEXT,
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS resolutions (
+  id TEXT PRIMARY KEY,
+  side_pot_id TEXT NOT NULL,
+  winner_side TEXT CHECK(winner_side IN ('A','B')),
+  decided_by TEXT NOT NULL,
+  decided_at TEXT DEFAULT CURRENT_TIMESTAMP,
+  notes TEXT,
+  FOREIGN KEY(side_pot_id) REFERENCES side_pots(id),
+  FOREIGN KEY(decided_by) REFERENCES users(id)
+);
+```
+
+---
+
+## 3) Database Helper (server/db.ts)
+
+```ts
+// server/db.ts
+import Database from 'better-sqlite3';
+import fs from 'fs';
+import path from 'path';
+
+const dbPath = path.join(process.cwd(), 'server', 'data.sqlite');
+const db = new Database(dbPath);
+
+// Run schema
+const schema = fs.readFileSync(path.join(process.cwd(), 'server', 'schema.sql'), 'utf8');
+db.exec(schema);
+
+export function tx<T>(fn: (db: Database) => T): T {
+  const t = db.transaction(fn);
+  return t(db);
+}
+
+export default db;
+```
+
+---
+
+## 4) Stripe Setup Helper (server/stripe.ts)
+
+```ts
+// server/stripe.ts
+import Stripe from 'stripe';
+export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
+  apiVersion: '2024-06-20',
+});
+```
+
+---
+
+## 5) Server (Express) — Path A core endpoints (server/index.ts)
+
+```ts
+// server/index.ts
+import 'dotenv/config';
+import express from 'express';
+import cors from 'cors';
+import bodyParser from 'body-parser';
+import { stripe } from './stripe';
+import db, { tx } from './db';
+import crypto from 'crypto';
+
+const app = express();
+app.use(cors());
+app.use(bodyParser.json({ limit: '1mb' }));
+
+// ---------- UTIL ----------
+function id(prefix: string) { return `${prefix}_${crypto.randomBytes(6).toString('hex')}`; }
+function nowISO() { return new Date().toISOString(); }
+
+// For demo: assume req.user is set by your auth middleware
+app.use((req: any, _res, next) => {
+  // TODO: replace with real auth
+  req.user = { id: 'user_demo', name: 'Demo', email: 'demo@example.com' };
+  // Ensure demo user/wallet exists
+  tx(() => {
+    db.prepare('INSERT OR IGNORE INTO users(id,name,email) VALUES (?,?,?)')
+      .run(req.user.id, req.user.name, req.user.email);
+    db.prepare('INSERT OR IGNORE INTO wallets(user_id) VALUES (?)').run(req.user.id);
+  });
+  next();
+});
+
+// ---------- WALLET TOP-UP (Stripe Checkout) ----------
+app.post('/api/wallet/topup', async (req: any, res) => {
+  const amountUsd = Number(req.body.amountUsd);
+  if (!amountUsd || amountUsd < 1) return res.status(400).json({ error: 'Min $1' });
+
+  const session = await stripe.checkout.sessions.create({
+    mode: 'payment',
+    line_items: [{
+      price_data: {
+        currency: 'usd',
+        product_data: { name: 'ActionLadder Credits' },
+        unit_amount: Math.round(amountUsd * 100),
+      },
+      quantity: 1,
+    }],
+    success_url: `${process.env.PUBLIC_URL}/wallet?success=1`,
+    cancel_url: `${process.env.PUBLIC_URL}/wallet?canceled=1`,
+    metadata: { userId: req.user.id, purpose: 'credit_topup' },
+  });
+  res.json({ url: session.url });
+});
+
+// ---------- STRIPE WEBHOOK ----------
+app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), (req, res) => {
+  const sig = req.headers['stripe-signature'] as string;
+  let event;
+  try {
+    event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET!);
+  } catch (err) {
+    console.error('Webhook signature verify failed', err);
+    return res.status(400).send('Invalid signature');
+  }
+
+  if (event.type === 'checkout.session.completed') {
+    const s: any = event.data.object;
+    if (s.metadata?.purpose === 'credit_topup' && s.payment_status === 'paid') {
+      const userId = s.metadata.userId;
+      const credits = (s.amount_total ?? 0); // amount in cents == credits
+      tx(() => {
+        db.prepare('UPDATE wallets SET balance_credits = balance_credits + ? WHERE user_id = ?')
+          .run(credits, userId);
+        db.prepare('INSERT INTO ledger(id,user_id,type,amount,ref_id,meta_json) VALUES (?,?,?,?,?,?)')
+          .run(id('led'), userId, 'credit_topup', credits, s.id, JSON.stringify({ source: 'stripe' }));
+      });
+      console.log('Wallet credited', userId, credits);
+    }
+  }
+
+  res.json({ received: true });
+});
+
+// ---------- SIDE POTS ----------
+app.post('/api/sidepots', (req: any, res) => {
+  const { matchId, sideALabel, sideBLabel, stakePerSide, feeBps = 800, lockCutoffAt } = req.body;
+  if (!matchId || !stakePerSide) return res.status(400).json({ error: 'Missing fields' });
+  const potId = id('pot');
+  tx(() => {
+    db.prepare('INSERT INTO side_pots(id,match_id,creator_id,side_a_label,side_b_label,stake_per_side,fee_bps,status,lock_cutoff_at) VALUES (?,?,?,?,?,?,?,?,?)')
+      .run(potId, matchId, req.user.id, sideALabel, sideBLabel, stakePerSide, feeBps, 'open', lockCutoffAt || nowISO());
+  });
+  res.json({ id: potId });
+});
+
+app.post('/api/sidebets/:potId/join', (req: any, res) => {
+  const potId = req.params.potId;
+  const { side } = req.body; // 'A' or 'B'
+  const pot = db.prepare('SELECT * FROM side_pots WHERE id = ?').get(potId);
+  if (!pot) return res.status(404).json({ error: 'Pot not found' });
+  if (pot.status !== 'open') return res.status(400).json({ error: 'Pot not open' });
+  if (new Date() > new Date(pot.lock_cutoff_at)) return res.status(400).json({ error: 'Cutoff passed' });
+
+  const stake = pot.stake_per_side;
+  const betId = id('bet');
+
+  try {
+    tx(() => {
+      const w = db.prepare('SELECT * FROM wallets WHERE user_id = ?').get(req.user.id);
+      if (!w || w.balance_credits < stake) throw new Error('Insufficient credits');
+      db.prepare('UPDATE wallets SET balance_credits = balance_credits - ?, balance_locked_credits = balance_locked_credits + ? WHERE user_id = ?')
+        .run(stake, stake, req.user.id);
+      db.prepare('INSERT INTO side_bets(id,side_pot_id,user_id,side,amount,status,funded_at) VALUES (?,?,?,?,?,?,?)')
+        .run(betId, potId, req.user.id, side, stake, 'funded', nowISO());
+      db.prepare('INSERT INTO ledger(id,user_id,type,amount,ref_id,meta_json) VALUES (?,?,?,?,?,?)')
+        .run(id('led'), req.user.id, 'pot_lock', -stake, potId, JSON.stringify({ side }));
+    });
+  } catch (e: any) {
+    return res.status(400).json({ error: e.message });
+  }
+
+  // Auto-lock 1v1 pots: if both sides have at least one funded bet equal to stake
+  const a = db.prepare('SELECT SUM(amount) as s FROM side_bets WHERE side_pot_id = ? AND side = "A" AND status = "funded"').get(potId)?.s || 0;
+  const b = db.prepare('SELECT SUM(amount) as s FROM side_bets WHERE side_pot_id = ? AND side = "B" AND status = "funded"').get(potId)?.s || 0;
+  if (a >= stake && b >= stake) {
+    db.prepare('UPDATE side_pots SET status = "locked" WHERE id = ?').run(potId);
+  }
+
+  res.json({ id: betId, status: 'funded' });
+});
+
+app.post('/api/sidepots/:potId/resolve', (req: any, res) => {
+  const potId = req.params.potId;
+  const { winnerSide } = req.body; // 'A' or 'B'
+  const pot = db.prepare('SELECT * FROM side_pots WHERE id = ?').get(potId);
+  if (!pot) return res.status(404).json({ error: 'Pot not found' });
+  if (pot.status !== 'locked') return res.status(400).json({ error: 'Pot not locked' });
+
+  const bets = db.prepare('SELECT * FROM side_bets WHERE side_pot_id = ? AND status = "funded"').all(potId);
+  const total = bets.reduce((s: number, b: any) => s + b.amount, 0);
+  const fee = Math.floor((total * pot.fee_bps) / 10000);
+  const distributable = total - fee;
+  const winners = bets.filter((b: any) => b.side === winnerSide);
+  const losers  = bets.filter((b: any) => b.side !== winnerSide);
+
+  try {
+    tx(() => {
+      // Move losers: release (decrement locked only; amounts flow to winners via platform accounting)
+      for (const b of losers) {
+        db.prepare('UPDATE wallets SET balance_locked_credits = balance_locked_credits - ? WHERE user_id = ?')
+          .run(b.amount, b.user_id);
+      }
+      // Fee to platform (track as revenue bucket — here we just ledger it)
+      db.prepare('INSERT INTO ledger(id,user_id,type,amount,ref_id,meta_json) VALUES (?,?,?,?,?,?)')
+        .run(id('led'), null, 'fee', fee, potId, JSON.stringify({ fee_bps: pot.fee_bps }));
+
+      const winTotal = winners.reduce((s: number, b: any) => s + b.amount, 0);
+      for (const w of winners) {
+        const share = Math.floor(distributable * (w.amount / winTotal));
+        // Release their lock AND add winnings + their stake
+        db.prepare('UPDATE wallets SET balance_locked_credits = balance_locked_credits - ?, balance_credits = balance_credits + ? WHERE user_id = ?')
+          .run(w.amount, w.amount + share, w.user_id);
+        db.prepare('INSERT INTO ledger(id,user_id,type,amount,ref_id,meta_json) VALUES (?,?,?,?,?,?)')
+          .run(id('led'), w.user_id, 'pot_release_win', w.amount + share, potId, JSON.stringify({ fee_bps: pot.fee_bps }));
+      }
+
+      db.prepare('UPDATE side_pots SET status = "resolved" WHERE id = ?').run(potId);
+      db.prepare('INSERT INTO resolutions(id,side_pot_id,winner_side,decided_by,notes) VALUES (?,?,?,?,?)')
+        .run(id('res'), potId, winnerSide, req.user.id, 'Operator resolve');
+    });
+  } catch (e: any) {
+    return res.status(400).json({ error: e.message });
+  }
+
+  res.json({ ok: true });
+});
+
+// Void / cancel (refund credits)
+app.post('/api/sidepots/:potId/void', (req: any, res) => {
+  const potId = req.params.potId;
+  const pot = db.prepare('SELECT * FROM side_pots WHERE id = ?').get(potId);
+  if (!pot) return res.status(404).json({ error: 'Pot not found' });
+  const bets = db.prepare('SELECT * FROM side_bets WHERE side_pot_id = ? AND status = "funded"').all(potId);
+  tx(() => {
+    for (const b of bets) {
+      db.prepare('UPDATE wallets SET balance_locked_credits = balance_locked_credits - ?, balance_credits = balance_credits + ? WHERE user_id = ?')
+        .run(b.amount, b.amount, b.user_id);
+      db.prepare('INSERT INTO ledger(id,user_id,type,amount,ref_id,meta_json) VALUES (?,?,?,?,?,?)')
+        .run(id('led'), b.user_id, 'pot_refund', b.amount, potId, '{}');
+    }
+    db.prepare('UPDATE side_pots SET status = "canceled" WHERE id = ?').run(potId);
+  });
+  res.json({ ok: true });
+});
+
+const PORT = process.env.PORT || 3001;
+app.listen(PORT, () => console.log('Server on', PORT));
+```
+
+> **Important:** Your webhook route uses `express.raw` and **MUST** be declared before any global JSON body parser for that path.
+
+---
+
+## 6) Compliance & Terms (Closed‑Loop Credits Only)
+
+**Positioning**
+
+* Use “**Credits**,” “**Side Pot**,” “**Service Fee**.” Avoid “bet/wager/rake.”
+* Credits are **stored value** for entertainment/competition participation on your platform.
+
+**No Cash-Out (by default)**
+
+* In this closed‑loop version, users **cannot withdraw credits for cash**. They may use credits for future side pots, tournaments, or eligible in‑app purchases.
+* If you later enable withdrawals, add: Stripe Identity (KYC), geo/age gates, Stripe Connect payouts, and local compliance. (Not included here.)
+
+**Rules Page (publish in-app)**
+
+1. All side pots require **pre‑funding**; unfunded sides auto‑cancel at cutoff.
+2. Once locked, credits remain in escrow until official result.
+3. Operator (or designated scorekeeper) is the **single source of truth** for results.
+4. Voids (match canceled/stream failure) → automatic refund of locked credits.
+5. Service fee (e.g., 8–12%) applies to the **total pot** on resolution.
+6. Abuse: multi‑accounting, chargebacks, or fraud → account freeze & credit clawback.
+
+**Receipts & Ledger**
+
+* Stripe sends email receipts for **credit purchases**.
+* Your app shows an **in‑app ledger** for: credit\_topup, pot\_lock, pot\_release\_win, pot\_refund, fee.
+
+**Age/Geo Notice**
+
+* Even as credits, add: “You must be of legal age to participate. Local restrictions may apply.”
+
+---
+
+## 7) Minimal React Components
+
+**WalletTopUpButton.tsx**
+
+```tsx
+import { loadStripe } from '@stripe/stripe-js';
+const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY!);
+
+export default function WalletTopUpButton() {
+  const topUp = async () => {
+    const amountUsd = Number(prompt('Top-up amount (USD):', '20')) || 0;
+    if (amountUsd < 1) return;
+    const r = await fetch('/api/wallet/topup', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ amountUsd })});
+    const { url } = await r.json();
+    window.location.href = url;
+  };
+  return <button onClick={topUp} className="px-4 py-2 rounded bg-black text-white">Buy Credits</button>;
+}
+```
+
+**SidePotCreator.tsx**
+
+```tsx
+import { useState } from 'react';
+
+export default function SidePotCreator({ matchId }: { matchId: string }) {
+  const [stake, setStake] = useState(1000); // cents
+  const [a, setA] = useState('Tyga');
+  const [b, setB] = useState('Challenger');
+
+  const createPot = async () => {
+    const body = { matchId, sideALabel: a, sideBLabel: b, stakePerSide: stake, feeBps: 800, lockCutoffAt: new Date(Date.now()+2*60*1000).toISOString() };
+    const r = await fetch('/api/sidepots', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)});
+    const j = await r.json();
+    alert('Created pot ' + j.id);
+  };
+
+  return (
+    <div className="space-y-2">
+      <input value={a} onChange={e=>setA(e.target.value)} className="border p-2" placeholder="Side A Label" />
+      <input value={b} onChange={e=>setB(e.target.value)} className="border p-2" placeholder="Side B Label" />
+      <input type="number" value={stake} onChange={e=>setStake(Number(e.target.value))} className="border p-2" placeholder="Stake (cents)" />
+      <button onClick={createPot} className="px-4 py-2 rounded bg-emerald-600 text-white">Create Side Pot</button>
+    </div>
+  );
+}
+```
+
+**SidePotCard.tsx**
+
+```tsx
+import { useState } from 'react';
+
+export default function SidePotCard({ pot }: { pot: any }) {
+  const [side, setSide] = useState<'A'|'B'>('A');
+
+  const join = async () => {
+    const r = await fetch(`/api/sidebets/${pot.id}/join`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ side })});
+    const j = await r.json();
+    if (j.error) alert(j.error); else alert('Joined & funded!');
+  };
+
+  const resolve = async (winnerSide: 'A'|'B') => {
+    const r = await fetch(`/api/sidepots/${pot.id}/resolve`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ winnerSide })});
+    const j = await r.json();
+    if (j.error) alert(j.error); else alert('Resolved!');
+  };
+
+  return (
+    <div className="border rounded p-3 space-y-2">
+      <div className="font-bold">{pot.side_a_label} vs {pot.side_b_label}</div>
+      <div>Stake per side: ${(pot.stake_per_side/100).toFixed(2)}</div>
+      <div>Status: {pot.status}</div>
+      <div className="flex gap-2 items-center">
+        <select value={side} onChange={e=>setSide(e.target.value as any)} className="border p-2">
+          <option value="A">{pot.side_a_label}</option>
+          <option value="B">{pot.side_b_label}</option>
+        </select>
+        <button onClick={join} className="px-3 py-2 rounded bg-indigo-600 text-white">Join & Put Up</button>
+      </div>
+      <div className="flex gap-2">
+        <button onClick={()=>resolve('A')} className="px-3 py-2 rounded bg-gray-800 text-white">Resolve A Wins</button>
+        <button onClick={()=>resolve('B')} className="px-3 py-2 rounded bg-gray-800 text-white">Resolve B Wins</button>
+      </div>
+    </div>
+  );
+}
+```
+
+---
+
+## 8) Stripe Dashboard—Click Path (Closed‑Loop)
+
+1. **Developers → API keys:** Copy test `sk_` & `pk_`.
+2. **Developers → Webhooks:** Add endpoint `https://YOUR_APP/api/stripe/webhook` → events:
+
+   * `checkout.session.completed` (required)
+3. **Settings → Payment methods:** Enable Cards + Apple Pay/Google Pay.
+4. **Settings → Branding:** Upload logo & brand color.
+5. **Settings → Checkout:** Add your domain to allowed URLs.
+
+When going live:
+
+* Switch to **Live mode**, create a **new live webhook** and use the live `whsec_…`.
+* Replace keys with `sk_live_…` / `pk_live_…`.
+
+---
+
+## 9) Policy Toggles (UI copy)
+
+* “Join this **Side Pot** by locking credits before the break.”
+* “Funds lock until the official result.”
+* “Winner receives the pot minus service fee.”
+* “If the pot isn’t fully funded by cutoff, credits automatically return.”
+* “Operator decision is final for result disputes.”
+
+---
+
+## 10) Test Plan
+
+1. Top-up \$20 (test card `4242 4242 4242 4242`).
+2. Create a side pot (\$10 each). Join A from Account 1.
+3. Join B from Account 2 → pot autolocks.
+4. Resolve A Wins → verify credits & ledger entries.
+5. Void a second test pot → verify refunds from locked credits.
+6. Switch to Live → repeat with small live amounts.
+
+---
+
+## 11) Notes & Gotchas
+
+* Webhook route must use `express.raw` and be registered separately from JSON parser.
+* Credits are stored as **integer cents**. Never use floats.
+* Fee is computed on **total pot**, then distributed pro‑rata to winners.
+* Add **rate limits** to endpoints and server‑side checks for cutoff times.
+* For production: migrate to Postgres and add migrations.
+
+---
+
+You now have a working blueprint for: **Create Pot → Put Up → Lock → Resolve/Refund** with Stripe. Add your real auth, UI polish, and operator permissions, and you’re live.

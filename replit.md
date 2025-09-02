@@ -11,6 +11,18 @@ Dark, gritty billiards tournament ladder system with live streaming integration,
 - **QR Code Join Flow**: Easy player registration via mobile
 - **Automated Poster Generator**: One-click fight night poster creation
 - **Respect Points System**: Community recognition beyond just winning
+- **Side Betting System**: Credit-based wagering with closed-loop funds and pre-funding to prevent ghosting
+
+## Side Betting System
+Complete production-ready side betting infrastructure featuring:
+- **Credit-Based Wagering**: Closed-loop system with wallet management and Stripe top-ups
+- **Side Pot Creation**: Players create custom betting markets with configurable stakes and fees
+- **Operator Controls**: Administrative dashboard for locking pots and resolving bets
+- **Automated Resolution**: Winner determination with automatic payout distribution
+- **Transaction Ledger**: Complete audit trail of all financial activities
+- **Anti-Ghosting Protection**: Pre-funding requirement ensures all bets are backed by real credits
+- **House Edge Management**: Configurable fee structure (default 8% commission)
+- **Real-Time Updates**: Live betting status and pot tracking across all interfaces
 
 ## Theme & Branding
 - **Slogan**: "In here, respect is earned in racks, not words"
@@ -55,6 +67,11 @@ Dark, gritty billiards tournament ladder system with live streaming integration,
 - Built complete React Native mobile app with Expo
 - Added "Money on the Table" gambling game with multiple variants
 - Integrated OCR capabilities with tesseract.js for tournament features
+- **Implemented complete side betting system with credit-based wagering** (December 2024)
+- Extended database schema for wallet management and side pot tracking
+- Created comprehensive API infrastructure for betting operations and resolution
+- Built React UI components for both user betting and operator management
+- Integrated Stripe payment processing for wallet top-ups
 
 ## Development Setup
 - Uses Vite for frontend development server

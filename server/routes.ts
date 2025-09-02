@@ -8,7 +8,9 @@ import { registerHallRoutes } from "./hall-routes";
 import { 
   insertPlayerSchema, insertMatchSchema, insertTournamentSchema,
   insertKellyPoolSchema, insertBountySchema, insertCharityEventSchema,
-  insertSupportRequestSchema, insertLiveStreamSchema
+  insertSupportRequestSchema, insertLiveStreamSchema,
+  insertWalletSchema, insertSidePotSchema, insertSideBetSchema,
+  insertLedgerSchema, insertResolutionSchema
 } from "@shared/schema";
 
 if (!process.env.STRIPE_SECRET_KEY) {
@@ -1307,6 +1309,277 @@ export async function registerRoutes(app: Express): Promise<Server> {
         checkoutUrl: session.url,
         sessionId: session.id 
       });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Side Betting System Routes
+  
+  // Wallet management
+  app.get("/api/wallet/:userId", async (req, res) => {
+    try {
+      let wallet = await storage.getWallet(req.params.userId);
+      if (!wallet) {
+        // Create wallet if it doesn't exist
+        wallet = await storage.createWallet({
+          userId: req.params.userId,
+          balanceCredits: 0,
+          balanceLockedCredits: 0,
+        });
+      }
+      res.json(wallet);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Credit wallet via Stripe
+  app.post("/api/wallet/:userId/topup", async (req, res) => {
+    try {
+      const { amount } = req.body; // Amount in USD dollars
+      const userId = req.params.userId;
+      
+      if (!amount || amount < 5) {
+        return res.status(400).json({ message: "Minimum top-up is $5" });
+      }
+
+      // Create Stripe payment intent for wallet top-up
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: Math.round(amount * 100), // Convert to cents
+        currency: "usd",
+        metadata: {
+          userId,
+          type: "wallet_topup",
+        },
+      });
+
+      res.json({ 
+        clientSecret: paymentIntent.client_secret,
+        amount: amount
+      });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Complete wallet top-up after payment
+  app.post("/api/wallet/:userId/topup/complete", async (req, res) => {
+    try {
+      const { paymentIntentId, amount } = req.body;
+      const userId = req.params.userId;
+      
+      // Verify payment intent with Stripe
+      const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+      
+      if (paymentIntent.status !== 'succeeded') {
+        return res.status(400).json({ message: "Payment not completed" });
+      }
+
+      // Credit the wallet
+      const wallet = await storage.creditWallet(userId, amount * 100); // Convert to cents
+      
+      // Create ledger entry
+      await storage.createLedgerEntry({
+        userId,
+        type: "credit_topup",
+        amount: amount * 100,
+        refId: paymentIntentId,
+        metaJson: JSON.stringify({ paymentMethod: "stripe" }),
+      });
+
+      res.json(wallet);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Get user's ledger/transaction history
+  app.get("/api/wallet/:userId/ledger", async (req, res) => {
+    try {
+      const entries = await storage.getLedgerByUser(req.params.userId);
+      res.json(entries);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Side Pot management
+  app.get("/api/side-pots", async (req, res) => {
+    try {
+      const { matchId, status } = req.query;
+      let pots;
+      
+      if (matchId) {
+        pots = await storage.getSidePotsByMatch(matchId as string);
+      } else if (status) {
+        pots = await storage.getSidePotsByStatus(status as string);
+      } else {
+        pots = await storage.getAllSidePots();
+      }
+      
+      res.json(pots);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/side-pots", async (req, res) => {
+    try {
+      const validatedData = insertSidePotSchema.parse(req.body);
+      const pot = await storage.createSidePot(validatedData);
+      res.status(201).json(pot);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  app.put("/api/side-pots/:id", async (req, res) => {
+    try {
+      const pot = await storage.updateSidePot(req.params.id, req.body);
+      if (!pot) {
+        return res.status(404).json({ message: "Side pot not found" });
+      }
+      res.json(pot);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  // Get side pot with all bets
+  app.get("/api/side-pots/:id/details", async (req, res) => {
+    try {
+      const pot = await storage.getSidePot(req.params.id);
+      if (!pot) {
+        return res.status(404).json({ message: "Side pot not found" });
+      }
+      
+      const bets = await storage.getSideBetsByPot(req.params.id);
+      const resolution = await storage.getResolutionByPot(req.params.id);
+      
+      res.json({ pot, bets, resolution });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Side Bet management
+  app.post("/api/side-bets", async (req, res) => {
+    try {
+      const { sidePotId, userId, side, amount } = req.body;
+      
+      // Check if pot is still open
+      const pot = await storage.getSidePot(sidePotId);
+      if (!pot || pot.status !== 'open') {
+        return res.status(400).json({ message: "Side pot is not accepting bets" });
+      }
+      
+      // Check if user has enough credits and lock them
+      const locked = await storage.lockCredits(userId, amount);
+      if (!locked) {
+        return res.status(400).json({ message: "Insufficient credits" });
+      }
+      
+      const bet = await storage.createSideBet({
+        sidePotId,
+        userId,
+        side,
+        amount,
+        status: "funded",
+        fundedAt: new Date(),
+      });
+      
+      // Create ledger entry
+      await storage.createLedgerEntry({
+        userId,
+        type: "pot_lock",
+        amount: -amount,
+        refId: bet.id,
+        metaJson: JSON.stringify({ sidePotId, side }),
+      });
+      
+      res.status(201).json(bet);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/side-bets/user/:userId", async (req, res) => {
+    try {
+      const bets = await storage.getSideBetsByUser(req.params.userId);
+      res.json(bets);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Resolution management (operator only)
+  app.post("/api/side-pots/:id/resolve", async (req, res) => {
+    try {
+      const { winnerSide, decidedBy, notes } = req.body;
+      const sidePotId = req.params.id;
+      
+      // Check if already resolved
+      const existingResolution = await storage.getResolutionByPot(sidePotId);
+      if (existingResolution) {
+        return res.status(400).json({ message: "Side pot already resolved" });
+      }
+      
+      const pot = await storage.getSidePot(sidePotId);
+      if (!pot) {
+        return res.status(404).json({ message: "Side pot not found" });
+      }
+      
+      // Create resolution
+      const resolution = await storage.createResolution({
+        sidePotId,
+        winnerSide,
+        decidedBy,
+        notes,
+      });
+      
+      // Update pot status
+      await storage.updateSidePot(sidePotId, { status: "resolved" });
+      
+      // Get all bets for this pot
+      const bets = await storage.getSideBetsByPot(sidePotId);
+      const winners = bets.filter(bet => bet.side === winnerSide);
+      const losers = bets.filter(bet => bet.side !== winnerSide);
+      
+      // Calculate total pot and fee
+      const totalPot = bets.reduce((sum, bet) => sum + bet.amount, 0);
+      const fee = Math.floor(totalPot * (pot.feeBps || 800) / 10000);
+      const netPot = totalPot - fee;
+      
+      // Calculate winnings for each winner
+      const totalWinnerStake = winners.reduce((sum, bet) => sum + bet.amount, 0);
+      
+      for (const winner of winners) {
+        const winnerShare = totalWinnerStake > 0 ? winner.amount / totalWinnerStake : 0;
+        const winnings = Math.floor(winnerShare * netPot);
+        
+        // Credit winner's wallet
+        await storage.creditWallet(winner.userId!, winnings);
+        
+        // Update bet status
+        await storage.updateSideBet(winner.id, { status: "paid" });
+        
+        // Create ledger entry
+        await storage.createLedgerEntry({
+          userId: winner.userId,
+          type: "pot_release_win",
+          amount: winnings,
+          refId: winner.id,
+          metaJson: JSON.stringify({ sidePotId, winnings, originalStake: winner.amount }),
+        });
+      }
+      
+      // Mark losers as lost (no payout)
+      for (const loser of losers) {
+        await storage.updateSideBet(loser.id, { status: "lost" });
+      }
+      
+      res.json({ resolution, totalPot, fee, winners: winners.length, losers: losers.length });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }

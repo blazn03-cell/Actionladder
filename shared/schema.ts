@@ -12,6 +12,7 @@ export const users = pgTable("users", {
   email: text("email").notNull().unique(),
   name: text("name"),
   globalRole: text("global_role").notNull().default("PLAYER"),
+  role: text("role").default("player"), // player, operator, admin for side betting
   stripeCustomerId: text("stripe_customer_id"),
   stripeConnectId: text("stripe_connect_id").unique(),
   payoutShareBps: integer("payout_share_bps"), // basis points (100 bps = 1%)
@@ -427,3 +428,95 @@ export type RookieAchievement = typeof rookieAchievements.$inferSelect;
 export type InsertRookieAchievement = z.infer<typeof insertRookieAchievementSchema>;
 export type RookieSubscription = typeof rookieSubscriptions.$inferSelect;
 export type InsertRookieSubscription = z.infer<typeof insertRookieSubscriptionSchema>;
+
+// Side Betting System - Wallet and credit-based wagering
+export const wallets = pgTable("wallets", {
+  userId: varchar("user_id").primaryKey().references(() => users.id),
+  balanceCredits: integer("balance_credits").default(0), // credits in cents
+  balanceLockedCredits: integer("balance_locked_credits").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Side pots for betting
+export const sidePots = pgTable("side_pots", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  matchId: varchar("match_id").references(() => matches.id),
+  creatorId: varchar("creator_id").references(() => users.id),
+  sideALabel: varchar("side_a_label"),
+  sideBLabel: varchar("side_b_label"),
+  stakePerSide: integer("stake_per_side").notNull(), // in credits (cents)
+  feeBps: integer("fee_bps").default(800), // 8% default
+  status: varchar("status").default("open"), // open|locked|resolved|canceled
+  lockCutoffAt: timestamp("lock_cutoff_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Individual bets within side pots
+export const sideBets = pgTable("side_bets", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  sidePotId: varchar("side_pot_id").references(() => sidePots.id),
+  userId: varchar("user_id").references(() => users.id),
+  side: varchar("side"), // A or B
+  amount: integer("amount").notNull(), // credits locked
+  status: varchar("status").notNull(), // pending_fund|funded|refunded|paid
+  fundedAt: timestamp("funded_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Financial ledger
+export const ledger = pgTable("ledger", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id),
+  type: varchar("type"), // credit_topup, pot_lock, pot_release_win, fee
+  amount: integer("amount"), // signed credits
+  refId: varchar("ref_id"),
+  metaJson: varchar("meta_json"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Side pot resolutions
+export const resolutions = pgTable("resolutions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  sidePotId: varchar("side_pot_id").references(() => sidePots.id),
+  winnerSide: varchar("winner_side"), // A or B
+  decidedBy: varchar("decided_by").references(() => users.id),
+  decidedAt: timestamp("decided_at").defaultNow(),
+  notes: varchar("notes"),
+});
+
+// Insert schemas for side betting
+export const insertWalletSchema = createInsertSchema(wallets).omit({
+  createdAt: true,
+});
+
+export const insertSidePotSchema = createInsertSchema(sidePots).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertSideBetSchema = createInsertSchema(sideBets).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertLedgerSchema = createInsertSchema(ledger).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertResolutionSchema = createInsertSchema(resolutions).omit({
+  id: true,
+  decidedAt: true,
+});
+
+// Side betting types
+export type Wallet = typeof wallets.$inferSelect;
+export type InsertWallet = z.infer<typeof insertWalletSchema>;
+export type SidePot = typeof sidePots.$inferSelect;
+export type InsertSidePot = z.infer<typeof insertSidePotSchema>;
+export type SideBet = typeof sideBets.$inferSelect;
+export type InsertSideBet = z.infer<typeof insertSideBetSchema>;
+export type LedgerEntry = typeof ledger.$inferSelect;
+export type InsertLedgerEntry = z.infer<typeof insertLedgerSchema>;
+export type Resolution = typeof resolutions.$inferSelect;
+export type InsertResolution = z.infer<typeof insertResolutionSchema>;

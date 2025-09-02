@@ -1,0 +1,259 @@
+# ActionLadder Side Betting (Side Pots)
+
+**Goal:** Lock funds *before the first break* so nobody can ghost.
+
+**Scope:** Closed‑loop credits **only**. Users buy platform Credits via Stripe Checkout; credits are locked into side pots; winners receive credits; **no direct cash payouts from side pots**. (You can optionally add KYC + withdrawals later, but this blueprint omits real‑money Connect entirely.)
+
+> Copy‑paste the code blocks into your project. Replace placeholders with your keys and URLs.
+
+---
+
+## 0) Project Structure (example)
+
+```
+root/
+  .env
+  server/
+    index.ts (or index.js)
+    stripe.ts
+    db.ts
+    schema.sql
+  web/
+    src/
+      components/
+        WalletTopUpButton.tsx
+        SidePotCreator.tsx
+        SidePotCard.tsx
+        Ledger.tsx
+      pages/
+        SidePotsPage.tsx
+        RulesPage.tsx
+```
+
+---
+
+## 1) Environment & Packages
+
+**.env (Test mode first)**
+
+```
+# General
+PUBLIC_URL=https://yourapp.example
+
+# Stripe (TEST KEYS FIRST!)
+STRIPE_SECRET_KEY=sk_test_XXX
+STRIPE_PUBLISHABLE_KEY=pk_test_XXX
+STRIPE_WEBHOOK_SECRET=whsec_XXX
+```
+
+**Install packages**
+
+```bash
+# Server
+npm i express cors body-parser stripe better-sqlite3
+npm i -D @types/express @types/cors @types/node ts-node typescript nodemon
+
+# Client
+npm i @stripe/stripe-js
+```
+
+---
+
+## 2) Database Schema (SQLite for speed; swap to Postgres later)
+
+(unchanged – includes users, wallets, matches, side\_pots, side\_bets, ledger, resolutions.)
+
+---
+
+## 3) Server & Routes
+
+* Wallet top-up (Stripe Checkout)
+* Webhook handler (checkout.session.completed)
+* Create side pot
+* Join side pot (locks credits)
+* Resolve side pot (distributes credits, applies fee)
+* Void side pot (refunds credits)
+
+---
+
+## 4) React Components
+
+**WalletTopUpButton.tsx**
+
+```tsx
+import { loadStripe } from '@stripe/stripe-js';
+const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY!);
+
+export default function WalletTopUpButton() {
+  const topUp = async () => {
+    const amountUsd = Number(prompt('Top-up amount (USD):', '20')) || 0;
+    if (amountUsd < 1) return;
+    const r = await fetch('/api/wallet/topup', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ amountUsd })});
+    const { url } = await r.json();
+    window.location.href = url;
+  };
+  return <button onClick={topUp} className="px-4 py-2 rounded bg-black text-white">Buy Credits</button>;
+}
+```
+
+**SidePotCreator.tsx**
+
+```tsx
+import { useState } from 'react';
+
+export default function SidePotCreator({ matchId }: { matchId: string }) {
+  const [stake, setStake] = useState(1000); // cents
+  const [a, setA] = useState('Tyga');
+  const [b, setB] = useState('Challenger');
+
+  const createPot = async () => {
+    const body = { matchId, sideALabel: a, sideBLabel: b, stakePerSide: stake, feeBps: 800, lockCutoffAt: new Date(Date.now()+2*60*1000).toISOString() };
+    const r = await fetch('/api/sidepots', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)});
+    const j = await r.json();
+    alert('Created pot ' + j.id);
+  };
+
+  return (
+    <div className="space-y-2">
+      <input value={a} onChange={e=>setA(e.target.value)} className="border p-2" placeholder="Side A Label" />
+      <input value={b} onChange={e=>setB(e.target.value)} className="border p-2" placeholder="Side B Label" />
+      <input type="number" value={stake} onChange={e=>setStake(Number(e.target.value))} className="border p-2" placeholder="Stake (cents)" />
+      <button onClick={createPot} className="px-4 py-2 rounded bg-emerald-600 text-white">Create Side Pot</button>
+    </div>
+  );
+}
+```
+
+**SidePotCard.tsx**
+
+```tsx
+import { useState } from 'react';
+
+export default function SidePotCard({ pot }: { pot: any }) {
+  const [side, setSide] = useState<'A'|'B'>('A');
+
+  const join = async () => {
+    const r = await fetch(`/api/sidebets/${pot.id}/join`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ side })});
+    const j = await r.json();
+    if (j.error) alert(j.error); else alert('Joined & funded!');
+  };
+
+  const resolve = async (winnerSide: 'A'|'B') => {
+    const r = await fetch(`/api/sidepots/${pot.id}/resolve`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ winnerSide })});
+    const j = await r.json();
+    if (j.error) alert(j.error); else alert('Resolved!');
+  };
+
+  return (
+    <div className="border rounded p-3 space-y-2">
+      <div className="font-bold">{pot.side_a_label} vs {pot.side_b_label}</div>
+      <div>Stake per side: ${(pot.stake_per_side/100).toFixed(2)}</div>
+      <div>Status: {pot.status}</div>
+      <div className="flex gap-2 items-center">
+        <select value={side} onChange={e=>setSide(e.target.value as any)} className="border p-2">
+          <option value="A">{pot.side_a_label}</option>
+          <option value="B">{pot.side_b_label}</option>
+        </select>
+        <button onClick={join} className="px-3 py-2 rounded bg-indigo-600 text-white">Join & Lock Credits</button>
+      </div>
+      <div className="flex gap-2">
+        <button onClick={()=>resolve('A')} className="px-3 py-2 rounded bg-gray-800 text-white">Resolve A Wins</button>
+        <button onClick={()=>resolve('B')} className="px-3 py-2 rounded bg-gray-800 text-white">Resolve B Wins</button>
+      </div>
+    </div>
+  );
+}
+```
+
+**Ledger.tsx**
+
+```tsx
+import { useEffect, useState } from 'react';
+
+export default function Ledger() {
+  const [entries, setEntries] = useState<any[]>([]);
+
+  useEffect(() => {
+    (async () => {
+      const r = await fetch('/api/ledger');
+      const j = await r.json();
+      setEntries(j);
+    })();
+  }, []);
+
+  return (
+    <div className="border rounded p-3">
+      <h2 className="font-bold mb-2">Ledger</h2>
+      <ul className="space-y-1 text-sm">
+        {entries.map((e, i) => (
+          <li key={i} className="flex justify-between">
+            <span>{e.type}</span>
+            <span>{(e.amount/100).toFixed(2)}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+```
+
+**RulesPage.tsx**
+
+```tsx
+export default function RulesPage() {
+  return (
+    <div className="prose p-4">
+      <h1>Side Pot Rules</h1>
+      <ol>
+        <li>All side pots require pre‑funding; unfunded sides auto‑cancel at cutoff.</li>
+        <li>Once locked, credits remain in escrow until the official result.</li>
+        <li>The operator or designated scorekeeper is the single source of truth for results.</li>
+        <li>If a match is canceled, locked credits are refunded automatically.</li>
+        <li>A service fee (e.g. 8–12%) applies to the total pot on resolution.</li>
+        <li>Abuse (multi‑accounting, fraud, chargebacks) leads to freezes and credit clawbacks.</li>
+      </ol>
+      <p className="text-sm text-gray-600">You must be of legal age to participate. Local restrictions may apply.</p>
+    </div>
+  );
+}
+```
+
+---
+
+## 5) Compliance & Terms (Closed‑Loop Credits Only)
+
+* Avoid gambling language: say “Credits,” “Side Pot,” “Service Fee.”
+* No withdrawals by default; credits recycle into more play.
+* Operators control results; disputes can void pots.
+* Fee: % of total pot, pro‑rata to winners.
+* Add ledger visibility and a public Rules page.
+
+---
+
+## 6) Stripe Dashboard—Click Path
+
+1. Developers → API keys → copy test `sk_` & `pk_`.
+2. Developers → Webhooks → add endpoint `https://YOUR_APP/api/stripe/webhook` with event:
+
+   * `checkout.session.completed`
+3. Settings → Payment methods: enable Cards + Apple/Google Pay.
+4. Settings → Branding: upload logo & brand color.
+5. Settings → Checkout: add your domain to allowed URLs.
+
+When live:
+
+* Switch to Live mode → new live webhook → replace keys with `sk_live_…` / `pk_live_…`.
+
+---
+
+## 7) Test Plan
+
+* Top-up \$20 with test card.
+* Create a side pot (\$10 each). Join Side A.
+* Join Side B with another account → pot locks.
+* Resolve Side A wins → verify ledger + balances.
+* Void a test pot → credits refunded.
+
+---
+
+This version is **credits-only, closed-loop, no cash-out**, making it legally safer while still guaranteeing “put up before break.”

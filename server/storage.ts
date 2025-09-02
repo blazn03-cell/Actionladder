@@ -16,6 +16,11 @@ import {
   type RookieEvent, type InsertRookieEvent,
   type RookieAchievement, type InsertRookieAchievement,
   type RookieSubscription, type InsertRookieSubscription,
+  type Wallet, type InsertWallet,
+  type SidePot, type InsertSidePot,
+  type SideBet, type InsertSideBet,
+  type LedgerEntry, type InsertLedgerEntry,
+  type Resolution, type InsertResolution,
   type GlobalRole,
   insertUserSchema,
   insertOrganizationSchema,
@@ -224,6 +229,39 @@ export interface IStorage {
   
   getRookieLeaderboard(): Promise<Player[]>;
   promoteRookieToMainLadder(playerId: string): Promise<Player | undefined>;
+  
+  // Side Betting - Wallet Operations
+  getWallet(userId: string): Promise<Wallet | undefined>;
+  createWallet(wallet: InsertWallet): Promise<Wallet>;
+  updateWallet(userId: string, updates: Partial<Wallet>): Promise<Wallet | undefined>;
+  creditWallet(userId: string, amount: number): Promise<Wallet | undefined>;
+  lockCredits(userId: string, amount: number): Promise<boolean>;
+  unlockCredits(userId: string, amount: number): Promise<boolean>;
+  
+  // Side Betting - Side Pots
+  getSidePot(id: string): Promise<SidePot | undefined>;
+  getAllSidePots(): Promise<SidePot[]>;
+  getSidePotsByMatch(matchId: string): Promise<SidePot[]>;
+  getSidePotsByStatus(status: string): Promise<SidePot[]>;
+  createSidePot(pot: InsertSidePot): Promise<SidePot>;
+  updateSidePot(id: string, updates: Partial<SidePot>): Promise<SidePot | undefined>;
+  
+  // Side Betting - Side Bets
+  getSideBet(id: string): Promise<SideBet | undefined>;
+  getSideBetsByPot(sidePotId: string): Promise<SideBet[]>;
+  getSideBetsByUser(userId: string): Promise<SideBet[]>;
+  createSideBet(bet: InsertSideBet): Promise<SideBet>;
+  updateSideBet(id: string, updates: Partial<SideBet>): Promise<SideBet | undefined>;
+  
+  // Side Betting - Ledger
+  getLedgerEntry(id: string): Promise<LedgerEntry | undefined>;
+  getLedgerByUser(userId: string): Promise<LedgerEntry[]>;
+  createLedgerEntry(entry: InsertLedgerEntry): Promise<LedgerEntry>;
+  
+  // Side Betting - Resolutions
+  getResolution(id: string): Promise<Resolution | undefined>;
+  getResolutionByPot(sidePotId: string): Promise<Resolution | undefined>;
+  createResolution(resolution: InsertResolution): Promise<Resolution>;
 }
 
 export class MemStorage implements IStorage {
@@ -247,6 +285,13 @@ export class MemStorage implements IStorage {
   private hallRosters = new Map<string, HallRoster>();
   private webhookEvents = new Map<string, WebhookEvent>();
   private operatorSettings = new Map<string, OperatorSettings>(); // keyed by operatorUserId
+  
+  // Side Betting Storage
+  private wallets = new Map<string, Wallet>(); // keyed by userId
+  private sidePots = new Map<string, SidePot>();
+  private sideBets = new Map<string, SideBet>();
+  private ledgerEntries = new Map<string, LedgerEntry>();
+  private resolutions = new Map<string, Resolution>();
 
   constructor() {
     // Initialize with seed data for demonstration (disabled in production)
@@ -1554,6 +1599,200 @@ export class MemStorage implements IStorage {
     });
 
     return updatedPlayer;
+  }
+
+  // Side Betting - Wallet Operations
+  async getWallet(userId: string): Promise<Wallet | undefined> {
+    return this.wallets.get(userId);
+  }
+
+  async createWallet(wallet: InsertWallet): Promise<Wallet> {
+    const newWallet: Wallet = {
+      userId: wallet.userId,
+      balanceCredits: wallet.balanceCredits || 0,
+      balanceLockedCredits: wallet.balanceLockedCredits || 0,
+      createdAt: new Date(),
+    };
+    this.wallets.set(wallet.userId, newWallet);
+    return newWallet;
+  }
+
+  async updateWallet(userId: string, updates: Partial<Wallet>): Promise<Wallet | undefined> {
+    const wallet = this.wallets.get(userId);
+    if (!wallet) return undefined;
+    
+    const updatedWallet = { ...wallet, ...updates };
+    this.wallets.set(userId, updatedWallet);
+    return updatedWallet;
+  }
+
+  async creditWallet(userId: string, amount: number): Promise<Wallet | undefined> {
+    const wallet = this.wallets.get(userId);
+    if (!wallet) return undefined;
+    
+    const updatedWallet = {
+      ...wallet,
+      balanceCredits: wallet.balanceCredits + amount,
+    };
+    this.wallets.set(userId, updatedWallet);
+    return updatedWallet;
+  }
+
+  async lockCredits(userId: string, amount: number): Promise<boolean> {
+    const wallet = this.wallets.get(userId);
+    if (!wallet || wallet.balanceCredits < amount) return false;
+    
+    const updatedWallet = {
+      ...wallet,
+      balanceCredits: wallet.balanceCredits - amount,
+      balanceLockedCredits: wallet.balanceLockedCredits + amount,
+    };
+    this.wallets.set(userId, updatedWallet);
+    return true;
+  }
+
+  async unlockCredits(userId: string, amount: number): Promise<boolean> {
+    const wallet = this.wallets.get(userId);
+    if (!wallet || wallet.balanceLockedCredits < amount) return false;
+    
+    const updatedWallet = {
+      ...wallet,
+      balanceCredits: wallet.balanceCredits + amount,
+      balanceLockedCredits: wallet.balanceLockedCredits - amount,
+    };
+    this.wallets.set(userId, updatedWallet);
+    return true;
+  }
+
+  // Side Betting - Side Pots
+  async getSidePot(id: string): Promise<SidePot | undefined> {
+    return this.sidePots.get(id);
+  }
+
+  async getAllSidePots(): Promise<SidePot[]> {
+    return Array.from(this.sidePots.values());
+  }
+
+  async getSidePotsByMatch(matchId: string): Promise<SidePot[]> {
+    return Array.from(this.sidePots.values()).filter(pot => pot.matchId === matchId);
+  }
+
+  async getSidePotsByStatus(status: string): Promise<SidePot[]> {
+    return Array.from(this.sidePots.values()).filter(pot => pot.status === status);
+  }
+
+  async createSidePot(insertPot: InsertSidePot): Promise<SidePot> {
+    const id = randomUUID();
+    const pot: SidePot = {
+      id,
+      matchId: insertPot.matchId,
+      creatorId: insertPot.creatorId,
+      sideALabel: insertPot.sideALabel,
+      sideBLabel: insertPot.sideBLabel,
+      stakePerSide: insertPot.stakePerSide,
+      feeBps: insertPot.feeBps || 800,
+      status: insertPot.status || "open",
+      lockCutoffAt: insertPot.lockCutoffAt,
+      createdAt: new Date(),
+    };
+    this.sidePots.set(id, pot);
+    return pot;
+  }
+
+  async updateSidePot(id: string, updates: Partial<SidePot>): Promise<SidePot | undefined> {
+    const pot = this.sidePots.get(id);
+    if (!pot) return undefined;
+    
+    const updatedPot = { ...pot, ...updates };
+    this.sidePots.set(id, updatedPot);
+    return updatedPot;
+  }
+
+  // Side Betting - Side Bets
+  async getSideBet(id: string): Promise<SideBet | undefined> {
+    return this.sideBets.get(id);
+  }
+
+  async getSideBetsByPot(sidePotId: string): Promise<SideBet[]> {
+    return Array.from(this.sideBets.values()).filter(bet => bet.sidePotId === sidePotId);
+  }
+
+  async getSideBetsByUser(userId: string): Promise<SideBet[]> {
+    return Array.from(this.sideBets.values()).filter(bet => bet.userId === userId);
+  }
+
+  async createSideBet(insertBet: InsertSideBet): Promise<SideBet> {
+    const id = randomUUID();
+    const bet: SideBet = {
+      id,
+      sidePotId: insertBet.sidePotId,
+      userId: insertBet.userId,
+      side: insertBet.side,
+      amount: insertBet.amount,
+      status: insertBet.status,
+      fundedAt: insertBet.fundedAt,
+      createdAt: new Date(),
+    };
+    this.sideBets.set(id, bet);
+    return bet;
+  }
+
+  async updateSideBet(id: string, updates: Partial<SideBet>): Promise<SideBet | undefined> {
+    const bet = this.sideBets.get(id);
+    if (!bet) return undefined;
+    
+    const updatedBet = { ...bet, ...updates };
+    this.sideBets.set(id, updatedBet);
+    return updatedBet;
+  }
+
+  // Side Betting - Ledger
+  async getLedgerEntry(id: string): Promise<LedgerEntry | undefined> {
+    return this.ledgerEntries.get(id);
+  }
+
+  async getLedgerByUser(userId: string): Promise<LedgerEntry[]> {
+    return Array.from(this.ledgerEntries.values())
+      .filter(entry => entry.userId === userId)
+      .sort((a, b) => (b.createdAt?.getTime() || 0) - (a.createdAt?.getTime() || 0));
+  }
+
+  async createLedgerEntry(insertEntry: InsertLedgerEntry): Promise<LedgerEntry> {
+    const id = randomUUID();
+    const entry: LedgerEntry = {
+      id,
+      userId: insertEntry.userId,
+      type: insertEntry.type,
+      amount: insertEntry.amount,
+      refId: insertEntry.refId,
+      metaJson: insertEntry.metaJson,
+      createdAt: new Date(),
+    };
+    this.ledgerEntries.set(id, entry);
+    return entry;
+  }
+
+  // Side Betting - Resolutions
+  async getResolution(id: string): Promise<Resolution | undefined> {
+    return this.resolutions.get(id);
+  }
+
+  async getResolutionByPot(sidePotId: string): Promise<Resolution | undefined> {
+    return Array.from(this.resolutions.values()).find(res => res.sidePotId === sidePotId);
+  }
+
+  async createResolution(insertResolution: InsertResolution): Promise<Resolution> {
+    const id = randomUUID();
+    const resolution: Resolution = {
+      id,
+      sidePotId: insertResolution.sidePotId,
+      winnerSide: insertResolution.winnerSide,
+      decidedBy: insertResolution.decidedBy,
+      decidedAt: new Date(),
+      notes: insertResolution.notes,
+    };
+    this.resolutions.set(id, resolution);
+    return resolution;
   }
 }
 
