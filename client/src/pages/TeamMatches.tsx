@@ -392,7 +392,7 @@ function TeamMatchCard({
               {isHillHill && <Badge className="bg-red-600">Hill-Hill</Badge>}
             </CardDescription>
           </div>
-          {getMatchStatusBadge(match.status)}
+          {getMatchStatusBadge(match.status || "scheduled")}
         </div>
       </CardHeader>
       <CardContent>
