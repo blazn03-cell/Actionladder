@@ -78,6 +78,10 @@ export async function setupAuth(app: Express) {
   app.use(passport.initialize());
   app.use(passport.session());
 
+  // Import and register enhanced auth routes
+  const { registerAuthRoutes } = await import("./authRoutes");
+  registerAuthRoutes(app);
+
   const config = await getOidcConfig();
 
   const verify: VerifyFunction = async (

@@ -22,8 +22,8 @@ import {
   type TeamMatch, type InsertTeamMatch,
   type TeamSet, type InsertTeamSet,
   type Wallet, type InsertWallet,
-  type SidePot, type InsertSidePot,
-  type SideBet, type InsertSideBet,
+  type ChallengePool, type InsertChallengePool,
+  type ChallengeEntry, type InsertChallengeEntry,
   type LedgerEntry, type InsertLedgerEntry,
   type Resolution, type InsertResolution,
   type GlobalRole,
@@ -37,12 +37,36 @@ export interface User {
   id: string;
   email: string;
   name?: string;
+  // Enhanced authentication fields
+  passwordHash?: string;
+  twoFactorEnabled?: boolean;
+  twoFactorSecret?: string;
+  phoneNumber?: string;
+  lastLoginAt?: Date;
+  loginAttempts?: number;
+  lockedUntil?: Date;
+  
   globalRole: GlobalRole;
+  role?: string;
+  
+  // Profile and status
+  profileComplete?: boolean;
+  onboardingComplete: boolean;
+  accountStatus?: string;
+  
+  // Payment integration
   stripeCustomerId?: string;
   stripeConnectId?: string;
   payoutShareBps?: number;
-  onboardingComplete: boolean;
+  
+  // Operator-specific fields
+  hallName?: string;
+  city?: string;
+  state?: string;
+  subscriptionTier?: string;
+  
   createdAt: Date;
+  updatedAt?: Date;
 }
 
 export interface Organization {
@@ -67,11 +91,30 @@ export interface PayoutTransfer {
 export type InsertUser = {
   email: string;
   name?: string;
+  // Enhanced authentication fields
+  passwordHash?: string;
+  twoFactorEnabled?: boolean;
+  twoFactorSecret?: string;
+  phoneNumber?: string;
+  
   globalRole: GlobalRole;
+  role?: string;
+  
+  // Profile and status
+  profileComplete?: boolean;
+  onboardingComplete?: boolean;
+  accountStatus?: string;
+  
+  // Payment integration
   stripeCustomerId?: string;
   stripeConnectId?: string;
   payoutShareBps?: number;
-  onboardingComplete?: boolean;
+  
+  // Operator-specific fields
+  hallName?: string;
+  city?: string;
+  state?: string;
+  subscriptionTier?: string;
 };
 
 export type UpsertUser = {

@@ -11,13 +11,37 @@ export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   email: text("email").notNull().unique(),
   name: text("name"),
+  // Enhanced authentication fields
+  passwordHash: text("password_hash"), // For Creator/Owner email+password auth
+  twoFactorEnabled: boolean("two_factor_enabled").default(false),
+  twoFactorSecret: text("two_factor_secret"), // TOTP secret
+  phoneNumber: text("phone_number"), // For SMS 2FA
+  lastLoginAt: timestamp("last_login_at"),
+  loginAttempts: integer("login_attempts").default(0),
+  lockedUntil: timestamp("locked_until"),
+  
+  // Role and permissions
   globalRole: text("global_role").notNull().default("PLAYER"),
   role: text("role").default("player"), // player, operator, admin for side betting
+  
+  // Profile and status
+  profileComplete: boolean("profile_complete").default(false),
+  onboardingComplete: boolean("onboarding_complete").default(false),
+  accountStatus: text("account_status").default("active"), // "active", "suspended", "pending"
+  
+  // Payment integration
   stripeCustomerId: text("stripe_customer_id"),
   stripeConnectId: text("stripe_connect_id").unique(),
   payoutShareBps: integer("payout_share_bps"), // basis points (100 bps = 1%)
-  onboardingComplete: boolean("onboarding_complete").default(false),
+  
+  // Operator-specific fields
+  hallName: text("hall_name"), // For operators
+  city: text("city"),
+  state: text("state"),
+  subscriptionTier: text("subscription_tier"), // "small", "medium", "large", "mega"
+  
   createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 export const organizations = pgTable("organizations", {
@@ -234,10 +258,46 @@ export const operatorSettings = pgTable("operator_settings", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// Enhanced authentication schemas
+export const createOwnerSchema = z.object({
+  email: z.string().email(),
+  name: z.string().min(2),
+  password: z.string().min(8),
+  phoneNumber: z.string().optional(),
+  twoFactorEnabled: z.boolean().default(false),
+});
+
+export const createOperatorSchema = z.object({
+  email: z.string().email(),
+  name: z.string().min(2),
+  hallName: z.string().min(2),
+  city: z.string().min(2),
+  state: z.string().min(2),
+  subscriptionTier: z.enum(["small", "medium", "large", "mega"]),
+  stripePaymentMethodId: z.string(),
+});
+
+export const createPlayerSchema = z.object({
+  email: z.string().email(),
+  name: z.string().min(2),
+  username: z.string().min(3),
+  hallId: z.string(),
+  tier: z.enum(["rookie", "barbox", "eight_foot", "nine_foot"]),
+  membershipTier: z.enum(["none", "basic", "pro"]).default("none"),
+});
+
+export const loginSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(1),
+  twoFactorCode: z.string().optional(),
+});
+
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
   createdAt: true,
+  updatedAt: true,
+  passwordHash: true, // Don't allow direct password hash insertion
 });
 
 export const insertOrganizationSchema = createInsertSchema(organizations).omit({
