@@ -41,7 +41,7 @@ function CreateCharityEventDialog() {
   });
 
   const createCharityEventMutation = useMutation({
-    mutationFn: (data: InsertCharityEvent) => apiRequest("POST", "/api/charity-events", data),
+    mutationFn: (data: InsertCharityEvent) => apiRequest("/api/charity-events", { method: "POST", body: JSON.stringify(data) }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/charity-events"] });
       toast({
@@ -181,10 +181,13 @@ function CharityEventCard({ event }: { event: CharityEvent }) {
 
   const donateToEventMutation = useMutation({
     mutationFn: async ({ amount, email }: { amount: number; email?: string }) => {
-      const response = await apiRequest("POST", "/api/charity/donate", {
-        charityEventId: event.id,
-        amount,
-        donorEmail: email
+      const response = await apiRequest("/api/charity/donate", {
+        method: "POST",
+        body: JSON.stringify({
+          charityEventId: event.id,
+          amount,
+          donorEmail: email
+        })
       });
       return response;
     },
@@ -202,7 +205,7 @@ function CharityEventCard({ event }: { event: CharityEvent }) {
   });
 
   const toggleEventMutation = useMutation({
-    mutationFn: () => apiRequest("PUT", `/api/charity-events/${event.id}`, { active: !event.active }),
+    mutationFn: () => apiRequest(`/api/charity-events/${event.id}`, { method: "PUT", body: JSON.stringify({ active: !event.active }) }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/charity-events"] });
       toast({
@@ -219,8 +222,8 @@ function CharityEventCard({ event }: { event: CharityEvent }) {
     },
   });
 
-  const progressPercentage = event.goal > 0 ? (event.raised / event.goal) * 100 : 0;
-  const isCompleted = event.raised >= event.goal;
+  const progressPercentage = event.goal > 0 ? ((event.raised || 0) / event.goal) * 100 : 0;
+  const isCompleted = (event.raised || 0) >= event.goal;
 
   const handleDonate = (amount: number = 25) => {
     toast({
@@ -256,7 +259,7 @@ function CharityEventCard({ event }: { event: CharityEvent }) {
             <div className="flex justify-between items-center mb-2">
               <div className="text-sm">
                 <span className="text-gray-400">Raised:</span>
-                <span className="text-pink-400 font-semibold ml-1">${event.raised}</span>
+                <span className="text-pink-400 font-semibold ml-1">${event.raised || 0}</span>
               </div>
               <div className="text-sm">
                 <span className="text-gray-400">Goal:</span>
@@ -273,7 +276,7 @@ function CharityEventCard({ event }: { event: CharityEvent }) {
           <div className="bg-black/40 rounded-lg p-3">
             <div className="text-xs text-gray-400 mb-1">Prize Fund Contribution</div>
             <div className="text-sm text-pink-400 font-semibold">
-              {(event.percentage * 100).toFixed(1)}% of tournament entries
+              {((event.percentage || 0) * 100).toFixed(1)}% of tournament entries
             </div>
           </div>
 
@@ -281,7 +284,7 @@ function CharityEventCard({ event }: { event: CharityEvent }) {
           <div className="flex space-x-2">
             {event.active && !isCompleted && (
               <Button
-                onClick={handleDonate}
+                onClick={() => handleDonate()}
                 disabled={donateToEventMutation.isPending}
                 className="flex-1 bg-pink-500/20 hover:bg-pink-500/40 text-pink-400"
                 data-testid={`button-donate-${event.id}`}
@@ -307,10 +310,10 @@ function CharityEventCard({ event }: { event: CharityEvent }) {
 }
 
 function CharityStats({ events }: { events: CharityEvent[] }) {
-  const totalRaised = events.reduce((sum, event) => sum + event.raised, 0);
+  const totalRaised = events.reduce((sum, event) => sum + (event.raised || 0), 0);
   const totalGoal = events.reduce((sum, event) => sum + event.goal, 0);
   const activeEvents = events.filter(event => event.active).length;
-  const completedEvents = events.filter(event => event.raised >= event.goal).length;
+  const completedEvents = events.filter(event => (event.raised || 0) >= event.goal).length;
 
   return (
     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -396,8 +399,8 @@ export default function Charity() {
   }
 
   const activeEvents = charityEvents.filter(event => event.active);
-  const completedEvents = charityEvents.filter(event => event.raised >= event.goal);
-  const pausedEvents = charityEvents.filter(event => !event.active && event.raised < event.goal);
+  const completedEvents = charityEvents.filter(event => (event.raised || 0) >= event.goal);
+  const pausedEvents = charityEvents.filter(event => !event.active && (event.raised || 0) < event.goal);
 
   return (
     <div className="space-y-6">

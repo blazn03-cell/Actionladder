@@ -32,6 +32,12 @@ import {
   insertPayoutTransferSchema
 } from "@shared/schema";
 
+// Type aliases for backward compatibility
+type SidePot = ChallengePool;
+type InsertSidePot = InsertChallengePool;
+type SideBet = ChallengeEntry;
+type InsertSideBet = InsertChallengeEntry;
+
 // New types for user management and payouts
 export interface User {
   id: string;
@@ -713,6 +719,7 @@ export class MemStorage implements IStorage {
         rookiePassActive: false,
         rookiePassExpiresAt: null,
         graduatedAt: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000),
+        membershipTier: "basic",
         createdAt: new Date(),
       },
       {
@@ -736,6 +743,7 @@ export class MemStorage implements IStorage {
         rookiePassActive: false,
         rookiePassExpiresAt: null,
         graduatedAt: new Date(Date.now() - 45 * 24 * 60 * 60 * 1000),
+        membershipTier: "none",
         createdAt: new Date(),
       },
       {
@@ -759,6 +767,7 @@ export class MemStorage implements IStorage {
         rookiePassActive: false,
         rookiePassExpiresAt: null,
         graduatedAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+        membershipTier: "pro",
         createdAt: new Date(),
       },
       {

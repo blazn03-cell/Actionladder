@@ -14,7 +14,8 @@ import {
   insertWalletSchema, insertChallengePoolSchema, insertChallengeEntrySchema,
   insertLedgerSchema, insertResolutionSchema,
   insertOperatorSubscriptionSchema, insertTeamSchema, insertTeamPlayerSchema,
-  insertTeamMatchSchema, insertTeamSetSchema
+  insertTeamMatchSchema, insertTeamSetSchema,
+  type GlobalRole
 } from "@shared/schema";
 import { OperatorSubscriptionCalculator } from "./operator-subscription-utils";
 
@@ -84,7 +85,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
           
           // Set role based on intended role
-          let globalRole = "PLAYER";
+          let globalRole: GlobalRole = "PLAYER";
           if (intendedRole === "admin") {
             globalRole = "OWNER";
           } else if (intendedRole === "operator") {
@@ -1575,11 +1576,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let pots;
       
       if (matchId) {
-        pots = await storage.getChallengePoolsByMatch(matchId as string);
+        pots = await storage.getSidePotsByMatch(matchId as string);
       } else if (status) {
-        pots = await storage.getChallengePoolsByStatus(status as string);
+        pots = await storage.getSidePotsByStatus(status as string);
       } else {
-        pots = await storage.getAllChallengePools();
+        pots = await storage.getAllSidePots();
       }
       
       res.json(pots);
@@ -1611,8 +1612,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         customCreatedBy: validatedData.creatorId, // Track who created this custom bet
       };
       
-      const pool = await storage.createChallengePool(potData);
-      res.status(201).json(pot);
+      const pool = await storage.createSidePot(potData);
+      res.status(201).json(pool);
     } catch (error: any) {
       res.status(400).json({ message: error.message });
     }
@@ -1620,7 +1621,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put("/api/side-pots/:id", async (req, res) => {
     try {
-      const pool = await storage.updateChallengePool(req.params.id, req.body);
+      const pool = await storage.updateSidePot(req.params.id, req.body);
       if (!pool) {
         return res.status(404).json({ message: "Side pot not found" });
       }
