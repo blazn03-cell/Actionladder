@@ -806,6 +806,7 @@ export class MemStorage implements IStorage {
         rookiePassActive: false,
         rookiePassExpiresAt: null,
         graduatedAt: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000),
+        membershipTier: "none",
         createdAt: new Date(),
       },
       {
@@ -829,6 +830,7 @@ export class MemStorage implements IStorage {
         rookiePassActive: false,
         rookiePassExpiresAt: null,
         graduatedAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000),
+        membershipTier: "basic",
         createdAt: new Date(),
       },
       {
@@ -852,6 +854,7 @@ export class MemStorage implements IStorage {
         rookiePassActive: false,
         rookiePassExpiresAt: null,
         graduatedAt: null,
+        membershipTier: "none",
         createdAt: new Date(),
       },
       // Add some rookie players for demonstration
@@ -876,6 +879,7 @@ export class MemStorage implements IStorage {
         rookiePassActive: false,
         rookiePassExpiresAt: null,
         graduatedAt: null,
+        membershipTier: "none",
         createdAt: new Date(),
       },
       {
@@ -899,6 +903,7 @@ export class MemStorage implements IStorage {
         rookiePassActive: true,
         rookiePassExpiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
         graduatedAt: null,
+        membershipTier: "basic",
         createdAt: new Date(),
       },
       {
@@ -922,6 +927,7 @@ export class MemStorage implements IStorage {
         rookiePassActive: false,
         rookiePassExpiresAt: null,
         graduatedAt: null,
+        membershipTier: "none",
         createdAt: new Date(),
       },
     ];
