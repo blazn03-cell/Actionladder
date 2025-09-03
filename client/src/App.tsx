@@ -5,7 +5,6 @@ import { Toaster } from "@/components/ui/toaster";
 import Dashboard from "@/components/dashboard";
 import Ladder from "@/components/ladder";
 import Tournaments from "@/components/tournaments";
-import KellyPool from "@/components/kelly-pool";
 import Players from "@/components/players";
 import Bounties from "@/components/bounties";
 import Charity from "@/components/charity";
@@ -23,7 +22,7 @@ import AIDashboard from "@/pages/AIDashboard";
 import AdminDashboard from "@/pages/AdminDashboard";
 import OperatorSettings from "@/pages/OperatorSettings";
 import TournamentBrackets from "@/pages/TournamentBrackets";
-import MoneyOnTable from "@/components/money-on-table";
+import SpecialGames from "@/pages/SpecialGames";
 import SideBetting from "@/pages/SideBetting";
 import SideBetOperator from "@/pages/SideBetOperator";
 import Checkout from "@/pages/checkout";
@@ -57,10 +56,9 @@ function Navigation({ activeTab, setActiveTab }: { activeTab: string; setActiveT
     { id: "admin", label: "Admin" },
     { id: "tournaments", label: "Tournaments" },
     { id: "tournament-brackets", label: "Tournament Brackets" },
-    { id: "money-on-table", label: "Money on Table" },
+    { id: "special-games", label: "Special Games" },
     { id: "side-betting", label: "Match Pools" },
     { id: "side-bet-operator", label: "Pool Ops" },
-    { id: "kelly-pool", label: "Kelly Pool" },
     { id: "players", label: "Players" },
     { id: "bounties", label: "Bounties" },
     { id: "charity", label: "Charity" },
@@ -214,10 +212,9 @@ function App() {
                 {activeTab === "admin" && <AdminDashboard />}
                 {activeTab === "tournaments" && <Tournaments />}
                 {activeTab === "tournament-brackets" && <TournamentBrackets />}
-                {activeTab === "money-on-table" && <MoneyOnTable />}
+                {activeTab === "special-games" && <SpecialGames />}
                 {activeTab === "side-betting" && <SideBetting />}
                 {activeTab === "side-bet-operator" && <SideBetOperator />}
-                {activeTab === "kelly-pool" && <KellyPool />}
                 {activeTab === "players" && <Players />}
                 {activeTab === "bounties" && <Bounties />}
                 {activeTab === "charity" && <Charity />}
