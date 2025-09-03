@@ -29,7 +29,7 @@ interface MoneyGame {
   id: string;
   name: string;
   billAmount: number;
-  pot: number;
+  prizePool: number;
   currentPlayers: number;
   maxPlayers: number;
   table: string;
@@ -60,7 +60,7 @@ function CreateMoneyGameDialog() {
     mutationFn: (data: MoneyGameFormData) => 
       apiRequest("POST", "/api/money-games", {
         ...data,
-        pot: data.billAmount * data.maxPlayers,
+        prizePool: data.billAmount * data.maxPlayers,
         currentPlayers: 0,
         status: "waiting",
         players: [],
@@ -68,8 +68,8 @@ function CreateMoneyGameDialog() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/money-games"] });
       toast({
-        title: "Money Game Created",
-        description: "New Money on the Table game started!",
+        title: "Challenge Game Created"
+        description: "New Challenge Game started!"
       });
       setOpen(false);
       form.reset();
@@ -206,7 +206,7 @@ function CreateMoneyGameDialog() {
                     <SelectContent>
                       <SelectItem value="straight-lag">Straight Lag</SelectItem>
                       <SelectItem value="rail-first">Rail First</SelectItem>
-                      <SelectItem value="progressive">Progressive Betting</SelectItem>
+                      <SelectItem value="progressive">Progressive Stakes</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -307,8 +307,8 @@ function MoneyGameCard({ game }: { game: MoneyGame }) {
       <CardContent className="space-y-4">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-2xl font-bold text-emerald-400">${game.pot}</p>
-            <p className="text-xs text-gray-500">Total Pot</p>
+            <p className="text-2xl font-bold text-emerald-400">${game.prizePool}</p>
+            <p className="text-xs text-gray-500">Prize Pool</p>
           </div>
           <div className="text-right">
             <p className="text-sm font-semibold text-white">{getGameTypeLabel(game.gameType)}</p>
@@ -356,7 +356,7 @@ function MoneyGameCard({ game }: { game: MoneyGame }) {
           {game.status === "completed" && game.winner && (
             <div className="flex-1 text-center py-2">
               <p className="text-emerald-400 font-semibold">Winner: {game.winner}</p>
-              <p className="text-xs text-gray-500">Won ${game.pot}</p>
+              <p className="text-xs text-gray-500">Won ${game.prizePool}</p>
             </div>
           )}
         </div>
@@ -388,7 +388,7 @@ export default function MoneyOnTable() {
         <div>
           <h2 className="text-3xl font-bold text-emerald-400">Money on the Table</h2>
           <p className="text-gray-400 mt-1">
-            Place your bill and land the cue ball on top to win the pot
+            Place your bill and land the cue ball on top to win the prize pool
           </p>
         </div>
         <CreateMoneyGameDialog />
@@ -479,7 +479,7 @@ export default function MoneyOnTable() {
             </div>
             <div className="text-center">
               <p className="text-2xl font-bold text-emerald-400">
-                ${games.reduce((sum, game) => sum + game.pot, 0).toLocaleString()}
+                ${games.reduce((sum, game) => sum + game.prizePool, 0).toLocaleString()}
               </p>
               <p className="text-xs text-gray-500">Total Money</p>
             </div>

@@ -558,7 +558,7 @@ export type InsertTeamMatch = z.infer<typeof insertTeamMatchSchema>;
 export type TeamSet = typeof teamSets.$inferSelect;
 export type InsertTeamSet = z.infer<typeof insertTeamSetSchema>;
 
-// Side Betting System - Wallet and credit-based wagering
+// Challenge Pool System - Wallet and credit-based competition entries
 export const wallets = pgTable("wallets", {
   userId: varchar("user_id").primaryKey().references(() => users.id),
   balanceCredits: integer("balance_credits").default(0), // credits in cents
@@ -566,8 +566,8 @@ export const wallets = pgTable("wallets", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-// Side pots for betting
-export const sidePots = pgTable("side_pots", {
+// Challenge pools for competition entries
+export const challengePools = pgTable("challenge_pools", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   matchId: varchar("match_id").references(() => matches.id),
   creatorId: varchar("creator_id").references(() => users.id),
@@ -577,26 +577,26 @@ export const sidePots = pgTable("side_pots", {
   feeBps: integer("fee_bps").default(800), // 8% default
   status: varchar("status").default("open"), // open|locked|on_hold|resolved|voided
   lockCutoffAt: timestamp("lock_cutoff_at"),
-  description: text("description"), // Custom bet description (5-200 chars)
-  betType: varchar("bet_type").default("yes_no"), // yes_no|over_under|player_prop
+  description: text("description"), // Custom challenge description (5-200 chars)
+  challengeType: varchar("challenge_type").default("yes_no"), // yes_no|over_under|player_prop
   evidenceJson: text("evidence_json"), // Evidence links, timestamps, notes
   verificationSource: varchar("verification_source"), // Official Stream|Table Referee|Score App Screenshot
-  customCreatedBy: varchar("custom_created_by").references(() => users.id), // Track who created custom bet
-  winningSide: varchar("winning_side"), // A or B - winner of the bet
-  resolvedAt: timestamp("resolved_at"), // When pot was resolved/winner declared
+  customCreatedBy: varchar("custom_created_by").references(() => users.id), // Track who created custom challenge
+  winningSide: varchar("winning_side"), // A or B - winner of the challenge
+  resolvedAt: timestamp("resolved_at"), // When pool was resolved/winner declared
   disputeDeadline: timestamp("dispute_deadline"), // 12 hours after resolution
   disputeStatus: varchar("dispute_status").default("none"), // "none", "pending", "resolved"
   autoResolvedAt: timestamp("auto_resolved_at"), // When auto-resolution happened (12hrs after dispute deadline)
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-// Individual bets within side pots
-export const sideBets = pgTable("side_bets", {
+// Individual entries within challenge pools
+export const challengeEntries = pgTable("challenge_entries", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  sidePotId: varchar("side_pot_id").references(() => sidePots.id),
+  challengePoolId: varchar("challenge_pool_id").references(() => challengePools.id),
   userId: varchar("user_id").references(() => users.id),
   side: varchar("side"), // A or B
-  amount: integer("amount").notNull(), // credits locked
+  amount: integer("amount").notNull(), // entry credits locked
   status: varchar("status").notNull(), // pending_fund|funded|refunded|paid
   fundedAt: timestamp("funded_at"),
   createdAt: timestamp("created_at").defaultNow(),
@@ -606,34 +606,34 @@ export const sideBets = pgTable("side_bets", {
 export const ledger = pgTable("ledger", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").references(() => users.id),
-  type: varchar("type"), // credit_topup, pot_lock, pot_release_win, fee
+  type: varchar("type"), // credit_topup, pool_lock, pool_release_win, fee
   amount: integer("amount"), // signed credits
   refId: varchar("ref_id"),
   metaJson: varchar("meta_json"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-// Side pot resolutions
+// Challenge pool resolutions
 export const resolutions = pgTable("resolutions", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  sidePotId: varchar("side_pot_id").references(() => sidePots.id),
+  challengePoolId: varchar("challenge_pool_id").references(() => challengePools.id),
   winnerSide: varchar("winner_side"), // A or B
   decidedBy: varchar("decided_by").references(() => users.id),
   decidedAt: timestamp("decided_at").defaultNow(),
   notes: varchar("notes"),
 });
 
-// Insert schemas for side betting
+// Insert schemas for challenge pools
 export const insertWalletSchema = createInsertSchema(wallets).omit({
   createdAt: true,
 });
 
-export const insertSidePotSchema = createInsertSchema(sidePots).omit({
+export const insertChallengePoolSchema = createInsertSchema(challengePools).omit({
   id: true,
   createdAt: true,
 });
 
-export const insertSideBetSchema = createInsertSchema(sideBets).omit({
+export const insertChallengeEntrySchema = createInsertSchema(challengeEntries).omit({
   id: true,
   createdAt: true,
 });
@@ -709,13 +709,13 @@ export const tutoringCredits = pgTable("tutoring_credits", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-// Side betting types
+// Challenge pool types
 export type Wallet = typeof wallets.$inferSelect;
 export type InsertWallet = z.infer<typeof insertWalletSchema>;
-export type SidePot = typeof sidePots.$inferSelect;
-export type InsertSidePot = z.infer<typeof insertSidePotSchema>;
-export type SideBet = typeof sideBets.$inferSelect;
-export type InsertSideBet = z.infer<typeof insertSideBetSchema>;
+export type ChallengePool = typeof challengePools.$inferSelect;
+export type InsertChallengePool = z.infer<typeof insertChallengePoolSchema>;
+export type ChallengeEntry = typeof challengeEntries.$inferSelect;
+export type InsertChallengeEntry = z.infer<typeof insertChallengeEntrySchema>;
 export type LedgerEntry = typeof ledger.$inferSelect;
 export type InsertLedgerEntry = z.infer<typeof insertLedgerSchema>;
 export type Resolution = typeof resolutions.$inferSelect;

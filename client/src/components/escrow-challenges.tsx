@@ -87,8 +87,8 @@ function CreateChallengeDialog() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/escrow-challenges"] });
       toast({
-        title: "Challenge Created!",
-        description: "Your challenge has been placed in escrow. Waiting for opponent acceptance.",
+        title: "Challenge Entered!"
+        description: "Your challenge entry has been secured. Waiting for opponent acceptance."
       });
       setOpen(false);
       form.reset();
@@ -116,12 +116,12 @@ function CreateChallengeDialog() {
       <DialogTrigger asChild>
         <Button className="bg-green-600 hover:bg-green-700 text-white" data-testid="create-challenge-button">
           <DollarSign className="w-4 h-4 mr-2" />
-          Create Challenge
+          Enter Challenge
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[600px] bg-black/95 border border-green-500/30">
         <DialogHeader>
-          <DialogTitle className="text-white">Create Escrow Challenge</DialogTitle>
+          <DialogTitle className="text-white">Enter Challenge Match</DialogTitle>
         </DialogHeader>
         
         <Form {...form}>
@@ -132,7 +132,7 @@ function CreateChallengeDialog() {
                 name="amount"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-gray-300">Bet Amount ($)</FormLabel>
+                    <FormLabel className="text-gray-300">Challenge Fee ($)</FormLabel>
                     <FormControl>
                       <Input
                         type="number"
@@ -293,7 +293,7 @@ function CreateChallengeDialog() {
                 {createChallengeMutation.isPending ? (
                   <LoadingSpinner size="sm" />
                 ) : (
-                  "Create Challenge"
+                  "Enter Challenge"
                 )}
               </Button>
             </div>

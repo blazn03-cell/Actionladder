@@ -23,8 +23,6 @@ import AdminDashboard from "@/pages/AdminDashboard";
 import OperatorSettings from "@/pages/OperatorSettings";
 import TournamentBrackets from "@/pages/TournamentBrackets";
 import SpecialGames from "@/pages/SpecialGames";
-import SideBetting from "@/pages/SideBetting";
-import SideBetOperator from "@/pages/SideBetOperator";
 import Checkout from "@/pages/checkout";
 import Terms from "@/pages/Terms";
 import Privacy from "@/pages/Privacy";
@@ -45,7 +43,7 @@ function Navigation({ activeTab, setActiveTab }: { activeTab: string; setActiveT
     { id: "eightfoot-ladder", label: "Almost Big Time (8ft)" },
     { id: "barbox-ladder", label: "Kiddie Box King (7ft)" },
     { id: "rookie-section", label: "Rookie Section" },
-    { id: "escrow-challenges", label: "Escrow Challenges" },
+    { id: "escrow-challenges", label: "Challenge Matches" },
     { id: "hall-battles", label: "Hall Battles" },
     { id: "league-standings", label: "League Standings" },
     { id: "qr-registration", label: "QR Registration" },
@@ -57,8 +55,6 @@ function Navigation({ activeTab, setActiveTab }: { activeTab: string; setActiveT
     { id: "tournaments", label: "Tournaments" },
     { id: "tournament-brackets", label: "Tournament Brackets" },
     { id: "special-games", label: "Special Games" },
-    { id: "side-betting", label: "Match Pools" },
-    { id: "side-bet-operator", label: "Pool Ops" },
     { id: "players", label: "Players" },
     { id: "bounties", label: "Bounties" },
     { id: "charity", label: "Charity" },
@@ -213,8 +209,6 @@ function App() {
                 {activeTab === "tournaments" && <Tournaments />}
                 {activeTab === "tournament-brackets" && <TournamentBrackets />}
                 {activeTab === "special-games" && <SpecialGames />}
-                {activeTab === "side-betting" && <SideBetting />}
-                {activeTab === "side-bet-operator" && <SideBetOperator />}
                 {activeTab === "players" && <Players />}
                 {activeTab === "bounties" && <Bounties />}
                 {activeTab === "charity" && <Charity />}
