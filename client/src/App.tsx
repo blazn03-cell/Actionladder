@@ -31,6 +31,7 @@ import AcceptableUse from "@/pages/AcceptableUse";
 import TeamManagement from "@/pages/TeamManagement";
 import TeamMatches from "@/pages/TeamMatches";
 import TeamChallenges from "@/components/team-challenges";
+import SportsmanshipSystem from "@/components/sportsmanship-system";
 import OperatorSubscriptions from "@/pages/OperatorSubscriptions";
 import NotFound from "@/pages/not-found";
 import Landing from "@/pages/Landing";
@@ -64,6 +65,7 @@ function Navigation({ activeTab, setActiveTab }: { activeTab: string; setActiveT
     { id: "team-management", label: "Team Management" },
     { id: "team-matches", label: "Team Matches" },
     { id: "team-challenges", label: "Team Challenges" },
+    { id: "sportsmanship", label: "Sportsmanship" },
     { id: "operator-subscriptions", label: "Operator Subs" },
   ];
 
@@ -225,6 +227,7 @@ function App() {
                 {activeTab === "team-management" && <TeamManagement />}
                 {activeTab === "team-matches" && <TeamMatches />}
                 {activeTab === "team-challenges" && <TeamChallenges />}
+                {activeTab === "sportsmanship" && <SportsmanshipSystem />}
                 {activeTab === "operator-subscriptions" && <OperatorSubscriptions />}
               </div>
               <RealTimeNotifications />

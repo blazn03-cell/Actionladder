@@ -16,6 +16,7 @@ import {
   insertOperatorSubscriptionSchema, insertTeamSchema, insertTeamPlayerSchema,
   insertTeamMatchSchema, insertTeamSetSchema,
   insertTeamChallengeSchema, insertTeamChallengeParticipantSchema,
+  insertCheckinSchema, insertAttitudeVoteSchema, insertAttitudeBallotSchema, insertIncidentSchema,
   type GlobalRole
 } from "@shared/schema";
 import { OperatorSubscriptionCalculator } from "./operator-subscription-utils";
@@ -2435,6 +2436,280 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       res.json(challenge);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // === SPORTSMANSHIP VOTE-OUT SYSTEM API ===
+
+  // Check-in endpoints
+  app.post("/api/checkins", sanitizeBody(["details"]), async (req, res) => {
+    try {
+      const validatedData = insertCheckinSchema.parse(req.body);
+      const checkin = await storage.checkinUser(validatedData);
+      res.status(201).json(checkin);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/checkins/session/:sessionId", async (req, res) => {
+    try {
+      const { sessionId } = req.params;
+      const checkins = await storage.getCheckinsBySession(sessionId);
+      res.json(checkins);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/checkins/venue/:venueId", async (req, res) => {
+    try {
+      const { venueId } = req.params;
+      const checkins = await storage.getCheckinsByVenue(venueId);
+      res.json(checkins);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Vote management endpoints
+  app.post("/api/attitude-votes", sanitizeBody(["details"]), async (req, res) => {
+    try {
+      const { targetUserId, sessionId, venueId, endsInSec = 90 } = req.body;
+      
+      // Check if user can be voted on (cooldowns, already ejected, etc.)
+      const canVote = await storage.canUserBeVotedOn(targetUserId, sessionId);
+      if (!canVote) {
+        return res.status(400).json({ 
+          message: "User cannot be voted on at this time (cooldown or already ejected)" 
+        });
+      }
+
+      // Check if user is immune (currently shooting)
+      const isImmune = await storage.isUserImmune(targetUserId, sessionId);
+      if (isImmune) {
+        return res.status(400).json({ 
+          message: "User is immune while shooting. Wait until their turn ends." 
+        });
+      }
+
+      // Get eligible voters to calculate quorum
+      const activeCheckins = await storage.getActiveCheckins(sessionId, venueId);
+      const totalEligibleWeight = activeCheckins.reduce((sum, checkin) => {
+        let weight = 0.5; // attendee
+        if (checkin.role === "player") weight = 1.0;
+        if (checkin.role === "operator") weight = 2.0;
+        return sum + weight;
+      }, 0);
+
+      const minQuorum = Math.max(12.0, totalEligibleWeight * 0.3); // 12 or 30% of eligible voters
+      const endsAt = new Date(Date.now() + endsInSec * 1000);
+
+      const voteData = {
+        targetUserId,
+        sessionId,
+        venueId,
+        endsAt,
+        quorumRequired: minQuorum,
+        thresholdRequired: 0.65, // 65% threshold
+        createdBy: req.body.createdBy || "system", // Should come from authenticated operator
+      };
+
+      const vote = await storage.createAttitudeVote(voteData);
+      res.status(201).json(vote);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/attitude-votes/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const vote = await storage.getAttitudeVote(id);
+      if (!vote) {
+        return res.status(404).json({ message: "Vote not found" });
+      }
+
+      // Calculate remaining time and vote status
+      const now = new Date();
+      const remainingMs = vote.endsAt.getTime() - now.getTime();
+      const hasEnded = remainingMs <= 0;
+
+      // Auto-close expired votes
+      if (hasEnded && vote.status === "open") {
+        const weights = await storage.calculateVoteWeights(id);
+        const quorumMet = await storage.checkVoteQuorum(id);
+        
+        let result = "fail_quorum";
+        if (quorumMet) {
+          const passThreshold = weights.outWeight / weights.totalWeight >= vote.thresholdRequired;
+          result = passThreshold ? "pass" : "fail_threshold";
+        }
+        
+        const updatedVote = await storage.closeAttitudeVote(id, result);
+        
+        // If vote passed, create incident and apply consequences
+        if (result === "pass" && updatedVote) {
+          await storage.createIncident({
+            userId: vote.targetUserId,
+            sessionId: vote.sessionId,
+            venueId: vote.venueId,
+            type: "ejection",
+            details: "Ejected by community vote",
+            consequence: "ejected_night",
+            pointsPenalty: 10, // -10 ladder points
+            creditsFine: 0,
+            createdBy: "system",
+            voteId: id,
+          });
+        }
+        
+        return res.json(updatedVote);
+      }
+
+      // Check if current user has voted
+      const userId = req.query.userId as string;
+      let youVoted = false;
+      if (userId) {
+        youVoted = await storage.hasUserVoted(id, userId);
+      }
+
+      res.json({
+        ...vote,
+        remainingSeconds: Math.max(0, Math.floor(remainingMs / 1000)),
+        youVoted,
+      });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/attitude-votes/:id/vote", sanitizeBody(["note"]), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { choice, tags, note, voterUserId, voterRole } = req.body;
+
+      // Validate choice
+      if (!["out", "keep"].includes(choice)) {
+        return res.status(400).json({ message: "Choice must be 'out' or 'keep'" });
+      }
+
+      // Check if vote is still open
+      const vote = await storage.getAttitudeVote(id);
+      if (!vote || vote.status !== "open") {
+        return res.status(400).json({ message: "Vote is not open" });
+      }
+
+      // Check if vote has expired
+      if (new Date() > vote.endsAt) {
+        return res.status(400).json({ message: "Vote has expired" });
+      }
+
+      // Check if user already voted
+      const hasVoted = await storage.hasUserVoted(id, voterUserId);
+      if (hasVoted) {
+        return res.status(400).json({ message: "You have already voted" });
+      }
+
+      // Calculate weight based on role
+      let weight = 0.5; // attendee default
+      if (voterRole === "player") weight = 1.0;
+      if (voterRole === "operator") weight = 2.0;
+
+      // Validate note length
+      if (note && note.length > 140) {
+        return res.status(400).json({ message: "Note must be 140 characters or less" });
+      }
+
+      const ballotData = {
+        voteId: id,
+        voterUserId,
+        weight,
+        choice,
+        tags: tags || [],
+        note: note || undefined,
+      };
+
+      const ballot = await storage.createAttitudeBallot(ballotData);
+      res.status(201).json(ballot);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/attitude-votes/:id/close", async (req, res) => {
+    try {
+      const { id } = req.params;
+      
+      const vote = await storage.getAttitudeVote(id);
+      if (!vote) {
+        return res.status(404).json({ message: "Vote not found" });
+      }
+
+      // Calculate final result
+      const weights = await storage.calculateVoteWeights(id);
+      const quorumMet = await storage.checkVoteQuorum(id);
+      
+      let result = "fail_quorum";
+      if (quorumMet) {
+        const passThreshold = weights.outWeight / weights.totalWeight >= vote.thresholdRequired;
+        result = passThreshold ? "pass" : "fail_threshold";
+      }
+
+      const closedVote = await storage.closeAttitudeVote(id, result);
+      
+      // Apply consequences if vote passed
+      if (result === "pass" && closedVote) {
+        await storage.createIncident({
+          userId: vote.targetUserId,
+          sessionId: vote.sessionId,
+          venueId: vote.venueId,
+          type: "ejection",
+          details: "Ejected by community vote",
+          consequence: "ejected_night",
+          pointsPenalty: 10,
+          creditsFine: 0,
+          createdBy: req.body.operatorId || "system",
+          voteId: id,
+        });
+      }
+
+      res.json(closedVote);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Get active votes for a session/venue
+  app.get("/api/attitude-votes/active/:sessionId/:venueId", async (req, res) => {
+    try {
+      const { sessionId, venueId } = req.params;
+      const activeVotes = await storage.getActiveVotes(sessionId, venueId);
+      res.json(activeVotes);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Incident management
+  app.get("/api/incidents/user/:userId", async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const incidents = await storage.getIncidentsByUser(userId);
+      res.json(incidents);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/incidents/recent/:venueId", async (req, res) => {
+    try {
+      const { venueId } = req.params;
+      const { hours = "24" } = req.query;
+      const incidents = await storage.getRecentIncidents(venueId, parseInt(hours as string));
+      res.json(incidents);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }

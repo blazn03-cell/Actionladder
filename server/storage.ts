@@ -23,6 +23,10 @@ import {
   type TeamSet, type InsertTeamSet,
   type TeamChallenge, type InsertTeamChallenge,
   type TeamChallengeParticipant, type InsertTeamChallengeParticipant,
+  type Checkin, type InsertCheckin,
+  type AttitudeVote, type InsertAttitudeVote,
+  type AttitudeBallot, type InsertAttitudeBallot,
+  type Incident, type InsertIncident,
   type Wallet, type InsertWallet,
   type ChallengePool, type InsertChallengePool,
   type ChallengeEntry, type InsertChallengeEntry,
@@ -387,6 +391,40 @@ export interface IStorage {
   calculateTeamChallengeStake(challengeType: string, individualFee: number): number;
   validateProMembership(playerId: string): Promise<boolean>;
   createTeamChallengeWithParticipants(challengeData: InsertTeamChallenge, teamPlayers: string[]): Promise<{ challenge: TeamChallenge; participants: TeamChallengeParticipant[] }>;
+  
+  // === SPORTSMANSHIP VOTE-OUT SYSTEM ===
+  
+  // Check-in management
+  checkinUser(data: InsertCheckin): Promise<Checkin>;
+  getCheckinsBySession(sessionId: string): Promise<Checkin[]>;
+  getCheckinsByVenue(venueId: string): Promise<Checkin[]>;
+  getActiveCheckins(sessionId: string, venueId: string): Promise<Checkin[]>;
+  
+  // Vote management
+  createAttitudeVote(data: InsertAttitudeVote): Promise<AttitudeVote>;
+  getAttitudeVote(id: string): Promise<AttitudeVote | undefined>;
+  getActiveVotes(sessionId: string, venueId: string): Promise<AttitudeVote[]>;
+  updateAttitudeVote(id: string, updates: Partial<AttitudeVote>): Promise<AttitudeVote | undefined>;
+  closeAttitudeVote(id: string, result: string): Promise<AttitudeVote | undefined>;
+  
+  // Ballot management
+  createAttitudeBallot(data: InsertAttitudeBallot): Promise<AttitudeBallot>;
+  getBallotsByVote(voteId: string): Promise<AttitudeBallot[]>;
+  hasUserVoted(voteId: string, userId: string): Promise<boolean>;
+  
+  // Vote calculation utilities
+  calculateVoteWeights(voteId: string): Promise<{ totalWeight: number; outWeight: number; keepWeight: number }>;
+  checkVoteQuorum(voteId: string): Promise<boolean>;
+  
+  // Incident management
+  createIncident(data: InsertIncident): Promise<Incident>;
+  getIncidentsByUser(userId: string): Promise<Incident[]>;
+  getRecentIncidents(venueId: string, hours: number): Promise<Incident[]>;
+  
+  // User eligibility and cooldowns
+  canUserBeVotedOn(userId: string, sessionId: string): Promise<boolean>;
+  getLastVoteForUser(userId: string, sessionId: string): Promise<AttitudeVote | undefined>;
+  isUserImmune(userId: string, sessionId: string): Promise<boolean>;
 }
 
 export class MemStorage implements IStorage {
@@ -430,6 +468,12 @@ export class MemStorage implements IStorage {
   // Team Challenge Storage
   private teamChallenges = new Map<string, TeamChallenge>();
   private teamChallengeParticipants = new Map<string, TeamChallengeParticipant>();
+  
+  // === SPORTSMANSHIP VOTE-OUT SYSTEM ===
+  private checkins = new Map<string, Checkin>();
+  private attitudeVotes = new Map<string, AttitudeVote>();
+  private attitudeBallots = new Map<string, AttitudeBallot>();
+  private incidents = new Map<string, Incident>();
 
   constructor() {
     // Initialize with seed data for demonstration (disabled in production)
@@ -2510,6 +2554,220 @@ export class MemStorage implements IStorage {
     }
 
     return { challenge, participants };
+  }
+
+  // === SPORTSMANSHIP VOTE-OUT SYSTEM IMPLEMENTATION ===
+
+  // Check-in management
+  async checkinUser(data: InsertCheckin): Promise<Checkin> {
+    const checkin: Checkin = {
+      id: randomUUID(),
+      userId: data.userId,
+      venueId: data.venueId,
+      sessionId: data.sessionId,
+      role: data.role,
+      verified: data.verified || false,
+      createdAt: new Date(),
+    };
+    this.checkins.set(checkin.id, checkin);
+    return checkin;
+  }
+
+  async getCheckinsBySession(sessionId: string): Promise<Checkin[]> {
+    return Array.from(this.checkins.values()).filter(checkin => 
+      checkin.sessionId === sessionId
+    );
+  }
+
+  async getCheckinsByVenue(venueId: string): Promise<Checkin[]> {
+    return Array.from(this.checkins.values()).filter(checkin => 
+      checkin.venueId === venueId
+    );
+  }
+
+  async getActiveCheckins(sessionId: string, venueId: string): Promise<Checkin[]> {
+    return Array.from(this.checkins.values()).filter(checkin => 
+      checkin.sessionId === sessionId && checkin.venueId === venueId
+    );
+  }
+
+  // Vote management
+  async createAttitudeVote(data: InsertAttitudeVote): Promise<AttitudeVote> {
+    const vote: AttitudeVote = {
+      id: randomUUID(),
+      targetUserId: data.targetUserId,
+      sessionId: data.sessionId,
+      venueId: data.venueId,
+      status: data.status || "open",
+      startedAt: new Date(),
+      endsAt: data.endsAt,
+      quorumRequired: data.quorumRequired,
+      thresholdRequired: data.thresholdRequired,
+      result: data.result,
+      createdBy: data.createdBy,
+    };
+    this.attitudeVotes.set(vote.id, vote);
+    return vote;
+  }
+
+  async getAttitudeVote(id: string): Promise<AttitudeVote | undefined> {
+    return this.attitudeVotes.get(id);
+  }
+
+  async getActiveVotes(sessionId: string, venueId: string): Promise<AttitudeVote[]> {
+    return Array.from(this.attitudeVotes.values()).filter(vote => 
+      vote.sessionId === sessionId && 
+      vote.venueId === venueId && 
+      vote.status === "open"
+    );
+  }
+
+  async updateAttitudeVote(id: string, updates: Partial<AttitudeVote>): Promise<AttitudeVote | undefined> {
+    const vote = this.attitudeVotes.get(id);
+    if (!vote) return undefined;
+    
+    const updatedVote = { ...vote, ...updates };
+    this.attitudeVotes.set(id, updatedVote);
+    return updatedVote;
+  }
+
+  async closeAttitudeVote(id: string, result: string): Promise<AttitudeVote | undefined> {
+    return this.updateAttitudeVote(id, { status: "closed", result });
+  }
+
+  // Ballot management
+  async createAttitudeBallot(data: InsertAttitudeBallot): Promise<AttitudeBallot> {
+    const ballot: AttitudeBallot = {
+      id: randomUUID(),
+      voteId: data.voteId,
+      voterUserId: data.voterUserId,
+      weight: data.weight,
+      choice: data.choice,
+      tags: data.tags,
+      note: data.note,
+      createdAt: new Date(),
+    };
+    this.attitudeBallots.set(ballot.id, ballot);
+    return ballot;
+  }
+
+  async getBallotsByVote(voteId: string): Promise<AttitudeBallot[]> {
+    return Array.from(this.attitudeBallots.values()).filter(ballot => 
+      ballot.voteId === voteId
+    );
+  }
+
+  async hasUserVoted(voteId: string, userId: string): Promise<boolean> {
+    return Array.from(this.attitudeBallots.values()).some(ballot => 
+      ballot.voteId === voteId && ballot.voterUserId === userId
+    );
+  }
+
+  // Vote calculation utilities
+  async calculateVoteWeights(voteId: string): Promise<{ totalWeight: number; outWeight: number; keepWeight: number }> {
+    const ballots = await this.getBallotsByVote(voteId);
+    
+    let outWeight = 0;
+    let keepWeight = 0;
+    
+    for (const ballot of ballots) {
+      if (ballot.choice === "out") {
+        outWeight += ballot.weight;
+      } else if (ballot.choice === "keep") {
+        keepWeight += ballot.weight;
+      }
+    }
+    
+    return {
+      totalWeight: outWeight + keepWeight,
+      outWeight,
+      keepWeight
+    };
+  }
+
+  async checkVoteQuorum(voteId: string): Promise<boolean> {
+    const vote = await this.getAttitudeVote(voteId);
+    if (!vote) return false;
+    
+    const { totalWeight } = await this.calculateVoteWeights(voteId);
+    return totalWeight >= vote.quorumRequired;
+  }
+
+  // Incident management
+  async createIncident(data: InsertIncident): Promise<Incident> {
+    const incident: Incident = {
+      id: randomUUID(),
+      userId: data.userId,
+      sessionId: data.sessionId,
+      venueId: data.venueId,
+      type: data.type,
+      details: data.details,
+      consequence: data.consequence,
+      pointsPenalty: data.pointsPenalty || 0,
+      creditsFine: data.creditsFine || 0,
+      createdBy: data.createdBy,
+      voteId: data.voteId,
+      createdAt: new Date(),
+    };
+    this.incidents.set(incident.id, incident);
+    return incident;
+  }
+
+  async getIncidentsByUser(userId: string): Promise<Incident[]> {
+    return Array.from(this.incidents.values()).filter(incident => 
+      incident.userId === userId
+    );
+  }
+
+  async getRecentIncidents(venueId: string, hours: number): Promise<Incident[]> {
+    const cutoffTime = new Date(Date.now() - hours * 60 * 60 * 1000);
+    return Array.from(this.incidents.values()).filter(incident => 
+      incident.venueId === venueId && 
+      incident.createdAt >= cutoffTime
+    );
+  }
+
+  // User eligibility and cooldowns
+  async canUserBeVotedOn(userId: string, sessionId: string): Promise<boolean> {
+    // Check for recent votes (15-minute cooldown)
+    const recentVotes = Array.from(this.attitudeVotes.values()).filter(vote => 
+      vote.targetUserId === userId && 
+      vote.sessionId === sessionId &&
+      vote.startedAt > new Date(Date.now() - 15 * 60 * 1000) // 15 minutes ago
+    );
+    
+    // Can't be voted on if there was a recent vote
+    if (recentVotes.length > 0) return false;
+    
+    // Check if user was already ejected tonight
+    const todayIncidents = Array.from(this.incidents.values()).filter(incident => 
+      incident.userId === userId &&
+      incident.type === "ejection" &&
+      incident.createdAt > new Date(Date.now() - 24 * 60 * 60 * 1000) // Last 24 hours
+    );
+    
+    return todayIncidents.length === 0;
+  }
+
+  async getLastVoteForUser(userId: string, sessionId: string): Promise<AttitudeVote | undefined> {
+    const userVotes = Array.from(this.attitudeVotes.values())
+      .filter(vote => vote.targetUserId === userId && vote.sessionId === sessionId)
+      .sort((a, b) => b.startedAt.getTime() - a.startedAt.getTime());
+    
+    return userVotes[0];
+  }
+
+  async isUserImmune(userId: string, sessionId: string): Promise<boolean> {
+    // Check if user is currently shooting in an active match
+    // For now, implement basic logic - can be enhanced with actual match state
+    const activeMatches = Array.from(this.matches.values()).filter(match => 
+      (match.player1 === userId || match.player2 === userId) && 
+      match.status === "in_progress"
+    );
+    
+    // If user is in an active match, they have immunity (during their turn)
+    // This is a simplified implementation - real implementation would check whose turn it is
+    return activeMatches.length > 0;
   }
 }
 

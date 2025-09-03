@@ -524,6 +524,62 @@ export const teamChallengeParticipants = pgTable("team_challenge_participants", 
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// === SPORTSMANSHIP VOTE-OUT SYSTEM ===
+
+// Track who's checked in at a venue (determines voter eligibility)
+export const checkins = pgTable("checkins", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: text("user_id").notNull(),
+  venueId: text("venue_id").notNull(),
+  sessionId: text("session_id").notNull(), // Current ladder session ID
+  role: text("role").notNull(), // "player", "attendee", "operator"
+  verified: boolean("verified").default(false), // QR check-in verification
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Active sportsmanship votes
+export const attitudeVotes = pgTable("attitude_votes", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  targetUserId: text("target_user_id").notNull(), // User being voted on
+  sessionId: text("session_id").notNull(), // Current ladder session
+  venueId: text("venue_id").notNull(), // Venue where vote is happening
+  status: text("status").default("open"), // "open", "closed", "cancelled"
+  startedAt: timestamp("started_at").defaultNow(),
+  endsAt: timestamp("ends_at").notNull(), // Auto-close time (90 seconds)
+  quorumRequired: real("quorum_required").notNull(), // Minimum weighted votes needed
+  thresholdRequired: real("threshold_required").notNull(), // % needed to pass (0.65 = 65%)
+  result: text("result"), // "pass", "fail_quorum", "fail_threshold"
+  createdBy: text("created_by").notNull(), // Operator who initiated
+});
+
+// Individual ballots in a vote
+export const attitudeBallots = pgTable("attitude_ballots", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  voteId: text("vote_id").notNull(), // References attitude_votes.id
+  voterUserId: text("voter_user_id").notNull(),
+  weight: real("weight").notNull(), // 0.5 (attendee), 1.0 (player), 2.0 (operator)
+  choice: text("choice").notNull(), // "out" or "keep"
+  tags: text("tags").array(), // ["A", "B", "C", "D"] - violation categories
+  note: text("note"), // Optional note (max 140 chars)
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Moderation incident log
+export const incidents = pgTable("incidents", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: text("user_id").notNull(), // User involved in incident
+  sessionId: text("session_id"), // Ladder session if applicable
+  venueId: text("venue_id"), // Venue if applicable
+  type: text("type").notNull(), // "warning", "ejection", "suspension"
+  details: text("details").notNull(), // Description of incident
+  consequence: text("consequence"), // "ejected_night", "suspended_7d", "suspended_30d"
+  pointsPenalty: integer("points_penalty").default(0), // Ladder points deducted
+  creditsFine: integer("credits_fine").default(0), // Credits fine in cents
+  createdBy: text("created_by"), // Operator who logged incident
+  voteId: text("vote_id"), // If this came from a vote-out
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 
 // Weight Rules tracking table for consecutive losses
 export const weightRules = pgTable("weight_rules", {
@@ -662,6 +718,16 @@ export type InsertTeamChallenge = z.infer<typeof insertTeamChallengeSchema>;
 export type TeamChallengeParticipant = typeof teamChallengeParticipants.$inferSelect;
 export type InsertTeamChallengeParticipant = z.infer<typeof insertTeamChallengeParticipantSchema>;
 
+// Sportsmanship Vote-Out System Types
+export type Checkin = typeof checkins.$inferSelect;
+export type InsertCheckin = z.infer<typeof insertCheckinSchema>;
+export type AttitudeVote = typeof attitudeVotes.$inferSelect;
+export type InsertAttitudeVote = z.infer<typeof insertAttitudeVoteSchema>;
+export type AttitudeBallot = typeof attitudeBallots.$inferSelect;
+export type InsertAttitudeBallot = z.infer<typeof insertAttitudeBallotSchema>;
+export type Incident = typeof incidents.$inferSelect;
+export type InsertIncident = z.infer<typeof insertIncidentSchema>;
+
 // Challenge Pool System - Wallet and credit-based competition entries
 export const wallets = pgTable("wallets", {
   userId: varchar("user_id").primaryKey().references(() => users.id),
@@ -793,6 +859,24 @@ export const insertTeamChallengeSchema = createInsertSchema(teamChallenges).omit
 });
 
 export const insertTeamChallengeParticipantSchema = createInsertSchema(teamChallengeParticipants).omit({
+  id: true,
+  createdAt: true,
+});
+
+// Sportsmanship Vote-Out Insert Schemas
+export const insertCheckinSchema = createInsertSchema(checkins).omit({
+  id: true,
+  createdAt: true,
+});
+export const insertAttitudeVoteSchema = createInsertSchema(attitudeVotes).omit({
+  id: true,
+  startedAt: true,
+});
+export const insertAttitudeBallotSchema = createInsertSchema(attitudeBallots).omit({
+  id: true,
+  createdAt: true,
+});
+export const insertIncidentSchema = createInsertSchema(incidents).omit({
   id: true,
   createdAt: true,
 });

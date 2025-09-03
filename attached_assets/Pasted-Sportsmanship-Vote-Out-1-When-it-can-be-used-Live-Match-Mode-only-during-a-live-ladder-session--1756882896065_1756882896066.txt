@@ -1,0 +1,186 @@
+Sportsmanship Vote-Out”
+1) When it can be used
+
+Live Match Mode: only during a live ladder session (from first break → final ball).
+
+Scope: applies to players and railbirds who are actively participating (signed-in).
+
+Trigger: any operator can open a vote; players/attendees receive a ballot.
+
+2) Who can vote
+
+Eligible voters: signed-in players in that venue + verified attendees (QR check-in) + operators.
+
+Weighting (recommended):
+
+Players: 1x
+
+Verified attendees: 0.5x
+
+Operators: 2x (tie-breaker power)
+
+Anonymity: ballots are anonymous to other users; visible to operators in aggregate only.
+
+3) What “bad attitude” means (make it objective)
+
+Show a one-tap rubric on the ballot:
+
+A. Unsportsmanlike talk (insults, slurs, threats)
+
+B. Disruptive behavior (sharking, banging cues, table interference)
+
+C. Chronic stalling (beyond posted shot clock)
+
+D. Harassment (targeted, repeated)
+Voters must pick at least one category and add an optional note (max 140 chars).
+
+4) Safeguards against abuse
+
+Quorum: minimum 12 weighted votes or 30% of checked-in users (whichever is higher).
+
+Threshold: ≥65% “Vote Out” (weighted) to pass.
+
+Cooldown: a user can’t be targeted more than once per night, and no new vote can start within 15 minutes of a failed vote.
+
+Immunity windows: the current shooter is immune until their inning ends (prevents angle-shooting mid-turn).
+
+Appeal: the ejected user can appeal once to operators; operators can convert to a warning by 2/3 operator vote.
+
+5) Consequences (progressive)
+
+1st offense (same month): ejected for the night; -10 ladder points (or 100 credits fine).
+
+2nd: 7-day venue suspension; -25 points.
+
+3rd: 30-day ladder suspension; forfeit all open challenges/side pots (refunded to others).
+
+Operators can override for safety (instant ejection).
+
+6) UX flow (mobile)
+
+Operator taps: “Open Vote-Out” → selects target user.
+
+Banner appears for everyone: “Vote on sportsmanship issue – 90s left.”
+
+Ballot: “Vote Out” / “Keep In” + category tags (A–D) + optional note.
+
+Live tally (hidden to public; operators see %).
+
+Auto-close at 90s (or when quorum reached + 15s grace).
+
+Result card:
+
+Pass → “User is ejected for the night.”
+
+Fail → “Vote failed. Cooldown 15m.”
+
+7) Copy you can paste
+
+Open button: “Start Sportsmanship Vote”
+
+Ballot header: “Does this person’s behavior violate our sportsmanship rules right now?”
+
+Categories: “Unsportsmanlike talk · Disruptive · Stalling · Harassment”
+
+Result (pass): “Vote passed. For tonight, they must leave the floor. Come back respectful, come back welcome.”
+
+Result (fail): “Vote did not pass. Everyone—reset and play on.”
+
+8) Operator rules (quick SOP)
+
+Only open a vote after a direct warning, unless it’s severe (slur/harassment → immediate vote or ejection).
+
+If safety is involved, skip the vote and eject.
+
+Document in the incident log (1–2 sentences).
+
+Tech spec (drop-in)
+Tables
+-- who’s checked in (voter eligibility)
+checkins(id, user_id, venue_id, session_id, role, verified, created_at)
+
+-- a vote session
+attitude_votes(
+  id TEXT PRIMARY KEY,
+  target_user_id TEXT NOT NULL,
+  session_id TEXT NOT NULL,
+  venue_id TEXT NOT NULL,
+  status TEXT NOT NULL,            -- open | closed | canceled
+  started_at TEXT, ends_at TEXT,
+  quorum_required REAL,            -- e.g., 12.0 weighted
+  threshold_required REAL          -- e.g., 0.65
+);
+
+-- ballots
+attitude_ballots(
+  id TEXT PRIMARY KEY,
+  vote_id TEXT NOT NULL,
+  voter_user_id TEXT NOT NULL,
+  weight REAL NOT NULL,            -- 0.5, 1.0, 2.0
+  choice TEXT NOT NULL,            -- out | keep
+  tags TEXT,                       -- JSON ["A","B"]
+  note TEXT,
+  created_at TEXT
+);
+
+-- moderation log
+incidents(
+  id TEXT PRIMARY KEY,
+  user_id TEXT, session_id TEXT, venue_id TEXT,
+  type TEXT,          -- warning | ejection | suspension
+  details TEXT,
+  created_at TEXT
+);
+
+Weights (server)
+function voteWeight(role: 'player'|'attendee'|'operator') {
+  if (role === 'operator') return 2.0;
+  if (role === 'player') return 1.0;
+  return 0.5; // attendee
+}
+
+Endpoints
+POST /api/attitude-votes
+  body: { targetUserId, sessionId, venueId, endsInSec: 90 }
+  auth: operator only
+GET  /api/attitude-votes/:id        -- returns remaining time + youVoted?
+POST /api/attitude-votes/:id/vote   -- body: { choice: 'out'|'keep', tags: ['A','C'], note }
+POST /api/attitude-votes/:id/close  -- operator can force-close early
+
+Close logic
+// compute weighted totals
+outW = SUM(weight WHERE choice='out');
+keepW = SUM(weight WHERE choice='keep');
+totalW = outW + keepW;
+
+if (totalW < quorum_required) result = 'fail_quorum';
+else if (outW / totalW >= threshold_required) result = 'pass';
+else result = 'fail_threshold';
+
+if (result === 'pass') {
+  // apply consequence #1
+  logIncident(target, 'ejection', 'vote_passed');
+  // end their active matches, refund their side-pot locks, update ladder points/credits
+}
+
+Settings (good defaults)
+
+Duration: 90s
+
+Quorum: 12.0 weighted or 30% of check-ins (whichever higher)
+
+Threshold: 65% “out”
+
+Cooldown: 15 minutes system-wide
+
+Immunity: current shooter immune until inning ends
+
+Appeal: one-time to operators; 2/3 vote can downgrade to warning
+
+Quick UI components
+
+VoteBanner: sticky bar with countdown + “Tap to vote”
+
+VoteModal: two big buttons (Out / Keep) + chips for A–D + optional note
+
+OperatorPanel: live weighted totals, quorum meter, force-close, apply result
