@@ -21,6 +21,8 @@ import {
   type TeamPlayer, type InsertTeamPlayer,
   type TeamMatch, type InsertTeamMatch,
   type TeamSet, type InsertTeamSet,
+  type TeamChallenge, type InsertTeamChallenge,
+  type TeamChallengeParticipant, type InsertTeamChallengeParticipant,
   type Wallet, type InsertWallet,
   type ChallengePool, type InsertChallengePool,
   type ChallengeEntry, type InsertChallengeEntry,
@@ -365,6 +367,26 @@ export interface IStorage {
   getTeamSetsByMatch(teamMatchId: string): Promise<TeamSet[]>;
   createTeamSet(teamSet: InsertTeamSet): Promise<TeamSet>;
   updateTeamSet(id: string, updates: Partial<TeamSet>): Promise<TeamSet | undefined>;
+  
+  // Team Challenge System
+  getTeamChallenge(id: string): Promise<TeamChallenge | undefined>;
+  getAllTeamChallenges(): Promise<TeamChallenge[]>;
+  getTeamChallengesByOperator(operatorId: string): Promise<TeamChallenge[]>;
+  getTeamChallengesByType(challengeType: string): Promise<TeamChallenge[]>;
+  getTeamChallengesByStatus(status: string): Promise<TeamChallenge[]>;
+  createTeamChallenge(challenge: InsertTeamChallenge): Promise<TeamChallenge>;
+  updateTeamChallenge(id: string, updates: Partial<TeamChallenge>): Promise<TeamChallenge | undefined>;
+  acceptTeamChallenge(challengeId: string, acceptingTeamId: string): Promise<TeamChallenge | undefined>;
+  
+  getTeamChallengeParticipant(id: string): Promise<TeamChallengeParticipant | undefined>;
+  getTeamChallengeParticipantsByChallenge(challengeId: string): Promise<TeamChallengeParticipant[]>;
+  createTeamChallengeParticipant(participant: InsertTeamChallengeParticipant): Promise<TeamChallengeParticipant>;
+  updateTeamChallengeParticipant(id: string, updates: Partial<TeamChallengeParticipant>): Promise<TeamChallengeParticipant | undefined>;
+  
+  // Team Challenge Business Logic
+  calculateTeamChallengeStake(challengeType: string, individualFee: number): number;
+  validateProMembership(playerId: string): Promise<boolean>;
+  createTeamChallengeWithParticipants(challengeData: InsertTeamChallenge, teamPlayers: string[]): Promise<{ challenge: TeamChallenge; participants: TeamChallengeParticipant[] }>;
 }
 
 export class MemStorage implements IStorage {
@@ -404,6 +426,10 @@ export class MemStorage implements IStorage {
   private teamPlayers = new Map<string, TeamPlayer>();
   private teamMatches = new Map<string, TeamMatch>();
   private teamSets = new Map<string, TeamSet>();
+  
+  // Team Challenge Storage
+  private teamChallenges = new Map<string, TeamChallenge>();
+  private teamChallengeParticipants = new Map<string, TeamChallengeParticipant>();
 
   constructor() {
     // Initialize with seed data for demonstration (disabled in production)
@@ -2318,6 +2344,172 @@ export class MemStorage implements IStorage {
     const updatedTeamSet = { ...teamSet, ...updates };
     this.teamSets.set(id, updatedTeamSet);
     return updatedTeamSet;
+  }
+
+  // Team Challenge System Methods
+  async getTeamChallenge(id: string): Promise<TeamChallenge | undefined> {
+    return this.teamChallenges.get(id);
+  }
+
+  async getAllTeamChallenges(): Promise<TeamChallenge[]> {
+    return Array.from(this.teamChallenges.values());
+  }
+
+  async getTeamChallengesByOperator(operatorId: string): Promise<TeamChallenge[]> {
+    return Array.from(this.teamChallenges.values()).filter(challenge => 
+      challenge.operatorId === operatorId
+    );
+  }
+
+  async getTeamChallengesByType(challengeType: string): Promise<TeamChallenge[]> {
+    return Array.from(this.teamChallenges.values()).filter(challenge => 
+      challenge.challengeType === challengeType
+    );
+  }
+
+  async getTeamChallengesByStatus(status: string): Promise<TeamChallenge[]> {
+    return Array.from(this.teamChallenges.values()).filter(challenge => 
+      challenge.status === status
+    );
+  }
+
+  async createTeamChallenge(data: InsertTeamChallenge): Promise<TeamChallenge> {
+    const challenge: TeamChallenge = {
+      id: randomUUID(),
+      challengingTeamId: data.challengingTeamId,
+      challengeType: data.challengeType,
+      individualFee: data.individualFee,
+      totalStake: data.totalStake,
+      title: data.title,
+      description: data.description || null,
+      status: data.status || "open",
+      acceptingTeamId: data.acceptingTeamId || null,
+      challengePoolId: data.challengePoolId || null,
+      winnerId: data.winnerId || null,
+      completedAt: data.completedAt || null,
+      expiresAt: data.expiresAt || null,
+      requiresProMembership: data.requiresProMembership ?? true,
+      operatorId: data.operatorId,
+      createdAt: new Date(),
+    };
+    this.teamChallenges.set(challenge.id, challenge);
+    return challenge;
+  }
+
+  async updateTeamChallenge(id: string, updates: Partial<TeamChallenge>): Promise<TeamChallenge | undefined> {
+    const challenge = this.teamChallenges.get(id);
+    if (!challenge) return undefined;
+    
+    const updatedChallenge = { ...challenge, ...updates };
+    this.teamChallenges.set(id, updatedChallenge);
+    return updatedChallenge;
+  }
+
+  async acceptTeamChallenge(challengeId: string, acceptingTeamId: string): Promise<TeamChallenge | undefined> {
+    const challenge = this.teamChallenges.get(challengeId);
+    if (!challenge || challenge.status !== "open") return undefined;
+    
+    const updatedChallenge = { 
+      ...challenge, 
+      acceptingTeamId,
+      status: "accepted" as const
+    };
+    this.teamChallenges.set(challengeId, updatedChallenge);
+    return updatedChallenge;
+  }
+
+  async getTeamChallengeParticipant(id: string): Promise<TeamChallengeParticipant | undefined> {
+    return this.teamChallengeParticipants.get(id);
+  }
+
+  async getTeamChallengeParticipantsByChallenge(challengeId: string): Promise<TeamChallengeParticipant[]> {
+    return Array.from(this.teamChallengeParticipants.values()).filter(participant => 
+      participant.teamChallengeId === challengeId
+    );
+  }
+
+  async createTeamChallengeParticipant(data: InsertTeamChallengeParticipant): Promise<TeamChallengeParticipant> {
+    const participant: TeamChallengeParticipant = {
+      id: randomUUID(),
+      teamChallengeId: data.teamChallengeId,
+      teamId: data.teamId,
+      playerId: data.playerId,
+      feeContribution: data.feeContribution,
+      hasPaid: data.hasPaid || false,
+      membershipTier: data.membershipTier,
+      createdAt: new Date(),
+    };
+    this.teamChallengeParticipants.set(participant.id, participant);
+    return participant;
+  }
+
+  async updateTeamChallengeParticipant(id: string, updates: Partial<TeamChallengeParticipant>): Promise<TeamChallengeParticipant | undefined> {
+    const participant = this.teamChallengeParticipants.get(id);
+    if (!participant) return undefined;
+    
+    const updatedParticipant = { ...participant, ...updates };
+    this.teamChallengeParticipants.set(id, updatedParticipant);
+    return updatedParticipant;
+  }
+
+  // Team Challenge Business Logic Methods
+  calculateTeamChallengeStake(challengeType: string, individualFee: number): number {
+    const teamSize = this.getTeamSizeFromChallengeType(challengeType);
+    return individualFee * teamSize;
+  }
+
+  private getTeamSizeFromChallengeType(challengeType: string): number {
+    switch (challengeType) {
+      case "2man_army": return 2;
+      case "3man_crew": return 3;
+      case "5man_squad": return 5;
+      default: throw new Error(`Unknown challenge type: ${challengeType}`);
+    }
+  }
+
+  async validateProMembership(playerId: string): Promise<boolean> {
+    const player = this.players.get(playerId);
+    return player?.membershipTier === "pro";
+  }
+
+  async createTeamChallengeWithParticipants(
+    challengeData: InsertTeamChallenge, 
+    teamPlayers: string[]
+  ): Promise<{ challenge: TeamChallenge; participants: TeamChallengeParticipant[] }> {
+    // Validate Pro membership for all players
+    for (const playerId of teamPlayers) {
+      const isProMember = await this.validateProMembership(playerId);
+      if (!isProMember) {
+        throw new Error(`Player ${playerId} does not have Pro membership required for team challenges`);
+      }
+    }
+
+    // Calculate total stake
+    const totalStake = this.calculateTeamChallengeStake(challengeData.challengeType, challengeData.individualFee);
+    
+    // Create the challenge
+    const challenge = await this.createTeamChallenge({
+      ...challengeData,
+      totalStake,
+    });
+
+    // Create participants
+    const participants: TeamChallengeParticipant[] = [];
+    for (const playerId of teamPlayers) {
+      const player = this.players.get(playerId);
+      if (!player) throw new Error(`Player ${playerId} not found`);
+      
+      const participant = await this.createTeamChallengeParticipant({
+        teamChallengeId: challenge.id,
+        teamId: challengeData.challengingTeamId,
+        playerId,
+        feeContribution: challengeData.individualFee,
+        membershipTier: player.membershipTier || "none",
+      });
+      participants.push(participant);
+    }
+
+    return { challenge, participants };
   }
 }
 

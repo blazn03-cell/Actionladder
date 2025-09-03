@@ -30,6 +30,7 @@ import Refund from "@/pages/Refund";
 import AcceptableUse from "@/pages/AcceptableUse";
 import TeamManagement from "@/pages/TeamManagement";
 import TeamMatches from "@/pages/TeamMatches";
+import TeamChallenges from "@/components/team-challenges";
 import OperatorSubscriptions from "@/pages/OperatorSubscriptions";
 import NotFound from "@/pages/not-found";
 import Landing from "@/pages/Landing";
@@ -62,6 +63,7 @@ function Navigation({ activeTab, setActiveTab }: { activeTab: string; setActiveT
     { id: "charity", label: "Charity" },
     { id: "team-management", label: "Team Management" },
     { id: "team-matches", label: "Team Matches" },
+    { id: "team-challenges", label: "Team Challenges" },
     { id: "operator-subscriptions", label: "Operator Subs" },
   ];
 
@@ -222,6 +224,7 @@ function App() {
                 {activeTab === "charity" && <Charity />}
                 {activeTab === "team-management" && <TeamManagement />}
                 {activeTab === "team-matches" && <TeamMatches />}
+                {activeTab === "team-challenges" && <TeamChallenges />}
                 {activeTab === "operator-subscriptions" && <OperatorSubscriptions />}
               </div>
               <RealTimeNotifications />

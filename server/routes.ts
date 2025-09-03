@@ -15,6 +15,7 @@ import {
   insertLedgerSchema, insertResolutionSchema,
   insertOperatorSubscriptionSchema, insertTeamSchema, insertTeamPlayerSchema,
   insertTeamMatchSchema, insertTeamSetSchema,
+  insertTeamChallengeSchema, insertTeamChallengeParticipantSchema,
   type GlobalRole
 } from "@shared/schema";
 import { OperatorSubscriptionCalculator } from "./operator-subscription-utils";
@@ -2345,6 +2346,95 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } else {
         res.json({ message: "Captain's burden not triggered (need 2+ consecutive losses)" });
       }
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Team Challenge Routes - 2-Man Army, 3-Man Crew, 5-Man Squad
+  app.get("/api/team-challenges", async (req, res) => {
+    try {
+      const { operatorId, challengeType, status } = req.query;
+      let challenges;
+      
+      if (operatorId) {
+        challenges = await storage.getTeamChallengesByOperator(operatorId as string);
+      } else if (challengeType) {
+        challenges = await storage.getTeamChallengesByType(challengeType as string);
+      } else if (status) {
+        challenges = await storage.getTeamChallengesByStatus(status as string);
+      } else {
+        challenges = await storage.getAllTeamChallenges();
+      }
+      
+      res.json(challenges);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/team-challenges", sanitizeBody(["title", "description"]), async (req, res) => {
+    try {
+      const { teamPlayers, ...challengeData } = req.body;
+      const validatedData = insertTeamChallengeSchema.parse(challengeData);
+      
+      // Validate challenge type and fee range
+      const validTypes = ["2man_army", "3man_crew", "5man_squad"];
+      if (!validTypes.includes(validatedData.challengeType)) {
+        return res.status(400).json({ 
+          message: "Invalid challenge type. Must be: 2man_army, 3man_crew, or 5man_squad" 
+        });
+      }
+      
+      // Validate fee range ($10 - $10,000)
+      if (validatedData.individualFee < 1000 || validatedData.individualFee > 1000000) {
+        return res.status(400).json({ 
+          message: "Individual fee must be between $10 and $10,000" 
+        });
+      }
+      
+      // Create challenge with participants
+      const result = await storage.createTeamChallengeWithParticipants(
+        validatedData, 
+        teamPlayers || []
+      );
+      
+      res.status(201).json(result);
+    } catch (error: any) {
+      if (error.message.includes("Pro membership")) {
+        return res.status(400).json({ message: error.message });
+      }
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/team-challenges/:id/accept", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { acceptingTeamId, teamPlayers } = req.body;
+      
+      if (!acceptingTeamId) {
+        return res.status(400).json({ message: "acceptingTeamId is required" });
+      }
+      
+      // Validate Pro membership for accepting team players
+      if (teamPlayers && Array.isArray(teamPlayers)) {
+        for (const playerId of teamPlayers) {
+          const isProMember = await storage.validateProMembership(playerId);
+          if (!isProMember) {
+            return res.status(400).json({ 
+              message: `Player ${playerId} does not have Pro membership required for team challenges` 
+            });
+          }
+        }
+      }
+      
+      const challenge = await storage.acceptTeamChallenge(id, acceptingTeamId);
+      if (!challenge) {
+        return res.status(404).json({ message: "Team challenge not found or cannot be accepted" });
+      }
+      
+      res.json(challenge);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }

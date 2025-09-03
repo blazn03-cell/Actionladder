@@ -421,8 +421,8 @@ export const teams = pgTable("teams", {
   operatorId: text("operator_id").notNull(), // Links to operator
   hallId: text("hall_id"), // Links to pool halls
   captainId: text("captain_id").notNull(), // Team captain player ID
-  teamType: text("team_type").notNull(), // "3man", "5man"
-  maxPlayers: integer("max_players").notNull(), // 3 or 5
+  teamType: text("team_type").notNull(), // "2man", "3man", "5man"
+  maxPlayers: integer("max_players").notNull(), // 2, 3, or 5
   maxSubs: integer("max_subs").notNull(), // 2 or 3
   currentPlayers: integer("current_players").default(1), // Start with captain
   currentSubs: integer("current_subs").default(0),
@@ -442,7 +442,7 @@ export const teamPlayers = pgTable("team_players", {
   teamId: text("team_id").notNull(),
   playerId: text("player_id").notNull(),
   role: text("role").notNull(), // "captain", "player", "substitute"
-  position: integer("position"), // Lineup order (1-3 for 3man, 1-5 for 5man)
+  position: integer("position"), // Lineup order (1-2 for 2man, 1-3 for 3man, 1-5 for 5man)
   isActive: boolean("is_active").default(true),
   seasonWins: integer("season_wins").default(0),
   seasonLosses: integer("season_losses").default(0),
@@ -457,7 +457,7 @@ export const teamMatches = pgTable("team_matches", {
   operatorId: text("operator_id").notNull(),
   homeScore: integer("home_score").default(0),
   awayScore: integer("away_score").default(0),
-  maxSets: integer("max_sets").notNull(), // 3 for 3man, 5 for 5man
+  maxSets: integer("max_sets").notNull(), // 2 for 2man, 3 for 3man, 5 for 5man
   currentSet: integer("current_set").default(1),
   status: text("status").default("scheduled"), // "scheduled", "in_progress", "completed"
   winnerTeamId: text("winner_team_id"),
@@ -489,6 +489,38 @@ export const teamSets = pgTable("team_sets", {
   status: text("status").default("scheduled"), // "scheduled", "in_progress", "completed"
   completedAt: timestamp("completed_at"),
   clipUrl: text("clip_url"), // Auto-generated highlight clip for social media
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Team Challenges: 2-Man Army, 3-Man Crew, 5-Man Squad with fee structures
+export const teamChallenges = pgTable("team_challenges", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  challengingTeamId: text("challenging_team_id").notNull(), // Team creating the challenge
+  challengeType: text("challenge_type").notNull(), // "2man_army", "3man_crew", "5man_squad"
+  individualFee: integer("individual_fee").notNull(), // Fee per player in cents ($10-$10,000)
+  totalStake: integer("total_stake").notNull(), // Total team stake (individualFee × team size)
+  title: text("title").notNull(), // Challenge title/description
+  description: text("description"),
+  status: text("status").default("open"), // "open", "accepted", "in_progress", "completed", "cancelled"
+  acceptingTeamId: text("accepting_team_id"), // Team that accepts the challenge
+  challengePoolId: text("challenge_pool_id"), // Links to existing challenge pool system
+  winnerId: text("winner_id"), // Winning team ID
+  completedAt: timestamp("completed_at"),
+  expiresAt: timestamp("expires_at"), // Challenge expiry time
+  requiresProMembership: boolean("requires_pro_membership").default(true), // All team challenges require Pro
+  operatorId: text("operator_id").notNull(), // Operator managing this challenge
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Team Challenge Participants: Links individual players to team challenges
+export const teamChallengeParticipants = pgTable("team_challenge_participants", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  teamChallengeId: text("team_challenge_id").notNull(),
+  teamId: text("team_id").notNull(),
+  playerId: text("player_id").notNull(),
+  feeContribution: integer("fee_contribution").notNull(), // Individual player's fee in cents
+  hasPaid: boolean("has_paid").default(false), // Payment status
+  membershipTier: text("membership_tier").notNull(), // Must be "pro" for team challenges
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -625,6 +657,10 @@ export type TeamMatch = typeof teamMatches.$inferSelect;
 export type InsertTeamMatch = z.infer<typeof insertTeamMatchSchema>;
 export type TeamSet = typeof teamSets.$inferSelect;
 export type InsertTeamSet = z.infer<typeof insertTeamSetSchema>;
+export type TeamChallenge = typeof teamChallenges.$inferSelect;
+export type InsertTeamChallenge = z.infer<typeof insertTeamChallengeSchema>;
+export type TeamChallengeParticipant = typeof teamChallengeParticipants.$inferSelect;
+export type InsertTeamChallengeParticipant = z.infer<typeof insertTeamChallengeParticipantSchema>;
 
 // Challenge Pool System - Wallet and credit-based competition entries
 export const wallets = pgTable("wallets", {
@@ -748,6 +784,17 @@ export const insertTeamSetSchema = createInsertSchema(teamSets).omit({
   id: true,
   createdAt: true,
   completedAt: true,
+});
+
+export const insertTeamChallengeSchema = createInsertSchema(teamChallenges).omit({
+  id: true,
+  createdAt: true,
+  completedAt: true,
+});
+
+export const insertTeamChallengeParticipantSchema = createInsertSchema(teamChallengeParticipants).omit({
+  id: true,
+  createdAt: true,
 });
 
 // Tutoring System for Pro members
