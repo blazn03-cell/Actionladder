@@ -1514,10 +1514,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put("/api/side-pots/:id", async (req, res) => {
     try {
       const pool = await storage.updateChallengePool(req.params.id, req.body);
-      if (!pot) {
+      if (!pool) {
         return res.status(404).json({ message: "Side pot not found" });
       }
-      res.json(pot);
+      res.json(pool);
     } catch (error: any) {
       res.status(400).json({ message: error.message });
     }
@@ -1546,8 +1546,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { sidePotId, userId, side, amount } = req.body;
       
       // Check if pot is still open
-      const pool = await storage.getChallengePool(challengePoolId);
-      if (!pot || pot.status !== 'open') {
+      const pool = await storage.getChallengePool(sidePotId);
+      if (!pool || pool.status !== 'open') {
         return res.status(400).json({ message: "Side pot is not accepting bets" });
       }
       
@@ -1558,7 +1558,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const entry = await storage.createChallengeEntry({
-        challengePoolId,
+        challengePoolId: sidePotId,
         userId,
         side,
         amount,
@@ -1571,11 +1571,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userId,
         type: "pot_lock",
         amount: -amount,
-        refId: bet.id,
+        refId: entry.id,
         metaJson: JSON.stringify({ sidePotId, side }),
       });
       
-      res.status(201).json(bet);
+      res.status(201).json(entry);
     } catch (error: any) {
       res.status(400).json({ message: error.message });
     }
@@ -1597,18 +1597,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const challengePoolId = req.params.id;
       
       // Check if already resolved
-      const existingResolution = await storage.getResolutionByPot(sidePotId);
+      const existingResolution = await storage.getResolutionByPot(challengePoolId);
       if (existingResolution) {
         return res.status(400).json({ message: "Side pot already resolved" });
       }
       
       const pool = await storage.getChallengePool(challengePoolId);
-      if (!pot) {
+      if (!pool) {
         return res.status(404).json({ message: "Side pot not found" });
       }
       
       // Check if pot is in lockable status
-      if (!["locked", "on_hold"].includes(pot.status)) {
+      if (!["locked", "on_hold"].includes(pool.status)) {
         return res.status(400).json({ message: "Side pot cannot be resolved in current status" });
       }
       

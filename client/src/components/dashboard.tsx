@@ -7,7 +7,7 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { generateQRCodeUrl, generateJoinUrl } from "@/lib/qr-generator";
 import { generateFightNightPoster } from "@/lib/poster-generator";
 import { useToast } from "@/hooks/use-toast";
-import { Brain, TrendingUp, Zap } from "lucide-react";
+import { Brain, TrendingUp, Zap, Settings, Users, Shield } from "lucide-react";
 import type { Player, Match, Tournament, CharityEvent, KellyPool } from "@shared/schema";
 
 function StatsCard({ title, value, subtitle, icon }: { title: string; value: string | number; subtitle: string; icon: string }) {
@@ -468,6 +468,117 @@ export default function Dashboard() {
 
       {/* AI Insights Section */}
       <AIInsightsSection players={players} matches={matches} />
+
+      {/* Operator & Admin Dashboard */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Operator Subs */}
+        <Card className="bg-black/60 backdrop-blur-sm border border-blue-500/30 shadow-felt">
+          <CardHeader>
+            <CardTitle className="text-xl font-bold text-white flex items-center">
+              <Users className="mr-3 text-blue-400" />
+              Operator Subs
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-3">
+              <Button 
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                data-testid="button-manage-subscriptions"
+              >
+                Manage Subscriptions
+              </Button>
+              <Button 
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                data-testid="button-billing-history"
+              >
+                Billing History
+              </Button>
+              <Button 
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                data-testid="button-upgrade-plan"
+              >
+                Upgrade Plan
+              </Button>
+            </div>
+            <div className="bg-blue-900/20 border border-blue-600/30 rounded p-3">
+              <div className="text-sm text-blue-300">Current Plan: Basic</div>
+              <div className="text-xs text-blue-400">Up to 25 players</div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Operator Settings */}
+        <Card className="bg-black/60 backdrop-blur-sm border border-amber-500/30 shadow-felt">
+          <CardHeader>
+            <CardTitle className="text-xl font-bold text-white flex items-center">
+              <Settings className="mr-3 text-amber-400" />
+              Operator Settings
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-3">
+              <Button 
+                className="w-full bg-amber-600 hover:bg-amber-700 text-black"
+                data-testid="button-pool-hall-settings"
+              >
+                Pool Hall Settings
+              </Button>
+              <Button 
+                className="w-full bg-amber-600 hover:bg-amber-700 text-black"
+                data-testid="button-commission-rates"
+              >
+                Commission Rates
+              </Button>
+              <Button 
+                className="w-full bg-amber-600 hover:bg-amber-700 text-black"
+                data-testid="button-table-management"
+              >
+                Table Management
+              </Button>
+            </div>
+            <div className="bg-amber-900/20 border border-amber-600/30 rounded p-3">
+              <div className="text-sm text-amber-300">Active Tables: 6</div>
+              <div className="text-xs text-amber-400">Commission: 5% members, 15% others</div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Admin */}
+        <Card className="bg-black/60 backdrop-blur-sm border border-red-500/30 shadow-felt">
+          <CardHeader>
+            <CardTitle className="text-xl font-bold text-white flex items-center">
+              <Shield className="mr-3 text-red-400" />
+              Admin
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-3">
+              <Button 
+                className="w-full bg-red-600 hover:bg-red-700 text-white"
+                data-testid="button-user-management"
+              >
+                User Management
+              </Button>
+              <Button 
+                className="w-full bg-red-600 hover:bg-red-700 text-white"
+                data-testid="button-system-settings"
+              >
+                System Settings
+              </Button>
+              <Button 
+                className="w-full bg-red-600 hover:bg-red-700 text-white"
+                data-testid="button-reports-analytics"
+              >
+                Reports & Analytics
+              </Button>
+            </div>
+            <div className="bg-red-900/20 border border-red-600/30 rounded p-3">
+              <div className="text-sm text-red-300">Admin Level: Super</div>
+              <div className="text-xs text-red-400">Full system access</div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Recent Activity */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
