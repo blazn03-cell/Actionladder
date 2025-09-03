@@ -180,18 +180,17 @@ function CharityEventCard({ event }: { event: CharityEvent }) {
   const queryClient = useQueryClient();
 
   const donateToEventMutation = useMutation({
-    mutationFn: () => {
-      // This would normally integrate with Stripe for donations
-      // For now, we'll simulate a $25 donation
-      const newRaised = event.raised + 25;
-      return apiRequest("PUT", `/api/charity-events/${event.id}`, { raised: newRaised });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/charity-events"] });
-      toast({
-        title: "Thank You!",
-        description: "Your donation has been recorded.",
+    mutationFn: async ({ amount, email }: { amount: number; email?: string }) => {
+      const response = await apiRequest("POST", "/api/charity/donate", {
+        charityEventId: event.id,
+        amount,
+        donorEmail: email
       });
+      return response;
+    },
+    onSuccess: (data: any) => {
+      // Redirect to Stripe checkout
+      window.location.href = data.url;
     },
     onError: (error: any) => {
       toast({
@@ -223,14 +222,12 @@ function CharityEventCard({ event }: { event: CharityEvent }) {
   const progressPercentage = event.goal > 0 ? (event.raised / event.goal) * 100 : 0;
   const isCompleted = event.raised >= event.goal;
 
-  const handleDonate = () => {
+  const handleDonate = (amount: number = 25) => {
     toast({
       title: "Processing Donation",
       description: "Redirecting to secure payment...",
     });
-    // This would normally redirect to Stripe checkout for donations
-    // For demo purposes, we'll simulate a donation
-    donateToEventMutation.mutate();
+    donateToEventMutation.mutate({ amount });
   };
 
   return (

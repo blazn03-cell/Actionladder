@@ -6,7 +6,7 @@ import { AIService } from "./ai-service";
 import { registerAdminRoutes, registerOperatorRoutes, payStaffFromInvoice } from "./admin-routes";
 import { registerHallRoutes } from "./hall-routes";
 import { sanitizeBody, sanitizeResponse } from "./sanitizeMiddleware";
-import { createSafeCheckoutSession, createSafeProduct, createSafePrice, stripe } from "./stripeSafe";
+import { createSafeCheckoutSession, createSafeProduct, createSafePrice } from "./stripeSafe";
 import { 
   insertPlayerSchema, insertMatchSchema, insertTournamentSchema,
   insertKellyPoolSchema, insertBountySchema, insertCharityEventSchema,
@@ -35,6 +35,17 @@ const prices = {
   medium: process.env.MEDIUM_PRICE_ID,
   large: process.env.LARGE_PRICE_ID,
   mega: process.env.MEGA_PRICE_ID,
+  // Charity Donation System
+  charity_product: "prod_Sz4wWq0exnJOBv", // ActionLadder Charity Donations
+  charity_donations: {
+    "5": "price_1S36mVDc2BliYufwKkppBTdZ",
+    "10": "price_1S36mWDc2BliYufw9SnYauG6", 
+    "25": "price_1S36mWDc2BliYufwdLec5IH6",
+    "50": "price_1S36mWDc2BliYufwnyruktLt",
+    "100": "price_1S36mWDc2BliYufwMMQxtrpd",
+    "250": "price_1S36mXDc2BliYufw8KoRGk5g",
+    "500": "price_1S36mXDc2BliYufwhW9OUZng"
+  }
 };
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -351,6 +362,71 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(event);
     } catch (error: any) {
       res.status(400).json({ message: error.message });
+    }
+  });
+
+  // Charity Donation Checkout
+  app.post("/api/charity/donate", async (req, res) => {
+    try {
+      const { charityEventId, amount, donorEmail } = req.body;
+      
+      if (!charityEventId || !amount || amount < 5) {
+        return res.status(400).json({ message: "Event ID and minimum $5 donation required" });
+      }
+
+      // Get charity event details
+      const charityEvent = await storage.getCharityEvent(charityEventId);
+      if (!charityEvent) {
+        return res.status(404).json({ message: "Charity event not found" });
+      }
+
+      // Use predefined price if it matches, otherwise create custom price
+      let priceId = (prices.charity_donations as any)[amount.toString()];
+      
+      if (!priceId) {
+        // Create custom price for amounts not in our predefined list
+        const customPrice = await stripe.prices.create({
+          currency: "usd",
+          unit_amount: amount * 100, // Convert to cents
+          product: prices.charity_product,
+          metadata: {
+            type: "charity_donation",
+            custom_amount: amount.toString(),
+            charity_event_id: charityEventId
+          }
+        });
+        priceId = customPrice.id;
+      }
+
+      // Create Stripe checkout session
+      const session = await createSafeCheckoutSession({
+        mode: "payment",
+        customer_email: donorEmail || undefined,
+        line_items: [{
+          price: priceId,
+          quantity: 1,
+        }],
+        success_url: `${process.env.APP_URL || 'http://localhost:5000'}/charity/success?session_id={CHECKOUT_SESSION_ID}&event_id=${charityEventId}`,
+        cancel_url: `${process.env.APP_URL || 'http://localhost:5000'}/charity`,
+        metadata: {
+          type: "charity_donation",
+          charity_event_id: charityEventId,
+          amount: amount.toString(),
+          event_name: charityEvent.name
+        },
+        payment_intent_data: {
+          metadata: {
+            type: "charity_donation",
+            charity_event_id: charityEventId,
+            amount: amount.toString()
+          }
+        }
+      });
+
+      res.json({ url: session.url });
+    } catch (error: any) {
+      console.error("Charity donation error:", error);
+      res.status(500).json({ message: "Error creating donation checkout: " + error.message });
     }
   });
 
@@ -832,6 +908,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     console.log(`One-time payment succeeded: ${paymentIntent.id}`);
   }
 
+  async function handleCharityDonation(paymentIntent: any): Promise<void> {
+    const { charity_event_id, amount } = paymentIntent.metadata;
+    
+    if (charity_event_id && amount) {
+      try {
+        const charityEvent = await storage.getCharityEvent(charity_event_id);
+        if (charityEvent) {
+          const donationAmount = parseInt(amount);
+          await storage.updateCharityEvent(charity_event_id, {
+            raised: charityEvent.raised + donationAmount
+          });
+          console.log(`✅ Charity donation processed: $${donationAmount} for event ${charity_event_id}`);
+        }
+      } catch (error: any) {
+        console.error(`❌ Failed to process charity donation:`, error.message);
+      }
+    }
+  }
+
   async function handleRefund(charge: any): Promise<void> {
     // Handle refunds
     console.log(`Charge refunded: ${charge.id}`);
@@ -875,7 +970,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           await handleInvoiceFailed(event.data.object);
           break;
         case 'payment_intent.succeeded':
-          await handleOneTime(event.data.object);
+          const paymentIntent = event.data.object;
+          if (paymentIntent.metadata?.type === 'charity_donation') {
+            await handleCharityDonation(paymentIntent);
+          } else {
+            await handleOneTime(paymentIntent);
+          }
           break;
         case 'charge.refunded':
           await handleRefund(event.data.object);
