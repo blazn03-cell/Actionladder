@@ -26,24 +26,23 @@ function AIInsightsSection({ players, matches }: { players: Player[]; matches: M
   const { toast } = useToast();
 
   const getAIInsightsMutation = useMutation({
-    mutationFn: () =>
-      fetch('/api/ai/community-chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          question: "Analyze the current ladder trends, player activity, and provide insights about the overall state of competition in the ActionLadder billiards community." 
-        })
-      }).then(res => res.json()),
+    mutationFn: () => fetch('/api/ai/community-chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        question: "Analyze the current ladder trends, player activity, and provide insights about the overall state of competition in the ActionLadder billiards community."
+      })
+    }).then(res => res.json()),
     onSuccess: (data) => {
       setAiInsights(data.answer);
-      toast({ 
-        title: "AI Insights Generated!", 
-        description: "Current ladder analysis is ready." 
+      toast({
+        title: "AI Insights Generated!",
+        description: "Current ladder analysis is ready."
       });
     },
     onError: () => {
-      toast({ 
-        title: "Analysis Failed", 
+      toast({
+        title: "Analysis Failed",
         description: "Unable to generate insights at this time.",
         variant: "destructive"
       });
@@ -51,24 +50,23 @@ function AIInsightsSection({ players, matches }: { players: Player[]; matches: M
   });
 
   const getLadderAdviceMutation = useMutation({
-    mutationFn: () =>
-      fetch('/api/ai/community-chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          question: "What strategies should players use to climb the ladder effectively? Consider rating differences, match selection, and tournament participation." 
-        })
-      }).then(res => res.json()),
+    mutationFn: () => fetch('/api/ai/community-chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        question: "What strategies should players use to climb the ladder effectively? Consider rating differences, match selection, and tournament participation."
+      })
+    }).then(res => res.json()),
     onSuccess: (data) => {
       setLadderAdvice(data.answer);
-      toast({ 
-        title: "Strategy Guide Ready!", 
-        description: "AI ladder climbing advice generated." 
+      toast({
+        title: "Strategy Guide Ready!",
+        description: "AI ladder climbing advice generated."
       });
     },
     onError: () => {
-      toast({ 
-        title: "Strategy Failed", 
+      toast({
+        title: "Strategy Failed",
         description: "Unable to generate strategy at this time.",
         variant: "destructive"
       });
@@ -91,14 +89,8 @@ function AIInsightsSection({ players, matches }: { players: Player[]; matches: M
             className="bg-green-600 hover:bg-green-700 text-white"
             data-testid="button-ai-insights"
           >
-            {getAIInsightsMutation.isPending ? (
-              <LoadingSpinner size="sm" />
-            ) : (
-              <>
-                <TrendingUp className="w-4 h-4 mr-2" />
-                Get Ladder Insights
-              </>
-            )}
+            {getAIInsightsMutation.isPending ? <LoadingSpinner /> : <TrendingUp className="mr-2 h-4 w-4" />}
+            Analyze Current Trends
           </Button>
           <Button
             onClick={() => getLadderAdviceMutation.mutate()}
@@ -106,39 +98,22 @@ function AIInsightsSection({ players, matches }: { players: Player[]; matches: M
             className="bg-green-600 hover:bg-green-700 text-white"
             data-testid="button-ladder-advice"
           >
-            {getLadderAdviceMutation.isPending ? (
-              <LoadingSpinner size="sm" />
-            ) : (
-              <>
-                <Zap className="w-4 h-4 mr-2" />
-                Climbing Strategy
-              </>
-            )}
+            {getLadderAdviceMutation.isPending ? <LoadingSpinner /> : <Zap className="mr-2 h-4 w-4" />}
+            Get Climbing Strategy
           </Button>
         </div>
 
-        {/* AI Insights Display */}
         {aiInsights && (
-          <div className="bg-gray-900/50 border border-green-500/20 rounded-lg p-4">
-            <h4 className="text-green-400 font-semibold mb-2 flex items-center">
-              <TrendingUp className="w-4 h-4 mr-1" />
-              Current Ladder Analysis
-            </h4>
-            <div className="text-sm text-gray-300 whitespace-pre-wrap">
-              {aiInsights}
-            </div>
+          <div className="bg-green-900/20 border border-green-600/30 rounded p-4">
+            <h4 className="font-semibold text-green-300 mb-2">📊 Community Analysis</h4>
+            <p className="text-sm text-green-200">{aiInsights}</p>
           </div>
         )}
 
         {ladderAdvice && (
-          <div className="bg-gray-900/50 border border-green-500/20 rounded-lg p-4">
-            <h4 className="text-green-400 font-semibold mb-2 flex items-center">
-              <Zap className="w-4 h-4 mr-1" />
-              AI Strategy Guide
-            </h4>
-            <div className="text-sm text-gray-300 whitespace-pre-wrap">
-              {ladderAdvice}
-            </div>
+          <div className="bg-green-900/20 border border-green-600/30 rounded p-4">
+            <h4 className="font-semibold text-green-300 mb-2">🎯 Strategy Guide</h4>
+            <p className="text-sm text-green-200">{ladderAdvice}</p>
           </div>
         )}
       </CardContent>
@@ -150,7 +125,6 @@ function KingsOfTheHill({ players }: { players: Player[] }) {
   const sortedPlayers = [...players].sort((a, b) => b.points - a.points);
   const hiDivision = sortedPlayers.filter(p => p.rating >= 600);
   const loDivision = sortedPlayers.filter(p => p.rating < 600);
-  
   const kingHI = hiDivision[0];
   const kingLO = loDivision[0];
 
@@ -185,8 +159,8 @@ function KingsOfTheHill({ players }: { players: Player[] }) {
                   </div>
                 </div>
                 <div className="mt-3 flex space-x-2">
-                  <Button 
-                    size="sm" 
+                  <Button
+                    size="sm"
                     variant="destructive"
                     className="text-xs"
                     data-testid="challenge-king-hi"
@@ -200,7 +174,7 @@ function KingsOfTheHill({ players }: { players: Player[] }) {
               <div className="text-gray-400">No players in division</div>
             )}
           </div>
-          
+
           {/* 599 & Under Division King */}
           <div className="bg-gradient-to-br from-accent/20 to-accent/40 border border-accent/30 rounded-lg p-4">
             <div className="flex items-center justify-between mb-3">
@@ -210,37 +184,33 @@ function KingsOfTheHill({ players }: { players: Player[] }) {
             {kingLO ? (
               <>
                 <div className="flex items-center space-x-3">
-                  <div className="w-12 h-12 bg-gradient-to-br from-accent to-felt-green rounded-full flex items-center justify-center">
-                    <span className="text-lg font-bold text-white">
+                  <div className="w-12 h-12 bg-gradient-to-br from-accent to-orange-500 rounded-full flex items-center justify-center">
+                    <span className="text-lg font-bold text-gray-900">
                       {kingLO.name.split(' ').map(n => n[0]).join('')}
                     </span>
                   </div>
                   <div>
                     <div className="font-bold text-white">{kingLO.name}</div>
                     <div className="text-sm text-gray-400">{kingLO.city} • {kingLO.points} pts</div>
-                    <div className="text-xs text-accent">⚡ {kingLO.streak === 0 ? 'Fresh crown' : `${kingLO.streak}-game streak`}</div>
+                    <div className="text-xs text-accent">🔥 {kingLO.streak}-game streak</div>
                   </div>
                 </div>
                 <div className="mt-3 flex space-x-2">
-                  <Button 
-                    size="sm" 
+                  <Button
+                    size="sm"
                     variant="destructive"
                     className="text-xs"
                     data-testid="challenge-king-lo"
                   >
                     Challenge King
                   </Button>
-                  <span className="text-xs text-accent">Auto-bounty: $30</span>
+                  <span className="text-xs text-accent">Auto-bounty: $25</span>
                 </div>
               </>
             ) : (
               <div className="text-gray-400">No players in division</div>
             )}
           </div>
-        </div>
-        
-        <div className="mt-4 text-sm text-gray-400">
-          <span className="text-red-400 font-semibold">⚠️ King's Rule:</span> Win & stay King. Lose & drop hard (3–7 spots).
         </div>
       </CardContent>
     </Card>
@@ -258,7 +228,7 @@ function QRCodeSection() {
         title: "Generating Poster",
         description: "Creating fight night poster with top 2 players...",
       });
-      
+
       // This would normally use real player data
       const posterData = {
         player1: { name: "Tyga Hoodz", rating: 620, city: "San Marcos" },
@@ -267,18 +237,18 @@ function QRCodeSection() {
           title: "Friday Night Fights",
           date: "This Friday 8PM",
           location: "ActionLadder",
-          stakes: "$150"
+          entryFee: "$150"
         }
       };
-      
+
       const posterUrl = await generateFightNightPoster(posterData);
-      
+
       // Create download link
       const link = document.createElement('a');
       link.href = posterUrl;
       link.download = 'fight-night-poster.png';
       link.click();
-      
+
       toast({
         title: "Poster Generated",
         description: "Fight night poster has been downloaded!",
@@ -300,23 +270,22 @@ function QRCodeSection() {
       <CardContent>
         {/* QR Code */}
         <div className="bg-white p-4 rounded-lg mb-4">
-          <img 
-            src={qrCodeUrl} 
-            alt="QR Code to join ladder" 
+          <img
+            src={qrCodeUrl}
+            alt="QR Code to join ladder"
             className="w-32 h-32 mx-auto"
             data-testid="qr-code"
           />
         </div>
-        
         <div className="text-center text-sm text-gray-400 mb-4">
           Scan to join ActionLadder instantly
         </div>
-        
+
         {/* Fight Night Poster Generator */}
         <div className="bg-gradient-to-r from-red-600/20 to-transparent border border-red-500/30 rounded-lg p-4">
           <div className="font-semibold text-white mb-2">🥊 Fight Night Poster</div>
           <div className="text-sm text-gray-400 mb-3">Auto-generate with top 2 players</div>
-          <Button 
+          <Button
             onClick={handleGeneratePoster}
             className="w-full bg-red-500/20 hover:bg-red-500/40 text-red-400"
             data-testid="button-generate-poster"
@@ -364,9 +333,12 @@ function RecentMatches({ matches, players }: { matches: Match[]; players: Player
             const loser = getPlayerName(
               match.winner === match.challenger ? match.opponent : match.challenger
             );
-            
+
             return (
-              <div key={match.id} className="flex items-center justify-between p-3 bg-gradient-to-r from-white/5 to-transparent rounded-lg">
+              <div
+                key={match.id}
+                className="flex items-center justify-between p-3 bg-gradient-to-r from-white/5 to-transparent rounded-lg"
+              >
                 <div className="flex items-center space-x-4">
                   <div className="w-10 h-10 bg-gradient-to-br from-neon-green to-accent rounded-full flex items-center justify-center">
                     <span className="text-sm font-bold text-felt-dark">W</span>
@@ -374,7 +346,7 @@ function RecentMatches({ matches, players }: { matches: Match[]; players: Player
                   <div>
                     <div className="font-semibold text-white">{winner} defeated {loser}</div>
                     <div className="text-sm text-gray-400">
-                      {match.game} • ${match.stake} stake • {match.table}
+                      {match.game} • ${match.stake} entry fee • {match.table}
                     </div>
                   </div>
                 </div>
@@ -434,28 +406,28 @@ export default function Dashboard() {
     <div className="space-y-8">
       {/* Stats Overview */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <StatsCard 
-          title="Break & Run Jackpot" 
-          value={`$${jackpotData?.jackpot || 847}`} 
-          subtitle="2% of stakes feed this" 
+        <StatsCard
+          title="Break & Run Jackpot"
+          value={`$${jackpotData?.jackpot || 847}`}
+          subtitle="2% of entry fees feed this"
           icon="💰"
         />
-        <StatsCard 
-          title="Active Players" 
-          value={activePlayers} 
-          subtitle="Two divisions" 
+        <StatsCard
+          title="Active Players"
+          value={activePlayers}
+          subtitle="Two divisions"
           icon="👥"
         />
-        <StatsCard 
-          title="Live Matches" 
-          value={liveMatches} 
-          subtitle={`${upcomingMatches} upcoming`} 
+        <StatsCard
+          title="Live Matches"
+          value={liveMatches}
+          subtitle={`${upcomingMatches} upcoming`}
           icon="🎯"
         />
-        <StatsCard 
-          title="Total Stakes" 
-          value={`$${totalStakes.toLocaleString()}`} 
-          subtitle={`${completedMatches} completed`} 
+        <StatsCard
+          title="Total Stakes"
+          value={`$${totalStakes.toLocaleString()}`}
+          subtitle={`${completedMatches} completed`}
           icon="💵"
         />
       </div>
@@ -469,118 +441,7 @@ export default function Dashboard() {
       {/* AI Insights Section */}
       <AIInsightsSection players={players} matches={matches} />
 
-      {/* Operator & Admin Dashboard */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Operator Subs */}
-        <Card className="bg-black/60 backdrop-blur-sm border border-blue-500/30 shadow-felt">
-          <CardHeader>
-            <CardTitle className="text-xl font-bold text-white flex items-center">
-              <Users className="mr-3 text-blue-400" />
-              Operator Subs
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-3">
-              <Button 
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white"
-                data-testid="button-manage-subscriptions"
-              >
-                Manage Subscriptions
-              </Button>
-              <Button 
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white"
-                data-testid="button-billing-history"
-              >
-                Billing History
-              </Button>
-              <Button 
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white"
-                data-testid="button-upgrade-plan"
-              >
-                Upgrade Plan
-              </Button>
-            </div>
-            <div className="bg-blue-900/20 border border-blue-600/30 rounded p-3">
-              <div className="text-sm text-blue-300">Current Plan: Basic</div>
-              <div className="text-xs text-blue-400">Up to 25 players</div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Operator Settings */}
-        <Card className="bg-black/60 backdrop-blur-sm border border-amber-500/30 shadow-felt">
-          <CardHeader>
-            <CardTitle className="text-xl font-bold text-white flex items-center">
-              <Settings className="mr-3 text-amber-400" />
-              Operator Settings
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-3">
-              <Button 
-                className="w-full bg-amber-600 hover:bg-amber-700 text-black"
-                data-testid="button-pool-hall-settings"
-              >
-                Pool Hall Settings
-              </Button>
-              <Button 
-                className="w-full bg-amber-600 hover:bg-amber-700 text-black"
-                data-testid="button-commission-rates"
-              >
-                Commission Rates
-              </Button>
-              <Button 
-                className="w-full bg-amber-600 hover:bg-amber-700 text-black"
-                data-testid="button-table-management"
-              >
-                Table Management
-              </Button>
-            </div>
-            <div className="bg-amber-900/20 border border-amber-600/30 rounded p-3">
-              <div className="text-sm text-amber-300">Active Tables: 6</div>
-              <div className="text-xs text-amber-400">Commission: 5% members, 15% others</div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Admin */}
-        <Card className="bg-black/60 backdrop-blur-sm border border-red-500/30 shadow-felt">
-          <CardHeader>
-            <CardTitle className="text-xl font-bold text-white flex items-center">
-              <Shield className="mr-3 text-red-400" />
-              Admin
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-3">
-              <Button 
-                className="w-full bg-red-600 hover:bg-red-700 text-white"
-                data-testid="button-user-management"
-              >
-                User Management
-              </Button>
-              <Button 
-                className="w-full bg-red-600 hover:bg-red-700 text-white"
-                data-testid="button-system-settings"
-              >
-                System Settings
-              </Button>
-              <Button 
-                className="w-full bg-red-600 hover:bg-red-700 text-white"
-                data-testid="button-reports-analytics"
-              >
-                Reports & Analytics
-              </Button>
-            </div>
-            <div className="bg-red-900/20 border border-red-600/30 rounded p-3">
-              <div className="text-sm text-red-300">Admin Level: Super</div>
-              <div className="text-xs text-red-400">Full system access</div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Recent Activity */}
+      {/* Recent Matches */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <RecentMatches matches={matches} players={players} />
       </div>
@@ -606,7 +467,6 @@ export default function Dashboard() {
               <div className="text-sm text-gray-400">Cities</div>
             </div>
           </div>
-          
           <div className="mt-6 text-center">
             <div className="text-sm text-gray-400 mb-2">Pool. Points. Pride.</div>
             <div className="text-xs text-gray-500">In here, respect is earned in racks, not words</div>

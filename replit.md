@@ -73,6 +73,14 @@ Complete production-ready challenge pool infrastructure featuring:
 - Built React UI components for both user entries and operator management
 - Integrated Stripe payment processing for wallet top-ups
 - **Updated all language to league-safe terminology** - replaced gambling terms with league/competition language for legal compliance
+- **Implemented comprehensive three-tier authentication system** (January 2025)
+- Created distinct user roles: Creator/Owner, Operator, and Player with specialized dashboards
+- Added role-based authentication with password login and 2FA for Creator accounts
+- **Deployed automatic language sanitization system** (January 2025)
+- Added global text sanitization that replaces gambling terms with league-safe language
+- Integrated sanitization middleware across all API endpoints
+- Created SafeText React component for automatic UI text sanitization
+- Added Stripe-safe wrappers to ensure payment descriptions use appropriate language
 
 ## Development Setup
 - Uses Vite for frontend development server

@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Target, Trophy, Users, DollarSign, Star, Zap, Calendar, TrendingUp } from "lucide-react";
+import SafeText from "@/components/SafeText";
 
 export default function PlayerDashboard() {
   const { data: playerStats } = useQuery({
@@ -27,7 +28,9 @@ export default function PlayerDashboard() {
           <Target className="mr-3 text-neon-green" />
           Player Dashboard
         </h1>
-        <p className="text-gray-400 mt-2">{playerStats?.playerName || "Player"} • {playerStats?.tier || "Rookie"} Division</p>
+        <p className="text-gray-400 mt-2">
+          <SafeText>{`${playerStats?.playerName || "Player"} • ${playerStats?.tier || "Rookie"} Division`}</SafeText>
+        </p>
       </div>
 
       {/* Player Stats */}

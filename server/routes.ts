@@ -5,6 +5,8 @@ import { storage } from "./storage";
 import { AIService } from "./ai-service";
 import { registerAdminRoutes, registerOperatorRoutes, payStaffFromInvoice } from "./admin-routes";
 import { registerHallRoutes } from "./hall-routes";
+import { sanitizeBody, sanitizeResponse } from "./sanitizeMiddleware";
+import { createSafeCheckoutSession, createSafeProduct, createSafePrice, stripe } from "./stripeSafe";
 import { 
   insertPlayerSchema, insertMatchSchema, insertTournamentSchema,
   insertKellyPoolSchema, insertBountySchema, insertCharityEventSchema,
@@ -34,6 +36,9 @@ const prices = {
 };
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  
+  // Global response sanitization (sanitizes all outgoing text)
+  app.use(sanitizeResponse());
   
   // Health check endpoint (required for production deployment)
   app.get("/healthz", (_, res) => res.send("ok"));
@@ -111,7 +116,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/players", async (req, res) => {
+  app.post("/api/players", sanitizeBody(["name", "username", "notes", "bio"]), async (req, res) => {
     try {
       const validatedData = insertPlayerSchema.parse(req.body);
       const player = await storage.createPlayer(validatedData);
@@ -121,7 +126,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/players/:id", async (req, res) => {
+  app.put("/api/players/:id", sanitizeBody(["name", "username", "notes", "bio"]), async (req, res) => {
     try {
       const { id } = req.params;
       const player = await storage.updatePlayer(id, req.body);
@@ -192,7 +197,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/matches", async (req, res) => {
+  app.post("/api/matches", sanitizeBody(["notes", "description", "title"]), async (req, res) => {
     try {
       const validatedData = insertMatchSchema.parse(req.body);
       const match = await storage.createMatch(validatedData);
@@ -202,7 +207,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/matches/:id", async (req, res) => {
+  app.put("/api/matches/:id", sanitizeBody(["notes", "description", "title"]), async (req, res) => {
     try {
       const { id } = req.params;
       const match = await storage.updateMatch(id, req.body);
@@ -225,7 +230,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/tournaments", async (req, res) => {
+  app.post("/api/tournaments", sanitizeBody(["title", "description", "name", "rules"]), async (req, res) => {
     try {
       const validatedData = insertTournamentSchema.parse(req.body);
       const tournament = await storage.createTournament(validatedData);
@@ -235,7 +240,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/tournaments/:id", async (req, res) => {
+  app.put("/api/tournaments/:id", sanitizeBody(["title", "description", "name", "rules"]), async (req, res) => {
     try {
       const { id } = req.params;
       const tournament = await storage.updateTournament(id, req.body);
@@ -447,7 +452,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Stripe payment routes
-  app.post("/api/create-payment-intent", async (req, res) => {
+  app.post("/api/create-payment-intent", sanitizeBody(["description", "statement_descriptor"]), async (req, res) => {
     try {
       const { amount, tournamentId, kellyPoolId } = req.body;
       const paymentIntent = await stripe.paymentIntents.create({
@@ -465,7 +470,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Enhanced Stripe Checkout Session for Subscriptions and One-time Payments
-  app.post("/api/billing/checkout", async (req, res) => {
+  app.post("/api/billing/checkout", sanitizeBody(["description", "name", "title"]), async (req, res) => {
     try {
       const { priceIds = [], mode = 'subscription', quantities = [], metadata = {}, userId } = req.body;
       
@@ -474,7 +479,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         quantity: quantities[i] ?? 1,
       }));
 
-      const session = await stripe.checkout.sessions.create({
+      const session = await createSafeCheckoutSession({
         mode, // 'subscription' or 'payment'
         line_items,
         success_url: `${process.env.APP_BASE_URL || 'http://localhost:5000'}/billing/success?session_id={CHECKOUT_SESSION_ID}`,

@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Crown, Users, DollarSign, AlertTriangle, Settings, BarChart3, Shield } from "lucide-react";
+import SafeText from "@/components/SafeText";
 
 export default function CreatorDashboard() {
   const { data: globalStats } = useQuery({

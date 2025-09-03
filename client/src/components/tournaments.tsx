@@ -27,13 +27,22 @@ const tournamentSchema = z.object({
 type TournamentFormData = z.infer<typeof tournamentSchema>;
 
 const gameTypes = [
-  "8-Ball", "9-Ball", "10-Ball", "Straight Pool", "One Pocket", 
-  "Bank Pool", "Rotation", "Cut Throat"
+  "8-Ball",
+  "9-Ball", 
+  "10-Ball",
+  "Straight Pool",
+  "One Pocket",
+  "Bank Pool",
+  "Rotation",
+  "Cut Throat"
 ];
 
 const formats = [
-  "Single Elimination", "Double Elimination", "Round Robin", 
-  "Swiss System", "Race Format"
+  "Single Elimination",
+  "Double Elimination", 
+  "Round Robin",
+  "Swiss System",
+  "Race Format"
 ];
 
 function CreateTournamentDialog() {
@@ -80,7 +89,6 @@ function CreateTournamentDialog() {
       status: "open",
       stripeProductId: null,
     };
-
     createTournamentMutation.mutate(tournamentData);
   };
 
@@ -107,13 +115,16 @@ function CreateTournamentDialog() {
                 <FormItem>
                   <FormLabel className="text-gray-300">Tournament Name</FormLabel>
                   <FormControl>
-                    <Input {...field} placeholder="Friday Night Fights" data-testid="input-tournament-name" />
+                    <Input 
+                      {...field} 
+                      placeholder="Friday Night Fights"
+                      data-testid="input-tournament-name"
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
-
             <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}
@@ -123,17 +134,16 @@ function CreateTournamentDialog() {
                     <FormLabel className="text-gray-300">Entry Fee ($)</FormLabel>
                     <FormControl>
                       <Input 
-                        type="number" 
                         {...field} 
+                        type="number"
                         onChange={(e) => field.onChange(Number(e.target.value))}
-                        data-testid="input-entry-fee"
+                        data-testid="input-tournament-entry"
                       />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-
               <FormField
                 control={form.control}
                 name="maxPlayers"
@@ -142,10 +152,10 @@ function CreateTournamentDialog() {
                     <FormLabel className="text-gray-300">Max Players</FormLabel>
                     <FormControl>
                       <Input 
-                        type="number" 
                         {...field} 
+                        type="number"
                         onChange={(e) => field.onChange(Number(e.target.value))}
-                        data-testid="input-max-players"
+                        data-testid="input-tournament-max-players"
                       />
                     </FormControl>
                     <FormMessage />
@@ -153,7 +163,6 @@ function CreateTournamentDialog() {
                 )}
               />
             </div>
-
             <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}
@@ -163,13 +172,15 @@ function CreateTournamentDialog() {
                     <FormLabel className="text-gray-300">Game Type</FormLabel>
                     <Select onValueChange={field.onChange} defaultValue={field.value}>
                       <FormControl>
-                        <SelectTrigger data-testid="select-game-type">
+                        <SelectTrigger data-testid="select-tournament-game">
                           <SelectValue placeholder="Select game" />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
                         {gameTypes.map((game) => (
-                          <SelectItem key={game} value={game}>{game}</SelectItem>
+                          <SelectItem key={game} value={game}>
+                            {game}
+                          </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
@@ -177,7 +188,6 @@ function CreateTournamentDialog() {
                   </FormItem>
                 )}
               />
-
               <FormField
                 control={form.control}
                 name="format"
@@ -186,13 +196,15 @@ function CreateTournamentDialog() {
                     <FormLabel className="text-gray-300">Format</FormLabel>
                     <Select onValueChange={field.onChange} defaultValue={field.value}>
                       <FormControl>
-                        <SelectTrigger data-testid="select-format">
+                        <SelectTrigger data-testid="select-tournament-format">
                           <SelectValue placeholder="Select format" />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
                         {formats.map((format) => (
-                          <SelectItem key={format} value={format}>{format}</SelectItem>
+                          <SelectItem key={format} value={format}>
+                            {format}
+                          </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
@@ -201,29 +213,14 @@ function CreateTournamentDialog() {
                 )}
               />
             </div>
-
-            <div className="flex justify-end space-x-2">
-              <Button 
-                type="button" 
-                variant="outline" 
-                onClick={() => setOpen(false)}
-                data-testid="button-cancel"
-              >
-                Cancel
-              </Button>
-              <Button 
-                type="submit" 
-                disabled={createTournamentMutation.isPending}
-                className="bg-neon-green text-felt-dark hover:bg-neon-green/90"
-                data-testid="button-submit-tournament"
-              >
-                {createTournamentMutation.isPending ? (
-                  <LoadingSpinner size="sm" />
-                ) : (
-                  "Create Tournament"
-                )}
-              </Button>
-            </div>
+            <Button 
+              type="submit" 
+              className="w-full"
+              disabled={createTournamentMutation.isPending}
+              data-testid="button-submit-tournament"
+            >
+              {createTournamentMutation.isPending ? <LoadingSpinner /> : "Create Tournament"}
+            </Button>
           </form>
         </Form>
       </DialogContent>
@@ -241,31 +238,29 @@ function TournamentCard({ tournament }: { tournament: Tournament }) {
       title: "Joining Tournament",
       description: "Redirecting to payment...",
     });
-    
     // This would normally create a Stripe payment intent and redirect
     window.location.href = `/checkout?type=tournament&id=${tournament.id}&amount=${tournament.entry}`;
   };
 
   const getTournamentPredictionMutation = useMutation({
-    mutationFn: () =>
-      fetch('/api/ai/community-chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          question: `Analyze this tournament: ${tournament.name} (${tournament.format} ${tournament.game}). Entry: $${tournament.entry}, Max Players: ${tournament.maxPlayers}, Current: ${tournament.currentPlayers || 0}. Predict likely winners, bracket outcomes, and key factors that will determine success.` 
-        })
-      }).then(res => res.json()),
+    mutationFn: () => fetch('/api/ai/community-chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        question: `Analyze this tournament: ${tournament.name} (${tournament.format} ${tournament.game}). Entry: $${tournament.entry}, Max Players: ${tournament.maxPlayers}, Current: ${tournament.currentPlayers || 0}. Predict likely winners, bracket outcomes, and key factors that will determine success.`
+      })
+    }).then(res => res.json()),
     onSuccess: (data) => {
       setAiPrediction(data.answer);
       setShowAiContent(true);
-      toast({ 
-        title: "Tournament Analysis Ready!", 
-        description: "AI predictions and insights generated." 
+      toast({
+        title: "Tournament Analysis Ready!",
+        description: "AI predictions and insights generated."
       });
     },
     onError: () => {
-      toast({ 
-        title: "Prediction Failed", 
+      toast({
+        title: "Prediction Failed",
         description: "Unable to generate tournament analysis.",
         variant: "destructive"
       });
@@ -274,14 +269,10 @@ function TournamentCard({ tournament }: { tournament: Tournament }) {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "open":
-        return "bg-neon-green/20 text-neon-green";
-      case "in_progress":
-        return "bg-yellow-500/20 text-yellow-400";
-      case "completed":
-        return "bg-gray-500/20 text-gray-400";
-      default:
-        return "bg-gray-500/20 text-gray-400";
+      case "open": return "bg-neon-green/20 text-neon-green";
+      case "in_progress": return "bg-yellow-500/20 text-yellow-400";
+      case "completed": return "bg-gray-500/20 text-gray-400";
+      default: return "bg-gray-500/20 text-gray-400";
     }
   };
 
@@ -320,9 +311,9 @@ function TournamentCard({ tournament }: { tournament: Tournament }) {
               />
             </div>
           </div>
-          
+
           {tournament.status === "open" && (
-            <Button 
+            <Button
               onClick={handleJoinTournament}
               className="w-full bg-dollar-green/20 hover:bg-dollar-green/40 text-dollar-green"
               data-testid={`button-join-tournament-${tournament.id}`}
@@ -330,13 +321,13 @@ function TournamentCard({ tournament }: { tournament: Tournament }) {
               Join (${tournament.entry})
             </Button>
           )}
-          
+
           {tournament.status === "in_progress" && (
             <div className="text-center text-yellow-400 font-semibold">
               Tournament in Progress
             </div>
           )}
-          
+
           {tournament.status === "completed" && (
             <div className="text-center text-gray-400">
               Tournament Completed
