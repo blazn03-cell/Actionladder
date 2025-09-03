@@ -292,6 +292,9 @@ export interface IStorage {
   lockCredits(userId: string, amount: number): Promise<boolean>;
   unlockCredits(userId: string, amount: number): Promise<boolean>;
   
+  // Wallet aliases (for backwards compatibility)
+  addCredits(userId: string, amount: number): Promise<Wallet | undefined>;
+  
   // Side Betting - Side Pots
   getSidePot(id: string): Promise<SidePot | undefined>;
   getAllSidePots(): Promise<SidePot[]>;
@@ -302,12 +305,24 @@ export interface IStorage {
   getExpiredDisputePots(now: Date): Promise<SidePot[]>;
   processDelayedPayouts(potId: string, winningSide: string): Promise<any>;
   
+  // Challenge Pool aliases (for backwards compatibility)
+  getChallengePool(id: string): Promise<ChallengePool | undefined>;
+  getAllChallengePools(): Promise<ChallengePool[]>;
+  createChallengePool(pool: InsertChallengePool): Promise<ChallengePool>;
+  updateChallengePool(id: string, updates: Partial<ChallengePool>): Promise<ChallengePool | undefined>;
+  
   // Side Betting - Side Bets
   getSideBet(id: string): Promise<SideBet | undefined>;
   getSideBetsByPot(sidePotId: string): Promise<SideBet[]>;
   getSideBetsByUser(userId: string): Promise<SideBet[]>;
   createSideBet(bet: InsertSideBet): Promise<SideBet>;
   updateSideBet(id: string, updates: Partial<SideBet>): Promise<SideBet | undefined>;
+  
+  // Challenge Entry aliases (for backwards compatibility)
+  getChallengeEntry(id: string): Promise<ChallengeEntry | undefined>;
+  getChallengeEntriesByPool(poolId: string): Promise<ChallengeEntry[]>;
+  createChallengeEntry(entry: InsertChallengeEntry): Promise<ChallengeEntry>;
+  updateChallengeEntry(id: string, updates: Partial<ChallengeEntry>): Promise<ChallengeEntry | undefined>;
   
   // Side Betting - Ledger
   getLedgerEntry(id: string): Promise<LedgerEntry | undefined>;
@@ -1962,6 +1977,45 @@ export class MemStorage implements IStorage {
     };
     this.resolutions.set(id, resolution);
     return resolution;
+  }
+
+  // Challenge Pool aliases (for backwards compatibility)
+  async getChallengePool(id: string): Promise<ChallengePool | undefined> {
+    return this.getSidePot(id);
+  }
+
+  async getAllChallengePools(): Promise<ChallengePool[]> {
+    return this.getAllSidePots();
+  }
+
+  async createChallengePool(pool: InsertChallengePool): Promise<ChallengePool> {
+    return this.createSidePot(pool);
+  }
+
+  async updateChallengePool(id: string, updates: Partial<ChallengePool>): Promise<ChallengePool | undefined> {
+    return this.updateSidePot(id, updates);
+  }
+
+  // Challenge Entry aliases (for backwards compatibility)
+  async getChallengeEntry(id: string): Promise<ChallengeEntry | undefined> {
+    return this.getSideBet(id);
+  }
+
+  async getChallengeEntriesByPool(poolId: string): Promise<ChallengeEntry[]> {
+    return this.getSideBetsByPot(poolId);
+  }
+
+  async createChallengeEntry(entry: InsertChallengeEntry): Promise<ChallengeEntry> {
+    return this.createSideBet(entry);
+  }
+
+  async updateChallengeEntry(id: string, updates: Partial<ChallengeEntry>): Promise<ChallengeEntry | undefined> {
+    return this.updateSideBet(id, updates);
+  }
+
+  // Wallet aliases (for backwards compatibility)
+  async addCredits(userId: string, amount: number): Promise<Wallet | undefined> {
+    return this.creditWallet(userId, amount);
   }
 
   // Operator Subscription Methods

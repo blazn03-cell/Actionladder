@@ -153,7 +153,7 @@ function App() {
         
         <main className="relative z-10">
           <Switch>
-            <Route path="/" exact>
+            <Route path="/">
               <Landing />
             </Route>
             <Route path="/auth-success">

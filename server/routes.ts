@@ -1733,7 +1733,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const disputeDeadline = new Date(now.getTime() + 12 * 60 * 60 * 1000); // 12 hours from now
       
       // Update pot status with dispute tracking and evidence
-      await storage.updateSidePot(sidePotId, { 
+      await storage.updateSidePot(challengePoolId, { 
         status: "resolved",
         winningSide: winnerSide,
         resolvedAt: now,
@@ -1743,12 +1743,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       
       // Process payouts immediately for operator resolutions
-      const bets = await storage.getSideBetsByPot(sidePotId);
+      const bets = await storage.getSideBetsByPot(challengePoolId);
       const winners = bets.filter(bet => bet.side === winnerSide);
       const losers = bets.filter(bet => bet.side !== winnerSide);
       
       const totalPool = bets.reduce((sum, bet) => sum + bet.amount, 0);
-      const serviceFee = Math.floor(totalPool * (pot.feeBps / 10000));
+      const serviceFee = Math.floor(totalPool * (pool.feeBps / 10000));
       const winnerPool = totalPool - serviceFee;
       const totalWinnerAmount = winners.reduce((sum, bet) => sum + bet.amount, 0);
       
@@ -1758,41 +1758,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const winnings = Math.floor(winnerPool * proportion);
         
         // Credit the user
-        await storage.unlockCredits(bet.userId, bet.amount); // Unlock locked funds
-        await storage.addCredits(bet.userId, winnings); // Add winnings
+        await storage.unlockCredits(bet.userId!, bet.amount); // Unlock locked funds
+        await storage.addCredits(bet.userId!, winnings); // Add winnings
         
         // Create ledger entries
         await storage.createLedgerEntry({
-          userId: bet.userId,
+          userId: bet.userId!,
           type: "pot_win",
           amount: winnings,
           refId: bet.id,
-          metaJson: JSON.stringify({ sidePotId, originalBet: bet.amount }),
+          metaJson: JSON.stringify({ sidePotId: challengePoolId, originalBet: bet.amount }),
         });
         
         await storage.createLedgerEntry({
-          userId: bet.userId,
+          userId: bet.userId!,
           type: "pot_unlock",
           amount: bet.amount,
           refId: bet.id,
-          metaJson: JSON.stringify({ sidePotId }),
+          metaJson: JSON.stringify({ sidePotId: challengePoolId }),
         });
       }
       
       // Unlock losing bets (they lose their credits)
       for (const bet of losers) {
-        await storage.unlockCredits(bet.userId, bet.amount);
+        await storage.unlockCredits(bet.userId!, bet.amount);
         
         await storage.createLedgerEntry({
-          userId: bet.userId,
+          userId: bet.userId!,
           type: "pot_loss",
           amount: -bet.amount,
           refId: bet.id,
-          metaJson: JSON.stringify({ sidePotId }),
+          metaJson: JSON.stringify({ sidePotId: challengePoolId }),
         });
       }
       
-      console.log(`Side pot ${sidePotId} resolved with immediate payout. ${winners.length} winners, ${losers.length} losers.`);
+      console.log(`Side pot ${challengePoolId} resolved with immediate payout. ${winners.length} winners, ${losers.length} losers.`);
       
       res.json({ 
         resolution, 
@@ -1849,11 +1849,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const challengePoolId = req.params.id;
       
       const pool = await storage.getChallengePool(challengePoolId);
-      if (!pot) {
+      if (!pool) {
         return res.status(404).json({ message: "Side pot not found" });
       }
       
-      if (pot.status !== "locked") {
+      if (pool.status !== "locked") {
         return res.status(400).json({ message: "Only locked pots can be put on hold" });
       }
       
@@ -1861,14 +1861,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const now = new Date();
       const holdDeadline = new Date(now.getTime() + 24 * 60 * 60 * 1000); // 24 hours from now
       
-      await storage.updateSidePot(sidePotId, { 
+      await storage.updateSidePot(challengePoolId, { 
         status: "on_hold",
-        holdReason: reason,
         holdDeadline,
         evidenceJson: evidence ? JSON.stringify(evidence) : null,
       });
       
-      console.log(`Side pot ${sidePotId} put on hold for evidence review. Deadline: ${holdDeadline.toISOString()}`);
+      console.log(`Side pot ${challengePoolId} put on hold for evidence review. Deadline: ${holdDeadline.toISOString()}`);
       
       res.json({ 
         message: "Side pot put on hold for evidence review",
@@ -1888,31 +1887,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const challengePoolId = req.params.id;
       
       const pool = await storage.getChallengePool(challengePoolId);
-      if (!pot) {
+      if (!pool) {
         return res.status(404).json({ message: "Side pot not found" });
       }
       
-      if (!["locked", "on_hold"].includes(pot.status)) {
+      if (!["locked", "on_hold"].includes(pool.status)) {
         return res.status(400).json({ message: "Only locked or on-hold pots can be voided" });
       }
       
       // Get all bets for this pot
-      const bets = await storage.getSideBetsByPot(sidePotId);
+      const bets = await storage.getSideBetsByPot(challengePoolId);
       let refundCount = 0;
       let totalRefunded = 0;
       
       // Refund all participants
       for (const bet of bets) {
         // Unlock and refund the credits
-        await storage.unlockCredits(bet.userId, bet.amount);
+        await storage.unlockCredits(bet.userId!, bet.amount);
         
         // Create refund ledger entry
         await storage.createLedgerEntry({
-          userId: bet.userId,
+          userId: bet.userId!,
           type: "pot_void_refund",
           amount: bet.amount,
           refId: bet.id,
-          metaJson: JSON.stringify({ sidePotId, voidReason: reason }),
+          metaJson: JSON.stringify({ sidePotId: challengePoolId, voidReason: reason }),
         });
         
         refundCount++;
@@ -1921,9 +1920,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Update pot status to voided
       const now = new Date();
-      await storage.updateSidePot(sidePotId, { 
+      await storage.updateSidePot(challengePoolId, { 
         status: "voided",
-        voidReason: reason,
         voidedAt: now,
       });
       
