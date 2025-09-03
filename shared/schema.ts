@@ -104,6 +104,14 @@ export const matches = pgTable("matches", {
   bountyAward: integer("bounty_award").default(0),
   weightMultiplierBps: integer("weight_multiplier_bps").default(100), // Weight multiplier in basis points (100 = 1.00x)
   owedWeight: boolean("owed_weight").default(false), // Whether challenger owes weight
+  
+  // Commission and earnings tracking
+  platformCommissionBps: integer("platform_commission_bps").default(1000), // 10% default in basis points
+  operatorCommissionBps: integer("operator_commission_bps").default(500), // 5% default in basis points
+  platformEarnings: integer("platform_earnings").default(0), // Platform cut in cents
+  operatorEarnings: integer("operator_earnings").default(0), // Operator cut in cents
+  prizePoolAmount: integer("prize_pool_amount").default(0), // Remaining for winner in cents
+  
   reportedAt: timestamp("reported_at"),
   createdAt: timestamp("created_at").defaultNow(),
 });
@@ -764,8 +772,65 @@ export const tutoringCredits = pgTable("tutoring_credits", {
   sessionId: varchar("session_id").references(() => tutoringSession.id),
   amount: integer("amount").notNull(), // Credits in cents
   applied: boolean("applied").default(false),
-  appliedTo: text("applied_to"), // "membership" or "challenge_fee"
-  appliedAt: timestamp("applied_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Commission and earnings tracking tables
+export const commissionRates = pgTable("commission_rates", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  operatorId: text("operator_id").notNull(), // References users table
+  membershipTier: text("membership_tier").notNull(), // "none", "basic", "pro"
+  platformCommissionBps: integer("platform_commission_bps").notNull(), // Basis points (1000 = 10%)
+  operatorCommissionBps: integer("operator_commission_bps").notNull(), // Basis points
+  escrowCommissionBps: integer("escrow_commission_bps").default(250), // 2.5% default for sidepots
+  effectiveDate: timestamp("effective_date").defaultNow(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const platformEarnings = pgTable("platform_earnings", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  operatorId: text("operator_id").notNull(),
+  sourceType: text("source_type").notNull(), // "match_commission", "membership_fee", "escrow_fee", "tournament_fee"
+  sourceId: text("source_id"), // Reference to match, subscription, etc.
+  grossAmount: integer("gross_amount").notNull(), // Total amount in cents
+  platformAmount: integer("platform_amount").notNull(), // Platform cut in cents
+  operatorAmount: integer("operator_amount").notNull(), // Operator cut in cents
+  platformCommissionBps: integer("platform_commission_bps").notNull(),
+  operatorCommissionBps: integer("operator_commission_bps").notNull(),
+  settlementStatus: text("settlement_status").default("pending"), // "pending", "settled", "disputed"
+  settledAt: timestamp("settled_at"),
+  stripeTransferId: text("stripe_transfer_id"), // For operator payouts
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const membershipEarnings = pgTable("membership_earnings", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  subscriptionId: text("subscription_id").notNull(), // Stripe subscription ID
+  operatorId: text("operator_id").notNull(),
+  playerId: text("player_id").notNull(),
+  membershipTier: text("membership_tier").notNull(), // "rookie", "basic", "pro"
+  grossAmount: integer("gross_amount").notNull(), // Total membership fee
+  platformAmount: integer("platform_amount").notNull(), // Platform share
+  operatorAmount: integer("operator_amount").notNull(), // Operator commission
+  billingPeriodStart: timestamp("billing_period_start").notNull(),
+  billingPeriodEnd: timestamp("billing_period_end").notNull(),
+  processedAt: timestamp("processed_at").defaultNow(),
+});
+
+export const operatorPayouts = pgTable("operator_payouts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  operatorId: text("operator_id").notNull(),
+  periodStart: timestamp("period_start").notNull(),
+  periodEnd: timestamp("period_end").notNull(),
+  totalEarnings: integer("total_earnings").notNull(), // Total operator earnings in cents
+  matchCommissions: integer("match_commissions").default(0),
+  membershipCommissions: integer("membership_commissions").default(0),
+  escrowCommissions: integer("escrow_commissions").default(0),
+  otherEarnings: integer("other_earnings").default(0),
+  stripeTransferId: text("stripe_transfer_id"),
+  payoutStatus: text("payout_status").default("pending"), // "pending", "processing", "completed", "failed"
+  payoutMethod: text("payout_method").default("stripe_transfer"), // "stripe_transfer", "manual", "held"
+  processedAt: timestamp("processed_at"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -799,3 +864,35 @@ export type TutoringSession = typeof tutoringSession.$inferSelect;
 export type InsertTutoringSession = z.infer<typeof insertTutoringSessionSchema>;
 export type TutoringCredits = typeof tutoringCredits.$inferSelect;
 export type InsertTutoringCredits = z.infer<typeof insertTutoringCreditsSchema>;
+
+// Insert schemas for commission and earnings tables
+export const insertCommissionRateSchema = createInsertSchema(commissionRates).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertPlatformEarningsSchema = createInsertSchema(platformEarnings).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertMembershipEarningsSchema = createInsertSchema(membershipEarnings).omit({
+  id: true,
+  processedAt: true,
+});
+
+export const insertOperatorPayoutSchema = createInsertSchema(operatorPayouts).omit({
+  id: true,
+  createdAt: true,
+  processedAt: true,
+});
+
+// Commission and earnings types
+export type CommissionRate = typeof commissionRates.$inferSelect;
+export type InsertCommissionRate = z.infer<typeof insertCommissionRateSchema>;
+export type PlatformEarnings = typeof platformEarnings.$inferSelect;
+export type InsertPlatformEarnings = z.infer<typeof insertPlatformEarningsSchema>;
+export type MembershipEarnings = typeof membershipEarnings.$inferSelect;
+export type InsertMembershipEarnings = z.infer<typeof insertMembershipEarningsSchema>;
+export type OperatorPayout = typeof operatorPayouts.$inferSelect;
+export type InsertOperatorPayout = z.infer<typeof insertOperatorPayoutSchema>;

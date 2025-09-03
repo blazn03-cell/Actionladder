@@ -13,9 +13,10 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { Video, MapPin, Users, Eye, Search, Filter, Play, Square, Trash2, RefreshCw, Globe, Trophy, Calendar, Settings, ExternalLink, Star, Clock, TrendingUp, MessageCircle, Share2
-} from "lucide-react";
-import type { LiveStream, InsertLiveStream, Match, Player, Tournament } from "@shared/schema"; // Enhanced form schema with geographic and category data
+import { Video, MapPin, Users, Eye, Search, Filter, Play, Square, Trash2, RefreshCw, Globe, Trophy, Calendar, Settings, ExternalLink, Star, Clock, TrendingUp, MessageCircle, Share2 } from "lucide-react";
+import type { LiveStream, InsertLiveStream, Match, Player, Tournament } from "@shared/schema";
+
+// Enhanced form schema with geographic and category data
 const enhancedLiveStreamSchema = z.object({ platform: z.enum(["twitch", "youtube", "facebook", "tiktok", "kick", "other"]), url: z.string().url("Must be a valid URL"), title: z.string().min(1, "Title is required"), poolHallName: z.string().min(1, "Pool hall name is required"), city: z.string().min(1, "City is required"), state: z.string().min(2, "State is required").max(2, "Use 2-letter state code"), category: z.enum(["tournament", "casual", "practice", "event"]), quality: z.enum(["hd", "fhd", "4k"]), matchId: z.string().optional(), tournamentId: z.string().optional(), streamerId: z.string().optional(), tags: z.array(z.string()).optional(), language: z.string().default("en"),
 }); type EnhancedLiveStreamFormData = z.infer<typeof enhancedLiveStreamSchema>; // Enhanced platform configurations
 const platforms = [ { value: "twitch", label: "Twitch", color: "text-purple-400", bgColor: "bg-purple-900/20", icon: "🎮" }, { value: "youtube", label: "YouTube", color: "text-red-400", bgColor: "bg-red-900/20", icon: "📺" }, { value: "facebook", label: "Facebook", color: "text-blue-400", bgColor: "bg-blue-900/20", icon: "📘" }, { value: "tiktok", label: "TikTok", color: "text-pink-400", bgColor: "bg-pink-900/20", icon: "🎵" }, { value: "kick", label: "Kick", color: "text-green-400", bgColor: "bg-green-900/20", icon: "⚡" }, { value: "other", label: "Other", color: "text-gray-400", bgColor: "bg-gray-900/20", icon: "🌐" },
