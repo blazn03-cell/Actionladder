@@ -108,6 +108,12 @@ export async function setupAuth(app: Express) {
   passport.deserializeUser((user: Express.User, cb) => cb(null, user));
 
   app.get("/api/login", (req, res, next) => {
+    const role = req.query.role as string;
+    // Store role in session for use after authentication
+    if (role && ["player", "operator", "admin"].includes(role)) {
+      (req.session as any).intendedRole = role;
+    }
+    
     passport.authenticate(`replitauth:${req.hostname}`, {
       prompt: "login consent",
       scope: ["openid", "email", "profile", "offline_access"],
@@ -116,7 +122,7 @@ export async function setupAuth(app: Express) {
 
   app.get("/api/callback", (req, res, next) => {
     passport.authenticate(`replitauth:${req.hostname}`, {
-      successReturnToOrRedirect: "/",
+      successRedirect: "/auth-success",
       failureRedirect: "/api/login",
     })(req, res, next);
   });

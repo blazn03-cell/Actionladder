@@ -58,17 +58,20 @@ function CreateMoneyGameDialog() {
 
   const createGameMutation = useMutation({
     mutationFn: (data: MoneyGameFormData) => 
-      apiRequest("POST", "/api/money-games", {
-        ...data,
-        prizePool: data.billAmount * data.maxPlayers,
-        currentPlayers: 0,
-        status: "waiting",
-        players: [],
+      apiRequest("/api/money-games", {
+        method: "POST",
+        body: JSON.stringify({
+          ...data,
+          prizePool: data.billAmount * data.maxPlayers,
+          currentPlayers: 0,
+          status: "waiting",
+          players: [],
+        })
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/money-games"] });
       toast({
-        title: "Challenge Game Created"
+        title: "Challenge Game Created",
         description: "New Challenge Game started!"
       });
       setOpen(false);
@@ -234,7 +237,7 @@ function MoneyGameCard({ game }: { game: MoneyGame }) {
   const queryClient = useQueryClient();
 
   const joinGameMutation = useMutation({
-    mutationFn: () => apiRequest("POST", `/api/money-games/${game.id}/join`, {}),
+    mutationFn: () => apiRequest(`/api/money-games/${game.id}/join`, { method: "POST" }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/money-games"] });
       toast({

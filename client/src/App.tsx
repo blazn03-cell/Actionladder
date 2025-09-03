@@ -32,6 +32,8 @@ import TeamManagement from "@/pages/TeamManagement";
 import TeamMatches from "@/pages/TeamMatches";
 import OperatorSubscriptions from "@/pages/OperatorSubscriptions";
 import NotFound from "@/pages/not-found";
+import Landing from "@/pages/Landing";
+import AuthSuccess from "@/pages/AuthSuccess";
 import logoBackground from "@assets/assets_task_01k3jk55jwew0tmd764vvanv2x_1756192093_img_0_1756634613619.webp";
 
 const queryClient = new QueryClient();
@@ -151,6 +153,12 @@ function App() {
         
         <main className="relative z-10">
           <Switch>
+            <Route path="/" exact>
+              <Landing />
+            </Route>
+            <Route path="/auth-success">
+              <AuthSuccess />
+            </Route>
             <Route path="/checkout">
               <Checkout />
             </Route>
@@ -166,7 +174,7 @@ function App() {
             <Route path="/acceptable-use">
               <AcceptableUse />
             </Route>
-            <Route>
+            <Route path="/app">
               {/* Hero Banner */}
               <section className="py-12 relative overflow-hidden">
                 <div 

@@ -9,7 +9,7 @@ import {
   insertPlayerSchema, insertMatchSchema, insertTournamentSchema,
   insertKellyPoolSchema, insertBountySchema, insertCharityEventSchema,
   insertSupportRequestSchema, insertLiveStreamSchema,
-  insertWalletSchema, insertSidePotSchema, insertSideBetSchema,
+  insertWalletSchema, insertChallengePoolSchema, insertChallengeEntrySchema,
   insertLedgerSchema, insertResolutionSchema,
   insertOperatorSubscriptionSchema, insertTeamSchema, insertTeamPlayerSchema,
   insertTeamMatchSchema, insertTeamSetSchema
@@ -37,6 +37,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Health check endpoint (required for production deployment)
   app.get("/healthz", (_, res) => res.send("ok"));
+  
+  // Auth success endpoint for role-based routing
+  app.get("/api/auth/success", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      
+      const session = req.session as any;
+      const intendedRole = session.intendedRole || "player";
+      
+      // Clear the intended role from session
+      delete session.intendedRole;
+      
+      // Update user role in database if needed
+      const user = req.user as any;
+      if (user?.claims?.sub) {
+        try {
+          let dbUser = await storage.getUser(user.claims.sub);
+          if (!dbUser) {
+            // Create user if doesn't exist
+            dbUser = await storage.upsertUser({
+              id: user.claims.sub,
+              email: user.claims.email,
+              name: `${user.claims.first_name || ""} ${user.claims.last_name || ""}`.trim() || user.claims.email || "Unknown User",
+            });
+          }
+          
+          // Set role based on intended role
+          let globalRole = "PLAYER";
+          if (intendedRole === "admin") {
+            globalRole = "OWNER";
+          } else if (intendedRole === "operator") {
+            globalRole = "STAFF";
+          }
+          
+          // Update user with role if different
+          if (dbUser.globalRole !== globalRole) {
+            await storage.updateUser(user.claims.sub, { globalRole });
+          }
+        } catch (error) {
+          console.error("Error updating user role:", error);
+        }
+      }
+      
+      res.json({ 
+        role: intendedRole,
+        success: true 
+      });
+    } catch (error) {
+      console.error("Auth success error:", error);
+      res.status(500).json({ message: "Authentication error" });
+    }
+  });
   
   // Register admin routes for staff management and payouts
   registerAdminRoutes(app);
@@ -1414,11 +1468,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let pots;
       
       if (matchId) {
-        pots = await storage.getSidePotsByMatch(matchId as string);
+        pots = await storage.getChallengePoolsByMatch(matchId as string);
       } else if (status) {
-        pots = await storage.getSidePotsByStatus(status as string);
+        pots = await storage.getChallengePoolsByStatus(status as string);
       } else {
-        pots = await storage.getAllSidePots();
+        pots = await storage.getAllChallengePools();
       }
       
       res.json(pots);
@@ -1429,7 +1483,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/side-pots", async (req, res) => {
     try {
-      const validatedData = insertSidePotSchema.parse(req.body);
+      const validatedData = insertChallengePoolSchema.parse(req.body);
       
       // Validate pot size limits
       const stakePerSideDollars = validatedData.stakePerSide / 100;
@@ -1450,7 +1504,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         customCreatedBy: validatedData.creatorId, // Track who created this custom bet
       };
       
-      const pot = await storage.createSidePot(potData);
+      const pool = await storage.createChallengePool(potData);
       res.status(201).json(pot);
     } catch (error: any) {
       res.status(400).json({ message: error.message });
@@ -1459,7 +1513,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put("/api/side-pots/:id", async (req, res) => {
     try {
-      const pot = await storage.updateSidePot(req.params.id, req.body);
+      const pool = await storage.updateChallengePool(req.params.id, req.body);
       if (!pot) {
         return res.status(404).json({ message: "Side pot not found" });
       }
@@ -1492,7 +1546,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { sidePotId, userId, side, amount } = req.body;
       
       // Check if pot is still open
-      const pot = await storage.getSidePot(sidePotId);
+      const pool = await storage.getChallengePool(challengePoolId);
       if (!pot || pot.status !== 'open') {
         return res.status(400).json({ message: "Side pot is not accepting bets" });
       }
@@ -1503,8 +1557,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Insufficient credits" });
       }
       
-      const bet = await storage.createSideBet({
-        sidePotId,
+      const entry = await storage.createChallengeEntry({
+        challengePoolId,
         userId,
         side,
         amount,
@@ -1540,7 +1594,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/side-pots/:id/resolve", async (req, res) => {
     try {
       const { winnerSide, decidedBy, notes, evidence } = req.body;
-      const sidePotId = req.params.id;
+      const challengePoolId = req.params.id;
       
       // Check if already resolved
       const existingResolution = await storage.getResolutionByPot(sidePotId);
@@ -1548,7 +1602,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Side pot already resolved" });
       }
       
-      const pot = await storage.getSidePot(sidePotId);
+      const pool = await storage.getChallengePool(challengePoolId);
       if (!pot) {
         return res.status(404).json({ message: "Side pot not found" });
       }
@@ -1560,7 +1614,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Create resolution with evidence tracking
       const resolution = await storage.createResolution({
-        sidePotId,
+        challengePoolId,
         winnerSide,
         decidedBy,
         notes,
@@ -1684,9 +1738,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/side-pots/:id/hold", async (req, res) => {
     try {
       const { reason, evidence } = req.body;
-      const sidePotId = req.params.id;
+      const challengePoolId = req.params.id;
       
-      const pot = await storage.getSidePot(sidePotId);
+      const pool = await storage.getChallengePool(challengePoolId);
       if (!pot) {
         return res.status(404).json({ message: "Side pot not found" });
       }
@@ -1723,9 +1777,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/side-pots/:id/void", async (req, res) => {
     try {
       const { reason } = req.body;
-      const sidePotId = req.params.id;
+      const challengePoolId = req.params.id;
       
-      const pot = await storage.getSidePot(sidePotId);
+      const pool = await storage.getChallengePool(challengePoolId);
       if (!pot) {
         return res.status(404).json({ message: "Side pot not found" });
       }

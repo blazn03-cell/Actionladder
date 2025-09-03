@@ -87,7 +87,7 @@ function CreateChallengeDialog() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/escrow-challenges"] });
       toast({
-        title: "Challenge Entered!"
+        title: "Challenge Entered!",
         description: "Your challenge entry has been secured. Waiting for opponent acceptance."
       });
       setOpen(false);
