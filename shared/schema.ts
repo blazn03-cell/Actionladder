@@ -965,6 +965,129 @@ export const operatorPayouts = pgTable("operator_payouts", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// === MATCH DIVISION SYSTEM ===
+
+// Match Divisions: Poolhall vs Poolhall, City vs City, State vs State
+export const matchDivisions = pgTable("match_divisions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(), // "poolhall", "city", "state"
+  displayName: text("display_name").notNull(), // "Poolhall vs Poolhall", "City vs City", "State vs State"
+  minTeamSize: integer("min_team_size").notNull(), // 2, 5, 10
+  maxTeamSize: integer("max_team_size").notNull(), // 5, 10, 12
+  entryFeeMin: integer("entry_fee_min").notNull(), // Minimum entry fee in cents
+  entryFeeMax: integer("entry_fee_max").notNull(), // Maximum entry fee in cents
+  requiresStreaming: boolean("requires_streaming").default(false), // City and State require streaming
+  requiresCaptain: boolean("requires_captain").default(false), // City and State require captain
+  allowsSideBets: boolean("allows_side_bets").default(false), // City and State allow side bets
+  description: text("description"),
+  active: boolean("active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Operator Tiers with revenue splits
+export const operatorTiers = pgTable("operator_tiers", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(), // "rookie_hall", "basic_hall", "elite_operator", "franchise"
+  displayName: text("display_name").notNull(), // "Rookie Hall", "Basic Hall", etc.
+  monthlyFee: integer("monthly_fee").notNull(), // Fee in cents
+  revenueSplitPercent: integer("revenue_split_percent").notNull(), // Percentage to Action Ladder (5 or 10)
+  maxTeams: integer("max_teams"), // null = unlimited for franchise
+  hasPromoTools: boolean("has_promo_tools").default(false),
+  hasLiveStreamBonus: boolean("has_live_stream_bonus").default(false),
+  hasResellRights: boolean("has_resell_rights").default(false),
+  description: text("description"),
+  features: text("features").array(), // Array of feature descriptions
+  active: boolean("active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Team Stripe Connect Accounts for payouts
+export const teamStripeAccounts = pgTable("team_stripe_accounts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  teamId: text("team_id").notNull().unique(), // References teams table
+  stripeAccountId: text("stripe_account_id").notNull().unique(), // Stripe Connect Express account ID
+  accountStatus: text("account_status").default("pending"), // "pending", "active", "restricted", "inactive"
+  onboardingCompleted: boolean("onboarding_completed").default(false),
+  detailsSubmitted: boolean("details_submitted").default(false),
+  payoutsEnabled: boolean("payouts_enabled").default(false),
+  chargesEnabled: boolean("charges_enabled").default(false),
+  businessType: text("business_type"), // "individual", "company"
+  country: text("country").default("US"),
+  email: text("email"),
+  lastOnboardingRefresh: timestamp("last_onboarding_refresh"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Match Entries with Stripe metadata and division tracking
+export const matchEntries = pgTable("match_entries", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  matchId: text("match_id").notNull().unique(), // Unique match identifier
+  divisionId: text("division_id").notNull(), // References match_divisions
+  homeTeamId: text("home_team_id").notNull(),
+  awayTeamId: text("away_team_id"), // null if open challenge
+  entryFeePerPlayer: integer("entry_fee_per_player").notNull(), // Fee per player in cents
+  totalStake: integer("total_stake").notNull(), // Total match stake
+  stripeCheckoutSessionId: text("stripe_checkout_session_id"), // Stripe Checkout session
+  stripePaymentIntentId: text("stripe_payment_intent_id"), // Stripe Payment Intent
+  paymentStatus: text("payment_status").default("pending"), // "pending", "paid", "failed", "refunded"
+  matchStatus: text("match_status").default("open"), // "open", "accepted", "in_progress", "completed", "cancelled"
+  winnerId: text("winner_id"), // Winning team ID
+  homeScore: integer("home_score").default(0),
+  awayScore: integer("away_score").default(0),
+  scheduledAt: timestamp("scheduled_at"),
+  completedAt: timestamp("completed_at"),
+  venueId: text("venue_id"), // Where match is played
+  streamUrl: text("stream_url"), // Live stream link if applicable
+  captainHomeId: text("captain_home_id"), // Team captain for home team
+  captainAwayId: text("captain_away_id"), // Team captain for away team
+  operatorId: text("operator_id").notNull(), // Managing operator
+  metadata: jsonb("metadata"), // Additional match metadata from Stripe
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Payout Distribution tracking
+export const payoutDistributions = pgTable("payout_distributions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  matchEntryId: text("match_entry_id").notNull().unique(), // References match_entries
+  winningTeamId: text("winning_team_id").notNull(),
+  totalPayout: integer("total_payout").notNull(), // Amount paid out in cents
+  platformFee: integer("platform_fee").notNull(), // Action Ladder's cut
+  operatorFee: integer("operator_fee").notNull(), // Operator's commission
+  teamPayout: integer("team_payout").notNull(), // Amount sent to team
+  stripeTransferId: text("stripe_transfer_id"), // Stripe Transfer ID
+  transferStatus: text("transfer_status").default("pending"), // "pending", "in_transit", "paid", "failed"
+  transferredAt: timestamp("transferred_at"),
+  operatorTierAtPayout: text("operator_tier_at_payout"), // Tier when payout was made
+  revenueSplitAtPayout: integer("revenue_split_at_payout"), // Revenue split % at time of payout
+  payoutMethod: text("payout_method").default("stripe_transfer"), // "stripe_transfer", "manual"
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Team Registration with entry fees
+export const teamRegistrations = pgTable("team_registrations", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  teamId: text("team_id").notNull(),
+  divisionId: text("division_id").notNull(),
+  captainId: text("captain_id").notNull(),
+  teamName: text("team_name").notNull(),
+  logoUrl: text("logo_url"),
+  playerRoster: text("player_roster").array(), // Array of player IDs
+  entryFeePaid: boolean("entry_fee_paid").default(false),
+  stripePaymentIntentId: text("stripe_payment_intent_id"),
+  registrationStatus: text("registration_status").default("pending"), // "pending", "confirmed", "cancelled"
+  confirmedAt: timestamp("confirmed_at"),
+  bracketPosition: integer("bracket_position"), // Position in tournament bracket
+  seedRank: integer("seed_rank"), // Seeding rank
+  operatorId: text("operator_id").notNull(),
+  venueId: text("venue_id"),
+  seasonId: text("season_id"), // Tournament/season identifier
+  metadata: jsonb("metadata"), // Additional registration data
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Challenge pool types
 export type Wallet = typeof wallets.$inferSelect;
 export type InsertWallet = z.infer<typeof insertWalletSchema>;
@@ -988,7 +1111,6 @@ export const insertTutoringSessionSchema = createInsertSchema(tutoringSession).o
 export const insertTutoringCreditsSchema = createInsertSchema(tutoringCredits).omit({
   id: true,
   createdAt: true,
-  appliedAt: true,
 });
 
 export type TutoringSession = typeof tutoringSession.$inferSelect;
@@ -1027,3 +1149,50 @@ export type MembershipEarnings = typeof membershipEarnings.$inferSelect;
 export type InsertMembershipEarnings = z.infer<typeof insertMembershipEarningsSchema>;
 export type OperatorPayout = typeof operatorPayouts.$inferSelect;
 export type InsertOperatorPayout = z.infer<typeof insertOperatorPayoutSchema>;
+
+// Insert schemas for new match division system
+export const insertMatchDivisionSchema = createInsertSchema(matchDivisions).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertOperatorTierSchema = createInsertSchema(operatorTiers).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertTeamStripeAccountSchema = createInsertSchema(teamStripeAccounts).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertMatchEntrySchema = createInsertSchema(matchEntries).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertPayoutDistributionSchema = createInsertSchema(payoutDistributions).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertTeamRegistrationSchema = createInsertSchema(teamRegistrations).omit({
+  id: true,
+  createdAt: true,
+});
+
+// Match division system types
+export type MatchDivision = typeof matchDivisions.$inferSelect;
+export type InsertMatchDivision = z.infer<typeof insertMatchDivisionSchema>;
+export type OperatorTier = typeof operatorTiers.$inferSelect;
+export type InsertOperatorTier = z.infer<typeof insertOperatorTierSchema>;
+export type TeamStripeAccount = typeof teamStripeAccounts.$inferSelect;
+export type InsertTeamStripeAccount = z.infer<typeof insertTeamStripeAccountSchema>;
+export type MatchEntry = typeof matchEntries.$inferSelect;
+export type InsertMatchEntry = z.infer<typeof insertMatchEntrySchema>;
+export type PayoutDistribution = typeof payoutDistributions.$inferSelect;
+export type InsertPayoutDistribution = z.infer<typeof insertPayoutDistributionSchema>;
+export type TeamRegistration = typeof teamRegistrations.$inferSelect;
+export type InsertTeamRegistration = z.infer<typeof insertTeamRegistrationSchema>;

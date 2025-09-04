@@ -32,6 +32,12 @@ import {
   type ChallengeEntry, type InsertChallengeEntry,
   type LedgerEntry, type InsertLedgerEntry,
   type Resolution, type InsertResolution,
+  type MatchDivision, type InsertMatchDivision,
+  type OperatorTier, type InsertOperatorTier,
+  type TeamStripeAccount, type InsertTeamStripeAccount,
+  type MatchEntry, type InsertMatchEntry,
+  type PayoutDistribution, type InsertPayoutDistribution,
+  type TeamRegistration, type InsertTeamRegistration,
   type GlobalRole,
   insertUserSchema,
   insertOrganizationSchema,
@@ -474,6 +480,14 @@ export class MemStorage implements IStorage {
   private attitudeVotes = new Map<string, AttitudeVote>();
   private attitudeBallots = new Map<string, AttitudeBallot>();
   private incidents = new Map<string, Incident>();
+
+  // === MATCH DIVISION SYSTEM ===
+  private matchDivisions = new Map<string, MatchDivision>();
+  private operatorTiers = new Map<string, OperatorTier>();
+  private teamStripeAccounts = new Map<string, TeamStripeAccount>();
+  private matchEntries = new Map<string, MatchEntry>();
+  private payoutDistributions = new Map<string, PayoutDistribution>();
+  private teamRegistrations = new Map<string, TeamRegistration>();
 
   constructor() {
     // Initialize with seed data for demonstration (disabled in production)
@@ -1093,6 +1107,129 @@ export class MemStorage implements IStorage {
 
     this.bounties.set(bounty1.id, bounty1);
     this.bounties.set(bounty2.id, bounty2);
+
+    // === INITIALIZE MATCH DIVISIONS ===
+    const poolhallDivision: MatchDivision = {
+      id: randomUUID(),
+      name: "poolhall",
+      displayName: "Poolhall vs Poolhall",
+      minTeamSize: 2,
+      maxTeamSize: 5,
+      entryFeeMin: 1000, // $10 minimum
+      entryFeeMax: 1000000, // $10,000 maximum
+      requiresStreaming: false,
+      requiresCaptain: false,
+      allowsSideBets: true,
+      description: "2v2 or 3v3 or 5v5 matches. Each player plays singles + one team match. Poolhall Operators set challenge rules + fee. Played in-house or neutral site. Winner takes challenge fee + points. Trash talk + walk-ins encouraged.",
+      active: true,
+      createdAt: new Date(),
+    };
+
+    const cityDivision: MatchDivision = {
+      id: randomUUID(),
+      name: "city",
+      displayName: "City vs City",
+      minTeamSize: 5,
+      maxTeamSize: 10,
+      entryFeeMin: 50000, // $500 minimum
+      entryFeeMax: 200000, // $2,000 maximum
+      requiresStreaming: true,
+      requiresCaptain: true,
+      allowsSideBets: true,
+      description: "5 or 10-man squads. Played on 2–3 tables simultaneously. Each team must name a captain + streamer. 'Put-Up' Rule: Captain must pick who plays under pressure. Side bets allowed — but official result = Ladder Points only.",
+      active: true,
+      createdAt: new Date(),
+    };
+
+    const stateDivision: MatchDivision = {
+      id: randomUUID(),
+      name: "state",
+      displayName: "State vs State",
+      minTeamSize: 10,
+      maxTeamSize: 12,
+      entryFeeMin: 1000000, // $10,000 minimum
+      entryFeeMax: 1000000, // $10,000 maximum
+      requiresStreaming: true,
+      requiresCaptain: true,
+      allowsSideBets: true,
+      description: "10–12 man teams. Home/Away rotation OR neutral high-end venue. 1-Day Battle Format or 3-Day Series. Includes Side Games: 3pt contest, Trick Shot, Speed Run. States build fans, merch, hype. Real MVP and 'Brick Award' for worst performance.",
+      active: true,
+      createdAt: new Date(),
+    };
+
+    this.matchDivisions.set(poolhallDivision.id, poolhallDivision);
+    this.matchDivisions.set(cityDivision.id, cityDivision);
+    this.matchDivisions.set(stateDivision.id, stateDivision);
+
+    // === INITIALIZE OPERATOR TIERS ===
+    const rookieHall: OperatorTier = {
+      id: randomUUID(),
+      name: "rookie_hall",
+      displayName: "Rookie Hall",
+      monthlyFee: 9900, // $99
+      revenueSplitPercent: 5, // 5% to Action Ladder
+      maxTeams: 1,
+      hasPromoTools: false,
+      hasLiveStreamBonus: false,
+      hasResellRights: false,
+      description: "Perfect for new operators getting started",
+      features: ["Poolhall Ladder", "1 Team", "5% Platform Fee"],
+      active: true,
+      createdAt: new Date(),
+    };
+
+    const basicHall: OperatorTier = {
+      id: randomUUID(),
+      name: "basic_hall",
+      displayName: "Basic Hall",
+      monthlyFee: 19900, // $199
+      revenueSplitPercent: 10, // 10% to Action Ladder
+      maxTeams: 1,
+      hasPromoTools: false,
+      hasLiveStreamBonus: false,
+      hasResellRights: false,
+      description: "Access to all ladders with competitive revenue split",
+      features: ["All Ladders", "1 Team", "10% Platform Fee"],
+      active: true,
+      createdAt: new Date(),
+    };
+
+    const eliteOperator: OperatorTier = {
+      id: randomUUID(),
+      name: "elite_operator",
+      displayName: "Elite Operator",
+      monthlyFee: 39900, // $399
+      revenueSplitPercent: 10, // 10% to Action Ladder
+      maxTeams: 2,
+      hasPromoTools: true,
+      hasLiveStreamBonus: true,
+      hasResellRights: false,
+      description: "Full access with promotional tools and streaming bonuses",
+      features: ["All Ladders", "2 Teams", "Promo Tools", "Live Stream Bonus", "10% Platform Fee"],
+      active: true,
+      createdAt: new Date(),
+    };
+
+    const franchise: OperatorTier = {
+      id: randomUUID(),
+      name: "franchise",
+      displayName: "Franchise",
+      monthlyFee: 79900, // $799
+      revenueSplitPercent: 10, // 10% to Action Ladder
+      maxTeams: null, // Unlimited
+      hasPromoTools: true,
+      hasLiveStreamBonus: true,
+      hasResellRights: true,
+      description: "Complete control with reselling rights and unlimited teams",
+      features: ["Full Control", "Unlimited Teams", "Resell Rights", "All Features", "10% Platform Fee"],
+      active: true,
+      createdAt: new Date(),
+    };
+
+    this.operatorTiers.set(rookieHall.id, rookieHall);
+    this.operatorTiers.set(basicHall.id, basicHall);
+    this.operatorTiers.set(eliteOperator.id, eliteOperator);
+    this.operatorTiers.set(franchise.id, franchise);
   }
 
   // Player methods
@@ -2768,6 +2905,245 @@ export class MemStorage implements IStorage {
     // If user is in an active match, they have immunity (during their turn)
     // This is a simplified implementation - real implementation would check whose turn it is
     return activeMatches.length > 0;
+  }
+
+  // === MATCH DIVISION SYSTEM IMPLEMENTATION ===
+
+  // Match Division management
+  async createMatchDivision(data: InsertMatchDivision): Promise<MatchDivision> {
+    const division: MatchDivision = {
+      id: randomUUID(),
+      name: data.name,
+      displayName: data.displayName,
+      minTeamSize: data.minTeamSize,
+      maxTeamSize: data.maxTeamSize,
+      entryFeeMin: data.entryFeeMin,
+      entryFeeMax: data.entryFeeMax,
+      requiresStreaming: data.requiresStreaming || false,
+      requiresCaptain: data.requiresCaptain || false,
+      allowsSideBets: data.allowsSideBets || false,
+      description: data.description,
+      active: data.active ?? true,
+      createdAt: new Date(),
+    };
+    this.matchDivisions.set(division.id, division);
+    return division;
+  }
+
+  async getMatchDivisions(): Promise<MatchDivision[]> {
+    return Array.from(this.matchDivisions.values()).filter(d => d.active);
+  }
+
+  async getMatchDivision(id: string): Promise<MatchDivision | undefined> {
+    return this.matchDivisions.get(id);
+  }
+
+  async getMatchDivisionByName(name: string): Promise<MatchDivision | undefined> {
+    return Array.from(this.matchDivisions.values()).find(d => d.name === name && d.active);
+  }
+
+  // Operator Tier management
+  async createOperatorTier(data: InsertOperatorTier): Promise<OperatorTier> {
+    const tier: OperatorTier = {
+      id: randomUUID(),
+      name: data.name,
+      displayName: data.displayName,
+      monthlyFee: data.monthlyFee,
+      revenueSplitPercent: data.revenueSplitPercent,
+      maxTeams: data.maxTeams,
+      hasPromoTools: data.hasPromoTools || false,
+      hasLiveStreamBonus: data.hasLiveStreamBonus || false,
+      hasResellRights: data.hasResellRights || false,
+      description: data.description,
+      features: data.features || [],
+      active: data.active ?? true,
+      createdAt: new Date(),
+    };
+    this.operatorTiers.set(tier.id, tier);
+    return tier;
+  }
+
+  async getOperatorTiers(): Promise<OperatorTier[]> {
+    return Array.from(this.operatorTiers.values()).filter(t => t.active);
+  }
+
+  async getOperatorTier(id: string): Promise<OperatorTier | undefined> {
+    return this.operatorTiers.get(id);
+  }
+
+  async getOperatorTierByName(name: string): Promise<OperatorTier | undefined> {
+    return Array.from(this.operatorTiers.values()).find(t => t.name === name && t.active);
+  }
+
+  // Team Stripe Connect Account management
+  async createTeamStripeAccount(data: InsertTeamStripeAccount): Promise<TeamStripeAccount> {
+    const account: TeamStripeAccount = {
+      id: randomUUID(),
+      teamId: data.teamId,
+      stripeAccountId: data.stripeAccountId,
+      accountStatus: data.accountStatus || "pending",
+      onboardingCompleted: data.onboardingCompleted || false,
+      detailsSubmitted: data.detailsSubmitted || false,
+      payoutsEnabled: data.payoutsEnabled || false,
+      chargesEnabled: data.chargesEnabled || false,
+      businessType: data.businessType,
+      country: data.country || "US",
+      email: data.email,
+      lastOnboardingRefresh: data.lastOnboardingRefresh,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    this.teamStripeAccounts.set(account.id, account);
+    return account;
+  }
+
+  async getTeamStripeAccount(teamId: string): Promise<TeamStripeAccount | undefined> {
+    return Array.from(this.teamStripeAccounts.values()).find(a => a.teamId === teamId);
+  }
+
+  async updateTeamStripeAccount(teamId: string, updates: Partial<TeamStripeAccount>): Promise<TeamStripeAccount | undefined> {
+    const account = await this.getTeamStripeAccount(teamId);
+    if (!account) return undefined;
+
+    const updatedAccount = { ...account, ...updates, updatedAt: new Date() };
+    this.teamStripeAccounts.set(account.id, updatedAccount);
+    return updatedAccount;
+  }
+
+  // Match Entry management
+  async createMatchEntry(data: InsertMatchEntry): Promise<MatchEntry> {
+    const entry: MatchEntry = {
+      id: randomUUID(),
+      matchId: data.matchId,
+      divisionId: data.divisionId,
+      homeTeamId: data.homeTeamId,
+      awayTeamId: data.awayTeamId,
+      entryFeePerPlayer: data.entryFeePerPlayer,
+      totalStake: data.totalStake,
+      stripeCheckoutSessionId: data.stripeCheckoutSessionId,
+      stripePaymentIntentId: data.stripePaymentIntentId,
+      paymentStatus: data.paymentStatus || "pending",
+      matchStatus: data.matchStatus || "open",
+      winnerId: data.winnerId,
+      homeScore: data.homeScore || 0,
+      awayScore: data.awayScore || 0,
+      scheduledAt: data.scheduledAt,
+      completedAt: data.completedAt,
+      venueId: data.venueId,
+      streamUrl: data.streamUrl,
+      captainHomeId: data.captainHomeId,
+      captainAwayId: data.captainAwayId,
+      operatorId: data.operatorId,
+      metadata: data.metadata,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    this.matchEntries.set(entry.id, entry);
+    return entry;
+  }
+
+  async getMatchEntry(id: string): Promise<MatchEntry | undefined> {
+    return this.matchEntries.get(id);
+  }
+
+  async getMatchEntryByMatchId(matchId: string): Promise<MatchEntry | undefined> {
+    return Array.from(this.matchEntries.values()).find(e => e.matchId === matchId);
+  }
+
+  async getMatchEntriesByDivision(divisionId: string): Promise<MatchEntry[]> {
+    return Array.from(this.matchEntries.values()).filter(e => e.divisionId === divisionId);
+  }
+
+  async updateMatchEntry(id: string, updates: Partial<MatchEntry>): Promise<MatchEntry | undefined> {
+    const entry = this.matchEntries.get(id);
+    if (!entry) return undefined;
+
+    const updatedEntry = { ...entry, ...updates, updatedAt: new Date() };
+    this.matchEntries.set(id, updatedEntry);
+    return updatedEntry;
+  }
+
+  // Payout Distribution management
+  async createPayoutDistribution(data: InsertPayoutDistribution): Promise<PayoutDistribution> {
+    const payout: PayoutDistribution = {
+      id: randomUUID(),
+      matchEntryId: data.matchEntryId,
+      winningTeamId: data.winningTeamId,
+      totalPayout: data.totalPayout,
+      platformFee: data.platformFee,
+      operatorFee: data.operatorFee,
+      teamPayout: data.teamPayout,
+      stripeTransferId: data.stripeTransferId,
+      transferStatus: data.transferStatus || "pending",
+      transferredAt: data.transferredAt,
+      operatorTierAtPayout: data.operatorTierAtPayout,
+      revenueSplitAtPayout: data.revenueSplitAtPayout,
+      payoutMethod: data.payoutMethod || "stripe_transfer",
+      notes: data.notes,
+      createdAt: new Date(),
+    };
+    this.payoutDistributions.set(payout.id, payout);
+    return payout;
+  }
+
+  async getPayoutDistribution(id: string): Promise<PayoutDistribution | undefined> {
+    return this.payoutDistributions.get(id);
+  }
+
+  async getPayoutByMatchEntry(matchEntryId: string): Promise<PayoutDistribution | undefined> {
+    return Array.from(this.payoutDistributions.values()).find(p => p.matchEntryId === matchEntryId);
+  }
+
+  async updatePayoutDistribution(id: string, updates: Partial<PayoutDistribution>): Promise<PayoutDistribution | undefined> {
+    const payout = this.payoutDistributions.get(id);
+    if (!payout) return undefined;
+
+    const updatedPayout = { ...payout, ...updates };
+    this.payoutDistributions.set(id, updatedPayout);
+    return updatedPayout;
+  }
+
+  // Team Registration management
+  async createTeamRegistration(data: InsertTeamRegistration): Promise<TeamRegistration> {
+    const registration: TeamRegistration = {
+      id: randomUUID(),
+      teamId: data.teamId,
+      divisionId: data.divisionId,
+      captainId: data.captainId,
+      teamName: data.teamName,
+      logoUrl: data.logoUrl,
+      playerRoster: data.playerRoster || [],
+      entryFeePaid: data.entryFeePaid || false,
+      stripePaymentIntentId: data.stripePaymentIntentId,
+      registrationStatus: data.registrationStatus || "pending",
+      confirmedAt: data.confirmedAt,
+      bracketPosition: data.bracketPosition,
+      seedRank: data.seedRank,
+      operatorId: data.operatorId,
+      venueId: data.venueId,
+      seasonId: data.seasonId,
+      metadata: data.metadata,
+      createdAt: new Date(),
+    };
+    this.teamRegistrations.set(registration.id, registration);
+    return registration;
+  }
+
+  async getTeamRegistration(id: string): Promise<TeamRegistration | undefined> {
+    return this.teamRegistrations.get(id);
+  }
+
+  async getTeamRegistrationsByDivision(divisionId: string): Promise<TeamRegistration[]> {
+    return Array.from(this.teamRegistrations.values()).filter(r => r.divisionId === divisionId);
+  }
+
+  async updateTeamRegistration(id: string, updates: Partial<TeamRegistration>): Promise<TeamRegistration | undefined> {
+    const registration = this.teamRegistrations.get(id);
+    if (!registration) return undefined;
+
+    const updatedRegistration = { ...registration, ...updates };
+    this.teamRegistrations.set(id, updatedRegistration);
+    return updatedRegistration;
   }
 }
 

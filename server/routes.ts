@@ -17,6 +17,8 @@ import {
   insertTeamMatchSchema, insertTeamSetSchema,
   insertTeamChallengeSchema, insertTeamChallengeParticipantSchema,
   insertCheckinSchema, insertAttitudeVoteSchema, insertAttitudeBallotSchema, insertIncidentSchema,
+  insertMatchDivisionSchema, insertOperatorTierSchema, insertTeamStripeAccountSchema,
+  insertMatchEntrySchema, insertPayoutDistributionSchema, insertTeamRegistrationSchema,
   type GlobalRole
 } from "@shared/schema";
 import { OperatorSubscriptionCalculator } from "./operator-subscription-utils";
@@ -2711,6 +2713,505 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const incidents = await storage.getRecentIncidents(venueId, parseInt(hours as string));
       res.json(incidents);
     } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // === MATCH DIVISION SYSTEM API ===
+
+  // Match Divisions endpoints
+  app.get("/api/match-divisions", async (req, res) => {
+    try {
+      const divisions = await storage.getMatchDivisions();
+      res.json(divisions);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/match-divisions/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const division = await storage.getMatchDivision(id);
+      if (!division) {
+        return res.status(404).json({ message: "Match division not found" });
+      }
+      res.json(division);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Operator Tiers endpoints
+  app.get("/api/operator-tiers", async (req, res) => {
+    try {
+      const tiers = await storage.getOperatorTiers();
+      res.json(tiers);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/operator-tiers/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const tier = await storage.getOperatorTier(id);
+      if (!tier) {
+        return res.status(404).json({ message: "Operator tier not found" });
+      }
+      res.json(tier);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // === STRIPE CONNECT EXPRESS ONBOARDING ===
+
+  // Create Stripe Connect Express account for team
+  app.post("/api/teams/:teamId/stripe-onboarding", async (req, res) => {
+    try {
+      const { teamId } = req.params;
+      const { email, businessType = "individual", country = "US" } = req.body;
+
+      // Check if team already has a Stripe account
+      const existingAccount = await storage.getTeamStripeAccount(teamId);
+      if (existingAccount) {
+        return res.status(400).json({ 
+          message: "Team already has a Stripe account",
+          accountId: existingAccount.stripeAccountId 
+        });
+      }
+
+      // Create Stripe Express account
+      const account = await stripe.accounts.create({
+        type: 'express',
+        country,
+        email,
+        business_type: businessType,
+        capabilities: {
+          card_payments: { requested: true },
+          transfers: { requested: true },
+        },
+      });
+
+      // Save to database
+      const teamStripeAccount = await storage.createTeamStripeAccount({
+        teamId,
+        stripeAccountId: account.id,
+        accountStatus: "pending",
+        onboardingCompleted: false,
+        detailsSubmitted: false,
+        payoutsEnabled: false,
+        chargesEnabled: false,
+        businessType,
+        country,
+        email,
+      });
+
+      // Create onboarding link
+      const accountLink = await stripe.accountLinks.create({
+        account: account.id,
+        refresh_url: `${req.protocol}://${req.get('host')}/api/teams/${teamId}/stripe-onboarding/refresh`,
+        return_url: `${req.protocol}://${req.get('host')}/api/teams/${teamId}/stripe-onboarding/complete`,
+        type: 'account_onboarding',
+      });
+
+      res.json({
+        account: teamStripeAccount,
+        onboardingUrl: accountLink.url,
+      });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Refresh onboarding link
+  app.get("/api/teams/:teamId/stripe-onboarding/refresh", async (req, res) => {
+    try {
+      const { teamId } = req.params;
+      
+      const teamAccount = await storage.getTeamStripeAccount(teamId);
+      if (!teamAccount) {
+        return res.status(404).json({ message: "Team Stripe account not found" });
+      }
+
+      const accountLink = await stripe.accountLinks.create({
+        account: teamAccount.stripeAccountId,
+        refresh_url: `${req.protocol}://${req.get('host')}/api/teams/${teamId}/stripe-onboarding/refresh`,
+        return_url: `${req.protocol}://${req.get('host')}/api/teams/${teamId}/stripe-onboarding/complete`,
+        type: 'account_onboarding',
+      });
+
+      // Update last refresh time
+      await storage.updateTeamStripeAccount(teamId, {
+        lastOnboardingRefresh: new Date(),
+      });
+
+      res.redirect(accountLink.url);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Complete onboarding
+  app.get("/api/teams/:teamId/stripe-onboarding/complete", async (req, res) => {
+    try {
+      const { teamId } = req.params;
+      
+      const teamAccount = await storage.getTeamStripeAccount(teamId);
+      if (!teamAccount) {
+        return res.status(404).json({ message: "Team Stripe account not found" });
+      }
+
+      // Fetch updated account details from Stripe
+      const account = await stripe.accounts.retrieve(teamAccount.stripeAccountId);
+
+      // Update account status
+      await storage.updateTeamStripeAccount(teamId, {
+        onboardingCompleted: true,
+        detailsSubmitted: account.details_submitted || false,
+        payoutsEnabled: account.payouts_enabled || false,
+        chargesEnabled: account.charges_enabled || false,
+        accountStatus: account.payouts_enabled ? "active" : "restricted",
+      });
+
+      res.redirect(`${req.protocol}://${req.get('host')}/app?tab=team-management&success=onboarding-complete`);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Get team Stripe account status
+  app.get("/api/teams/:teamId/stripe-account", async (req, res) => {
+    try {
+      const { teamId } = req.params;
+      const teamAccount = await storage.getTeamStripeAccount(teamId);
+      
+      if (!teamAccount) {
+        return res.status(404).json({ message: "Team Stripe account not found" });
+      }
+
+      // Optionally fetch fresh data from Stripe
+      if (req.query.refresh === "true") {
+        try {
+          const account = await stripe.accounts.retrieve(teamAccount.stripeAccountId);
+          await storage.updateTeamStripeAccount(teamId, {
+            detailsSubmitted: account.details_submitted || false,
+            payoutsEnabled: account.payouts_enabled || false,
+            chargesEnabled: account.charges_enabled || false,
+            accountStatus: account.payouts_enabled ? "active" : "restricted",
+          });
+        } catch (stripeError) {
+          console.error("Error refreshing Stripe account:", stripeError);
+        }
+      }
+
+      const updatedAccount = await storage.getTeamStripeAccount(teamId);
+      res.json(updatedAccount);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // === TEAM REGISTRATION WITH ENTRY FEES ===
+
+  // Create team registration
+  app.post("/api/team-registrations", sanitizeBody(["teamName", "description"]), async (req, res) => {
+    try {
+      const validatedData = insertTeamRegistrationSchema.parse(req.body);
+      const registration = await storage.createTeamRegistration(validatedData);
+      res.status(201).json(registration);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  // Get team registration
+  app.get("/api/team-registrations/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const registration = await storage.getTeamRegistration(id);
+      if (!registration) {
+        return res.status(404).json({ message: "Team registration not found" });
+      }
+      res.json(registration);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Get registrations by division
+  app.get("/api/team-registrations/division/:divisionId", async (req, res) => {
+    try {
+      const { divisionId } = req.params;
+      const registrations = await storage.getTeamRegistrationsByDivision(divisionId);
+      res.json(registrations);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // === MATCH ENTRY WITH STRIPE CHECKOUT ===
+
+  // Create match entry with Stripe Checkout
+  app.post("/api/match-entries", sanitizeBody(["description"]), async (req, res) => {
+    try {
+      const { 
+        divisionId, 
+        homeTeamId, 
+        awayTeamId, 
+        entryFeePerPlayer, 
+        teamSize,
+        operatorId,
+        venueId,
+        scheduledAt 
+      } = req.body;
+
+      // Validate division exists
+      const division = await storage.getMatchDivision(divisionId);
+      if (!division) {
+        return res.status(400).json({ message: "Invalid division" });
+      }
+
+      // Validate entry fee is within division limits
+      if (entryFeePerPlayer < division.entryFeeMin || entryFeePerPlayer > division.entryFeeMax) {
+        return res.status(400).json({ 
+          message: `Entry fee must be between $${(division.entryFeeMin/100).toFixed(2)} and $${(division.entryFeeMax/100).toFixed(2)} per player` 
+        });
+      }
+
+      // Validate team size
+      if (teamSize < division.minTeamSize || teamSize > division.maxTeamSize) {
+        return res.status(400).json({ 
+          message: `Team size must be between ${division.minTeamSize} and ${division.maxTeamSize} players` 
+        });
+      }
+
+      const totalStake = entryFeePerPlayer * teamSize * 2; // Both teams pay
+      const matchId = `${division.name}_${Date.now()}_${homeTeamId}`;
+
+      // Get operator tier for revenue split calculation
+      const operatorTiers = await storage.getOperatorTiers();
+      const defaultTier = operatorTiers.find(t => t.name === "basic_hall") || operatorTiers[0];
+      const revenueSplitPercent = defaultTier?.revenueSplitPercent || 10;
+
+      // Create Stripe Checkout session
+      const session = await stripe.checkout.sessions.create({
+        mode: 'payment',
+        payment_method_types: ['card'],
+        line_items: [
+          {
+            price_data: {
+              currency: 'usd',
+              product_data: {
+                name: `${division.displayName} Entry Fee`,
+                description: `Entry fee for ${teamSize} players at $${(entryFeePerPlayer/100).toFixed(2)} each`,
+              },
+              unit_amount: totalStake,
+            },
+            quantity: 1,
+          },
+        ],
+        metadata: {
+          match_id: matchId,
+          division_id: divisionId,
+          home_team_id: homeTeamId,
+          away_team_id: awayTeamId || "",
+          entry_fee_per_player: entryFeePerPlayer.toString(),
+          team_size: teamSize.toString(),
+          operator_id: operatorId,
+          venue_id: venueId || "",
+          revenue_split_percent: revenueSplitPercent.toString(),
+        },
+        success_url: `${req.protocol}://${req.get('host')}/app?tab=matches&success=payment-complete&match_id=${matchId}`,
+        cancel_url: `${req.protocol}://${req.get('host')}/app?tab=matches&cancelled=true`,
+      });
+
+      // Create match entry record
+      const matchEntry = await storage.createMatchEntry({
+        matchId,
+        divisionId,
+        homeTeamId,
+        awayTeamId,
+        entryFeePerPlayer,
+        totalStake,
+        stripeCheckoutSessionId: session.id,
+        paymentStatus: "pending",
+        matchStatus: awayTeamId ? "accepted" : "open",
+        scheduledAt: scheduledAt ? new Date(scheduledAt) : undefined,
+        venueId,
+        operatorId,
+        metadata: {
+          teamSize,
+          revenueSplitPercent,
+          divisionName: division.name,
+        },
+      });
+
+      res.status(201).json({
+        matchEntry,
+        checkoutUrl: session.url,
+      });
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  // Get match entry
+  app.get("/api/match-entries/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const matchEntry = await storage.getMatchEntry(id);
+      if (!matchEntry) {
+        return res.status(404).json({ message: "Match entry not found" });
+      }
+      res.json(matchEntry);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Update match entry (for results, etc.)
+  app.patch("/api/match-entries/:id", sanitizeBody(["description"]), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const updates = req.body;
+      
+      const updatedEntry = await storage.updateMatchEntry(id, updates);
+      if (!updatedEntry) {
+        return res.status(404).json({ message: "Match entry not found" });
+      }
+      
+      res.json(updatedEntry);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  // Complete match and trigger payout
+  app.post("/api/match-entries/:id/complete", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { winnerId, homeScore, awayScore } = req.body;
+
+      const matchEntry = await storage.getMatchEntry(id);
+      if (!matchEntry) {
+        return res.status(404).json({ message: "Match entry not found" });
+      }
+
+      if (matchEntry.matchStatus === "completed") {
+        return res.status(400).json({ message: "Match already completed" });
+      }
+
+      if (matchEntry.paymentStatus !== "paid") {
+        return res.status(400).json({ message: "Match entry fees not paid" });
+      }
+
+      // Update match entry
+      const completedMatch = await storage.updateMatchEntry(id, {
+        matchStatus: "completed",
+        winnerId,
+        homeScore,
+        awayScore,
+        completedAt: new Date(),
+      });
+
+      // Check if winning team has Stripe account for payout
+      const teamStripeAccount = await storage.getTeamStripeAccount(winnerId);
+      if (!teamStripeAccount || !teamStripeAccount.payoutsEnabled) {
+        return res.json({
+          match: completedMatch,
+          payout: null,
+          message: "Match completed but winning team needs to complete Stripe onboarding for payout",
+        });
+      }
+
+      // Calculate payout amounts
+      const totalStake = matchEntry.totalStake;
+      const metadata = matchEntry.metadata as any;
+      const revenueSplitPercent = metadata?.revenueSplitPercent || 10;
+      
+      const platformFee = Math.floor(totalStake * (revenueSplitPercent / 100));
+      const operatorFee = 0; // Operator gets revenue share, not per-match fee
+      const teamPayout = totalStake - platformFee - operatorFee;
+
+      // Create Stripe transfer to winning team
+      const transfer = await stripe.transfers.create({
+        amount: teamPayout,
+        currency: 'usd',
+        destination: teamStripeAccount.stripeAccountId,
+        transfer_group: `match_${matchEntry.matchId}`,
+        metadata: {
+          match_id: matchEntry.matchId,
+          winning_team_id: winnerId,
+          total_stake: totalStake.toString(),
+          platform_fee: platformFee.toString(),
+        },
+      });
+
+      // Record payout distribution
+      const payout = await storage.createPayoutDistribution({
+        matchEntryId: matchEntry.id,
+        winningTeamId: winnerId,
+        totalPayout: teamPayout,
+        platformFee,
+        operatorFee,
+        teamPayout,
+        stripeTransferId: transfer.id,
+        transferStatus: "pending",
+        operatorTierAtPayout: "basic_hall", // Should get from actual operator
+        revenueSplitAtPayout: revenueSplitPercent,
+        payoutMethod: "stripe_transfer",
+      });
+
+      res.json({
+        match: completedMatch,
+        payout,
+        transfer: {
+          id: transfer.id,
+          amount: teamPayout,
+          status: transfer.reversals ? "reversed" : "pending",
+        },
+      });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // === STRIPE WEBHOOKS ===
+
+  // Handle Stripe Checkout completion
+  app.post("/api/stripe/webhook", express.raw({ type: 'application/json' }), async (req, res) => {
+    try {
+      const sig = req.headers['stripe-signature'] as string;
+      
+      let event;
+      try {
+        event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET!);
+      } catch (err: any) {
+        console.log(`Webhook signature verification failed.`, err.message);
+        return res.status(400).send(`Webhook Error: ${err.message}`);
+      }
+
+      if (event.type === 'checkout.session.completed') {
+        const session = event.data.object as any;
+        const matchId = session.metadata?.match_id;
+        
+        if (matchId) {
+          // Update match entry payment status
+          const matchEntry = await storage.getMatchEntryByMatchId(matchId);
+          if (matchEntry) {
+            await storage.updateMatchEntry(matchEntry.id, {
+              paymentStatus: "paid",
+              stripePaymentIntentId: session.payment_intent,
+            });
+          }
+        }
+      }
+
+      res.json({ received: true });
+    } catch (error: any) {
+      console.error("Webhook error:", error);
       res.status(500).json({ message: error.message });
     }
   });
