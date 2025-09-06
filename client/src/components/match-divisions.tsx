@@ -24,6 +24,7 @@ import {
   Gamepad2
 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
+import { SafeText } from "@/components/SafeText";
 
 interface MatchDivision {
   id: string;
@@ -249,7 +250,7 @@ export default function MatchDivisions() {
                     )}
                     {division.allowsSideBets && (
                       <Badge variant="outline" className="border-yellow-500 text-yellow-300">
-                        Side Bets Allowed
+                        <SafeText>Side Bets Allowed</SafeText>
                       </Badge>
                     )}
                   </div>
