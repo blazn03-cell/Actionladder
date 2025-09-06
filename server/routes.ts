@@ -22,6 +22,7 @@ import {
   type GlobalRole
 } from "@shared/schema";
 import { OperatorSubscriptionCalculator } from "./operator-subscription-utils";
+import { emailService } from "./email-service";
 
 if (!process.env.STRIPE_SECRET_KEY) {
   throw new Error('Missing required Stripe secret: STRIPE_SECRET_KEY');
@@ -2867,13 +2868,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const account = await stripe.accounts.retrieve(teamAccount.stripeAccountId);
 
       // Update account status
-      await storage.updateTeamStripeAccount(teamId, {
+      const updatedAccount = await storage.updateTeamStripeAccount(teamId, {
         onboardingCompleted: true,
         detailsSubmitted: account.details_submitted || false,
         payoutsEnabled: account.payouts_enabled || false,
         chargesEnabled: account.charges_enabled || false,
         accountStatus: account.payouts_enabled ? "active" : "restricted",
       });
+
+      // Send welcome email
+      if (updatedAccount && updatedAccount.email) {
+        try {
+          await emailService.sendOnboardingComplete({
+            teamName: `Team ${teamId}`, // In real app, get actual team name
+            accountId: account.id,
+            platformUrl: `${req.protocol}://${req.get('host')}`,
+          }, updatedAccount.email);
+        } catch (emailError) {
+          console.error('Failed to send onboarding email:', emailError);
+        }
+      }
 
       res.redirect(`${req.protocol}://${req.get('host')}/app?tab=team-management&success=onboarding-complete`);
     } catch (error: any) {
@@ -3164,6 +3178,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         payoutMethod: "stripe_transfer",
       });
 
+      // Send payout notification email
+      if (teamStripeAccount.email) {
+        try {
+          const division = await storage.getMatchDivision(matchEntry.divisionId);
+          await emailService.sendPayoutNotification({
+            teamName: `Winning Team ${winnerId}`, // In real app, get actual team name
+            matchId: matchEntry.matchId,
+            division: division?.displayName || matchEntry.divisionId,
+            amount: teamPayout,
+            transferId: transfer.id,
+            opponentTeam: matchEntry.awayTeamId ? `Opponent Team ${matchEntry.awayTeamId}` : undefined,
+          }, teamStripeAccount.email);
+        } catch (emailError) {
+          console.error('Failed to send payout email:', emailError);
+        }
+      }
+
       res.json({
         match: completedMatch,
         payout,
@@ -3205,6 +3236,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
               paymentStatus: "paid",
               stripePaymentIntentId: session.payment_intent,
             });
+
+            // Send match entry confirmation email
+            try {
+              const division = await storage.getMatchDivision(matchEntry.divisionId);
+              const teamStripeAccount = await storage.getTeamStripeAccount(matchEntry.homeTeamId);
+              
+              if (teamStripeAccount?.email) {
+                await emailService.sendMatchEntryConfirmation(
+                  `Team ${matchEntry.homeTeamId}`, // In real app, get actual team name
+                  division?.displayName || 'Unknown Division',
+                  matchEntry.entryFeePerPlayer,
+                  matchEntry.matchId,
+                  teamStripeAccount.email
+                );
+              }
+            } catch (emailError) {
+              console.error('Failed to send match entry confirmation email:', emailError);
+            }
           }
         }
       }
