@@ -23,6 +23,8 @@ import {
 } from "@shared/schema";
 import { OperatorSubscriptionCalculator } from "./operator-subscription-utils";
 import { emailService } from "./email-service";
+import { sanitizeBody, createStripeDescription, sanitizeForStorage } from "./sanitize";
+import { refundDeposit, refundMatchEntry, refundTournamentEntry, canRefundPayment } from "./refund-service";
 
 if (!process.env.STRIPE_SECRET_KEY) {
   throw new Error('Missing required Stripe secret: STRIPE_SECRET_KEY');
@@ -3018,8 +3020,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             price_data: {
               currency: 'usd',
               product_data: {
-                name: `${division.displayName} Entry Fee`,
-                description: `Entry fee for ${teamSize} players at $${(entryFeePerPlayer/100).toFixed(2)} each`,
+                name: `${division.displayName} Tournament Entry`,
+                description: createStripeDescription(`Tournament entry for ${teamSize} players at $${(entryFeePerPlayer/100).toFixed(2)} each`),
               },
               unit_amount: totalStake,
             },
@@ -3261,6 +3263,81 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ received: true });
     } catch (error: any) {
       console.error("Webhook error:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // === REFUND SYSTEM API ===
+
+  // Refund a deposit (for verified attendance)
+  app.post("/api/refunds/deposit", async (req, res) => {
+    try {
+      const { paymentIntentId, amountCents, reason, userId, metadata } = req.body;
+      
+      if (!paymentIntentId) {
+        return res.status(400).json({ message: "Payment Intent ID required" });
+      }
+
+      const refundResult = await refundDeposit({
+        paymentIntentId,
+        amountCents,
+        reason,
+        metadata: {
+          user_id: userId,
+          refund_type: "deposit_refund",
+          ...metadata,
+        },
+      });
+
+      res.json(refundResult);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Refund match entry
+  app.post("/api/refunds/match-entry", async (req, res) => {
+    try {
+      const { paymentIntentId, matchId, userId, amountCents } = req.body;
+      
+      if (!paymentIntentId || !matchId || !userId) {
+        return res.status(400).json({ 
+          message: "Payment Intent ID, Match ID, and User ID required" 
+        });
+      }
+
+      const refundResult = await refundMatchEntry(paymentIntentId, matchId, userId, amountCents);
+      res.json(refundResult);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Refund tournament entry
+  app.post("/api/refunds/tournament-entry", async (req, res) => {
+    try {
+      const { paymentIntentId, tournamentId, userId, reason } = req.body;
+      
+      if (!paymentIntentId || !tournamentId || !userId) {
+        return res.status(400).json({ 
+          message: "Payment Intent ID, Tournament ID, and User ID required" 
+        });
+      }
+
+      const refundResult = await refundTournamentEntry(paymentIntentId, tournamentId, userId, reason);
+      res.json(refundResult);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Check refund eligibility
+  app.get("/api/refunds/check/:paymentIntentId", async (req, res) => {
+    try {
+      const { paymentIntentId } = req.params;
+      const eligibility = await canRefundPayment(paymentIntentId);
+      res.json(eligibility);
+    } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
   });
