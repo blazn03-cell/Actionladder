@@ -27,7 +27,7 @@ class EmailService {
 
   constructor() {
     // Configure nodemailer (using SMTP or service like SendGrid)
-    this.transporter = nodemailer.createTransporter({
+    this.transporter = nodemailer.createTransport({
       // For development, use ethereal email (test emails)
       host: process.env.SMTP_HOST || 'smtp.ethereal.email',
       port: 587,
