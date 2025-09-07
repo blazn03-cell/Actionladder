@@ -69,13 +69,13 @@ export default function MonetizationDashboard() {
       const tierData = await tierResponse.json();
       setTiers(tierData);
       
-      // Simulate earnings data - in production this would come from your database
+      // NEW PLAYER-FRIENDLY DISTRIBUTION MODEL
       setEarnings({
-        actionLadderTotal: 12850, // $128.50
-        operatorTotal: 7710,     // $77.10  
-        bonusFundTotal: 5140,    // $51.40
-        playerWinnings: 45600,   // $456.00
-        monthlyGrowth: 23.5
+        actionLadderTotal: 25000, // $250 total: $90 owner + $80 trustee A + $80 trustee B
+        operatorTotal: 45000,     // $450 total: 6 operators x $75 each = $4,500 
+        bonusFundTotal: 100000,   // $1,000+ monthly player bonus fund (35% of commission)
+        playerWinnings: 120000,   // $1,200 monthly player winnings from matches
+        monthlyGrowth: 18.5
       });
       
       setLoading(false);
@@ -244,23 +244,26 @@ export default function MonetizationDashboard() {
                 </CardContent>
               </Card>
 
-              {/* Player Winnings */}
+              {/* Player Benefits - Always visible */}
               <Card className="bg-gray-900 border-orange-500/30">
                 <CardHeader className="pb-3">
                   <CardTitle className="text-orange-400 flex items-center gap-2">
                     <TrendingUp className="h-5 w-5" />
-                    Player Winnings
+                    Player Benefits
                   </CardTitle>
                   <CardDescription className="text-gray-400">
-                    Prize Pool Payouts
+                    Total Monthly Player Value
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold text-white">
-                    {formatCurrency(earnings.playerWinnings)}
+                    {formatCurrency(earnings.playerWinnings + earnings.bonusFundTotal)}
                   </div>
                   <SafeText className="text-sm text-gray-400 mt-2">
-                    Total Player Earnings
+                    Prize Pools + Bonus Fund
+                  </SafeText>
+                  <SafeText className="text-xs text-green-400 mt-1">
+                    $20-30 cheaper than leagues!
                   </SafeText>
                 </CardContent>
               </Card>
@@ -283,9 +286,9 @@ export default function MonetizationDashboard() {
                   {canSeeActionLadderEarnings && (
                     <div className="p-4 rounded-lg bg-green-900/20 border border-green-500/30">
                       <h4 className="text-green-400 font-semibold">Action Ladder Platform</h4>
-                      <p className="text-2xl font-bold text-white">50%</p>
+                      <p className="text-2xl font-bold text-white">35%</p>
                       <SafeText className="text-sm text-gray-400">
-                        Technology, development, marketing
+                        Reduced share - more money to players!
                       </SafeText>
                     </div>
                   )}
@@ -299,10 +302,10 @@ export default function MonetizationDashboard() {
                     </div>
                   )}
                   <div className="p-4 rounded-lg bg-purple-900/20 border border-purple-500/30">
-                    <h4 className="text-purple-400 font-semibold">Community Bonus Fund</h4>
-                    <p className="text-2xl font-bold text-white">20%</p>
+                    <h4 className="text-purple-400 font-semibold">Player Bonus Fund</h4>
+                    <p className="text-2xl font-bold text-white">35%</p>
                     <SafeText className="text-sm text-gray-400">
-                      Tournaments, prizes, player incentives
+                      Weekly bonuses, monthly prizes, event nights
                     </SafeText>
                   </div>
                 </div>
@@ -339,9 +342,9 @@ export default function MonetizationDashboard() {
                       </SelectTrigger>
                       <SelectContent className="bg-gray-800 border-gray-600">
                         <SelectItem value="none">Non-Member (10%)</SelectItem>
-                        <SelectItem value="rookie">Rookie (10%)</SelectItem>
-                        <SelectItem value="basic">Basic (8%)</SelectItem>
-                        <SelectItem value="pro">Pro (5%)</SelectItem>
+                        <SelectItem value="rookie">Rookie $50 (10%)</SelectItem>
+                        <SelectItem value="standard">Standard $70 (8%)</SelectItem>
+                        <SelectItem value="premium">Premium $90 (5%)</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
