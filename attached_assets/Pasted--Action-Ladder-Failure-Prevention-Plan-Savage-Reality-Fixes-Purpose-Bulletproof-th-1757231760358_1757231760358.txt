@@ -1,0 +1,507 @@
+# 🎱 Action Ladder — Failure Prevention Plan (Savage Reality + Fixes)
+
+**Purpose:** Bulletproof the launch. This playbook lists every realistic way the project can fail and gives a concrete prevention → detection → response path with owners, SLAs, and metrics.
+
+**Use it for:** onboarding operators, investor diligence, team SOPs, and day‑to‑day decisions.
+
+---
+
+## Table of Contents
+
+1. High‑Risk Issues & Countermeasures (Top 15)
+2. Anti‑Sandbagging & Fair Play Enforcement
+3. Payments & Stripe‑Safe Design
+4. Operations SOPs (No‑Shows, Disputes, Chargebacks, Cheating)
+5. Legal/Compliance & Platform Language Library
+6. Technical Architecture & Reliability Playbook
+7. Security, Privacy, and Data Retention
+8. KPI Dashboard & Early‑Market Targets
+9. Go/No‑Go Launch Checklist (Day 0)
+10. 30/60/90 Execution Plan (One City → Three Cities)
+11. Operator Agreement Must‑Haves
+12. Crisis Comms Templates (Players, Operators, Public)
+
+---
+
+## 1) High‑Risk Issues & Countermeasures (Top 15)
+
+Each item lists **Threat → Prevention (Product/Policy) → Detection → Response SOP → Owner → SLA → KPIs**.
+
+### 1. Player Sandbagging / Cheating
+
+* **Threat:** Players understate skill, dodge tough matches, throw games, or use fake accounts.
+* **Prevention (Product):**
+
+  * Enforce **Verified Placement**: FargoRate link or 5 operator‑verified placement matches (streamed or recorded).
+  * **Dynamic Tier Engine**: auto‑bump tier on outlier performance (streaks vs higher rated, run‑out %, rack differential, break‑win rate).
+  * **Footage Required**: matches must be streamed/recorded or operator‑verified; upload within 24h.
+  * **Account Integrity**: 1 phone → 1 account; SMS + email + device fingerprint.
+* **Prevention (Policy):**
+
+  * **Play‑Up Rewards** (bonus credits/spotlights) make honest progression more valuable than hiding.
+  * **Penalty Ladder:** 1st offense: tier correction + loss of credits; 2nd: 30‑day suspension; 3rd: locked to Pro.
+* **Detection:** Suspicion score (see §2): win streak >10 vs higher tiers, break‑and‑run % outlier, sudden rating drops pre‑event, operator flags, peer reports.
+* **Response SOP:** Auto‑lock flagged profile → admin review → re‑tier + adjust/void results if mis‑tiered → notify parties → log case.
+* **Owner:** Head of Fair Play.
+* **SLA:** Initial review within 24h, final within 72h.
+* **KPIs:** % flagged, median review time, recidivism <5%.
+
+### 2. No‑Shows / Ducking
+
+* **Threat:** Players accept challenges then ghost; schedule chaos.
+* **Prevention:**
+
+  * **Challenge Hold**: pre‑auth or prepaid challenge fee; forfeited on no‑show.
+  * **Cancellation Windows**: free reschedule ≥24h; <24h costs a small reschedule fee.
+* **Detection:** Calendar + check‑in QR at table; if no scan by T+10 minutes → auto no‑show.
+* **Response SOP:** Auto‑payout to opponent; 2 no‑shows in 30 days → 30‑day suspension.
+* **Owner:** Match Ops.
+* **SLA:** Auto decision at T+10; suspension at 2nd event.
+* **KPIs:** No‑show rate <4%.
+
+### 3. Stripe Account Freeze (Language/Use‑Case)
+
+* **Threat:** Payments flagged as “gambling.”
+* **Prevention:**
+
+  * **Language Library** (see §5): use *challenge fee, ladder dues, prize distribution*; never *bet, wager, sportsbook*.
+  * **Productized Flows:** membership + challenge fees + prize distributions. Keep any side action **off‑platform**.
+  * **Clear Descriptor:** “Action Ladder – Competitive Pool League.”
+* **Detection:** Monitor Stripe alerts + dispute spikes.
+* **Response SOP:** Pause new challenges → switch to membership‑only mode (no prize distributions) → appeal with documentation (rules, streams, operator contracts).
+* **Owner:** Payments Lead.
+* **SLA:** Freeze response pack within 4 hours.
+* **KPIs:** 0 compliance warnings; 0 account freezes.
+
+### 4. Chargebacks & Disputes
+
+* **Threat:** Players dispute fees.
+* **Prevention:** Signed ToS, on‑screen acceptance, match audit trails (check‑in QR, scorecard, footage), receipts with metadata.
+* **Detection:** Stripe webhook on `charge.dispute.created`.
+* **Response SOP:** Pull evidence bundle (match ID, venue, time, footage link, QR check‑in, ToS acceptance) → submit within 48h.
+* **Owner:** Payments Ops.
+* **SLA:** Evidence submitted within 24–48h.
+* **KPIs:** Win‑rate >70%, disputes <0.5% of charges.
+
+### 5. Operator Pushback
+
+* **Threat:** Halls think it adds overhead or steals action.
+* **Prevention:** Revenue share (5–10%), beer/food tie‑ins, white‑label option (hall branding “Powered by Action Ladder”).
+* **Detection:** Operator NPS, opt‑out reasons tracked.
+* **Response SOP:** Operator success call → tailor promos → on‑site launch night with stream + posters.
+* **Owner:** Operator Success.
+* **SLA:** Outreach <24h post‑complaint.
+* **KPIs:** Operator NPS ≥50, monthly churn <3%.
+
+### 6. Scaling Costs / Cash Burn
+
+* **Threat:** Server, streaming, payouts burn cash pre‑profit.
+* **Prevention:** Single‑market MVP (50–100 players), lean stack, community content. Focus on positive unit economics per hall.
+* **Detection:** CAC\:LTV, contribution margin per hall.
+* **Response SOP:** Freeze non‑core features; scale geographic expansion only when CM>0.
+* **Owner:** CEO/Finance.
+* **SLA:** Monthly finance review.
+* **KPIs:** Payback <3 months.
+
+### 7. Technical Outages / Webhook Failures
+
+* **Threat:** Scores or payouts lost; double charges.
+* **Prevention:** Idempotency keys, retry queues, webhook signature validation, dead‑letter queue, status dashboards.
+* **Detection:** Synthetic tests; alert on webhook failure rate >0.5%/5min.
+* **Response SOP:** Fail closed (pause payouts), replay queue, publish incident post‑mortem in 72h.
+* **Owner:** Eng Lead.
+* **SLA:** P0 < 1h, P1 < 4h.
+* **KPIs:** 99.9% uptime; 0 double‑charges.
+
+### 8. Payout Routing Errors
+
+* **Threat:** Funds to wrong account.
+* **Prevention:** Connect Express onboarding; verify legal name vs bank; test \$0.01 micro‑payout; payout review for first 3 payouts/user.
+* **Detection:** Reconcile daily: charge → transfer → payout.
+* **Response SOP:** Freeze user payouts; reverse/adjust via Connect; notify within 24h.
+* **Owner:** Payments Lead.
+* **SLA:** Correction within 2 business days.
+* **KPIs:** 0 unrecoverable mis‑routes.
+
+### 9. Fraud / Identity Abuse
+
+* **Threat:** Stolen cards, multi‑accounting, collusion.
+* **Prevention:** 3DS where available, velocity checks, device fingerprint, selfie/ID (high‑value tiers), operator vouch.
+* **Detection:** Fraud score, mismatched geos, payment AVS/CVV fails.
+* **Response SOP:** Lock → KYC → refund legitimate cardholders → ban bad actors.
+* **Owner:** Trust & Safety.
+* **SLA:** 24h.
+* **KPIs:** Fraud loss <0.15% GMV.
+
+### 10. Legal / Regulatory (Contest vs Gambling)
+
+* **Threat:** Misclassification.
+* **Prevention:** Skill‑based contest framing; published rules; transparent scoring; no odds; flat fees; prize distributions per rules.
+* **Detection:** Legal counsel review for new geos.
+* **Response SOP:** Geofence risky regions; toggle to membership only.
+* **Owner:** Legal/Compliance.
+* **SLA:** Quarterly review.
+* **KPIs:** 0 regulatory inquiries.
+
+### 11. Content/Brand Risk
+
+* **Threat:** Toxic behavior on streams; harassment.
+* **Prevention:** Code of Conduct; mute/time‑out; “Dog of the Day” framed as light banter; no slurs.
+* **Detection:** Mod queue + community flags.
+* **Response SOP:** Remove content; suspend offenders; public statement template.
+* **Owner:** Community Lead.
+* **SLA:** 12h.
+* **KPIs:** Content takedown <12h.
+
+### 12. Data Privacy & Security
+
+* **Threat:** PII leak.
+* **Prevention:** Encrypt at rest/in transit; least‑privilege access; audit logs; periodic backups; secrets manager.
+* **Detection:** SIEM alerts; anomaly access.
+* **Response SOP:** Contain, rotate keys, notify as required.
+* **Owner:** Security Lead.
+* **SLA:** 72h regulatory window.
+* **KPIs:** 0 incidents.
+
+### 13. Rating Integrity
+
+* **Threat:** Manual manipulation; bogus score entries.
+* **Prevention:** Operator co‑sign on results; video proof; ELO/Fargo hybrid; immutable audit trail.
+* **Detection:** Anomaly detection on rack differentials.
+* **Response SOP:** Rollback & re‑tier; transparency log.
+* **Owner:** Fair Play.
+* **SLA:** 72h.
+* **KPIs:** <1% result reversals.
+
+### 14. Multi‑Venue Conflicts
+
+* **Threat:** Players double‑book venues; operators fight over credit.
+* **Prevention:** Venue ID in challenge; QR check‑in binds venue; revenue share auto‑assigned.
+* **Detection:** Calendar conflicts.
+* **Response SOP:** Operator success mediates; policy: home‑court gets 60% credit.
+* **Owner:** Operator Success.
+* **SLA:** 48h.
+
+### 15. Marketing Stagnation / Churn
+
+* **Threat:** Hype fades after launch.
+* **Prevention:** Weekly highlight reels, streak badges, monthly mini‑majors, meme packs for operators.
+* **Detection:** DAU/WAU, cohort retention.
+* **Response SOP:** Re‑engage with targeted promos; invite pros for exhibition nights.
+* **Owner:** Growth Lead.
+* **SLA:** 7 days to ship a campaign.
+* **KPIs:** D30 retention ≥25%.
+
+---
+
+## 2) Anti‑Sandbagging & Fair Play Enforcement (Deep Rules)
+
+**2.1 Verified Placement**
+
+* Require FargoRate ID or 5 placement matches (streamed or operator‑verified). Unlocks full ladder.
+
+**2.2 Dynamic Tier Engine**
+
+* Auto‑bump when any of these trip:
+
+  * Win 5/7 vs higher‑tier opponents.
+  * Break‑and‑run % > bracket 95th percentile.
+  * Rack differential avg > +3 across last 10 matches.
+* 25+ verified matches may justify moving down; admin approval only.
+
+**2.3 Transparency & Footage**
+
+* Upload link within 24 hours; failure = match invalid; repeat failures = suspension.
+
+**2.4 Suspicion Score**
+
+* Inputs: win streak, opponent strength, BR%, safety success, run‑outs, sudden rating drops, operator/peer flags.
+* Thresholds: Score≥7/10 → lock & review; Score≥9/10 → provisional re‑tier pending review.
+
+**2.5 Penalties**
+
+* 1st: tier correction + loss of credits for mis‑tiered matches.
+* 2nd: 30‑day suspension + public listing (“Fair Play Notice”).
+* 3rd: permanent lower‑tier ban (Pro‑only eligibility).
+
+**2.6 Positive Incentives**
+
+* Play‑Up Bonuses; “Upset King” badge; “Savage Spotlight” feature; Fast‑Track skip Rookie after 10 verified wins vs peers.
+
+---
+
+## 3) Payments & Stripe‑Safe Design
+
+**Framing:** Competitive, skill‑based contests with **challenge fees** and **prize distributions**; **no odds, no wagering language**.
+
+**3.1 Core Objects**
+
+* **Memberships:** Monthly subscriptions (Rookie/Basic/Pro).
+* **Challenge Fees:** One‑off payments at challenge accept; tagged with metadata: `{match_id, venue_id, tier, players}`.
+* **Prize Distributions:** Transfers to winners via Stripe Connect after score verification.
+
+**3.2 Connect Setup**
+
+* Use **Connect Express** for creators/operators needing payouts.
+* Collect tax info and KYC during onboarding; first three payouts are manual‑reviewed.
+
+**3.3 “Escrow‑Like” Flow (High Level)**
+
+* Charge the challenge fee at acceptance.
+* Hold funds on platform balance (or capture after result if using delayed capture within the allowed window).
+* After verified score, **transfer** appropriate portion to winner’s connected account; distribute operator share; keep platform fee.
+
+**3.4 Receipts & Metadata**
+
+* Email receipts include match link, venue, time, ToS acceptance, and footage URL.
+
+**3.5 Dispute Evidence Pack**
+
+* Auto‑compiled bundle: charge ID, match ID, QR check‑in, scorecard, footage, ToS.
+
+**3.6 Language Library (Stripe‑Safe)** — see §5.
+
+---
+
+## 4) Operations SOPs
+
+**4.1 No‑Show SOP**
+
+1. T‑0: Opponent checks in via QR. 2) T+10: If other player not checked in → auto no‑show. 3) Auto payout to present player. 4) Log strike; 2 strikes→30‑day suspension.
+
+**4.2 Score Dispute SOP**
+
+1. Freeze payout. 2) Collect scorecards & footage. 3) Operator weighs in. 4) Admin decision (≤72h). 5) Notify & log.
+
+**4.3 Cheating/Sandbagging SOP**
+
+1. Auto‑flag → lock. 2) Admin review & re‑tier. 3) Adjust past results. 4) Penalty ladder applied. 5) Publish Fair Play Notice.
+
+**4.4 Chargeback SOP**
+
+1. Pull evidence pack. 2) Submit within 48h. 3) If lost, blacklist payment method; maintain goodwill with impacted player.
+
+**4.5 Refund SOP**
+
+* Within 24h of admin error or venue outage; template apology; credit bonus to retain player.
+
+---
+
+## 5) Legal/Compliance & Language Library
+
+**5.1 Positioning**
+
+* “Action Ladder is a **skill‑based competitive pool league**. Players pay **challenge fees** and earn **ladder credits and prize distributions** based on published rules. No odds, no wagering.”
+
+**5.2 Language Swaps**
+
+* Bet → **Challenge Fee**
+* Wager → **Entry Fee** / **Match Fee**
+* Pot → **Prize Pool** / **Prize Distribution**
+* Gambling → **Skill‑Based Contest**
+* Book/Bookie → **Operator** / **Organizer**
+
+**5.3 Content Policy**
+
+* Side action is not facilitated by the platform. Keep it **off‑platform**.
+
+**5.4 Jurisdiction Notes**
+
+* Expand with counsel: geofence risky regions if needed; publish rules; maintain audit trail.
+
+**5.5 Waivers**
+
+* Player ToS, Code of Conduct, Media Release (streams), Liability Waiver.
+
+---
+
+## 6) Technical Architecture & Reliability
+
+**6.1 Event‑Driven Core**
+
+* All critical state transitions via signed webhooks; idempotent handlers; retries; DLQ.
+
+**6.2 Queue‑Backed Payouts**
+
+* Scores → verification job → payout job; fail closed on webhook issues.
+
+**6.3 Observability**
+
+* Logs + metrics: webhook latency, failure rate, payout queue depth, duplicate detection.
+
+**6.4 Data Model (Minimal)**
+
+* `User`, `Venue`, `Match`, `Tier`, `Payment`, `Transfer`, `Dispute`, `SuspicionCase`, `MediaAsset`.
+
+**6.5 Backups & Recovery**
+
+* Nightly encrypted backups; restore playbook tested monthly.
+
+---
+
+## 7) Security, Privacy, Data Retention
+
+* Encrypt PII; mask payment data; role‑based access; audit logs immutable 1 year; rotate keys quarterly.
+* Retain match media 12 months (or per policy); allow takedown requests respecting integrity of disputes.
+
+---
+
+## 8) KPI Dashboard & Early‑Market Targets
+
+* **Acquisition:** CAC <\$20 (local), QR signups/venue ≥30 in first month.
+* **Activation:** ≥60% of signups play 1st match in 7 days.
+* **Engagement:** Avg 1.5 matches/player/week; DAU/WAU ≥35%.
+* **Monetization:** GMV/hall ≥ \$6k/mo (assumption); platform take rate 10–15%.
+* **Quality:** No‑show <4%; dispute rate <0.5%; stream coverage ≥80% of matches.
+
+*(Mark “assumptions” and replace with real numbers as data arrives.)*
+
+---
+
+## 9) Go/No‑Go Launch Checklist (Day 0)
+
+* ✅ Stripe Connect Express live; test payouts passed.
+* ✅ ToS/Code of Conduct/Privacy posted; language audited.
+* ✅ Operator agreement signed; revenue share set.
+* ✅ QR posters printed; walk‑in song form live; stream kit tested.
+* ✅ Webhook dashboard green; incident runbook handy.
+* ✅ Highlight template & meme pack delivered to venue.
+
+---
+
+## 10) 30/60/90 Plan
+
+**0–30 Days (One City MVP)**
+
+* Onboard 1–2 operators; 50–100 players.
+* Stream 50%+ matches; weekly highlight reel.
+* Validate no‑show, dispute, payout pipelines.
+
+**31–60 Days (Prove Unit Economics)**
+
+* Add 1 more venue; operator NPS ≥50.
+* Mini‑major event; sponsorship test.
+
+**61–90 Days (Template for Scale)**
+
+* Document playbooks; white‑label kit; start second city waitlist.
+
+---
+
+## 11) Operator Agreement Must‑Haves
+
+* Revenue share, branding rights, in‑venue QR placement, staff training, data access, termination, content rights.
+
+---
+
+## 12) Crisis Comms Templates
+
+* **To Players (Dispute/Outage):** Apology → what happened → what we fixed → compensation if any.
+* **To Operators (Freeze/Legal):** Pause rationale → interim plan (membership‑only mode) → ETA.
+* **Public Post:** Short, factual, accountable.
+
+---
+
+# 📈 Action Ladder — Hype Pitch Deck Outline (Biased, Operator/Investor‑Ready)
+
+> **Goal:** Sexy story that also answers the scary questions (payments, cheating, ops).
+
+## Slide 1 — Cold Open
+
+**“Pool leagues are boring. Action Ladder makes every match feel like fight night.”**
+
+* Walk‑in songs. Posters. Streams. Glory.
+* Tagline: **“Bet somethin’ (legally: challenge up), climb fast, be seen.”**
+
+## Slide 2 — The Problem
+
+* Players: politics, slow leagues, no clout.
+* Operators: empty tables on off‑nights; no Gen‑Z draw.
+* Digital: no modern, hype‑driven pool platform.
+
+## Slide 3 — The Solution
+
+* **Skill‑based ladder** with **challenge fees** and **prize distributions**.
+* Streams + highlights → social status loop.
+* Anti‑sandbagging engine (verified placement, dynamic tiers, suspicion score).
+
+## Slide 4 — Why Operators Win
+
+* More table hours; more beer/food.
+* In‑house revenue share + white‑label branding.
+* Weekly hype packs (memes, posters, clips) done for them.
+
+## Slide 5 — Why Players Win
+
+* Money‑as‑Points leaderboard; play‑up bonuses.
+* Walk‑in songs + spotlight features.
+* Real records, real streams, real bragging rights.
+
+## Slide 6 — Product Demo (Flow)
+
+1. Scan QR → join in 60s.
+2. Challenge a rival → pay challenge fee.
+3. Check in at table → play.
+4. Submit score → auto distribution.
+5. Highlight clip → share.
+
+## Slide 7 — Traction (Template)
+
+* Venues live: **\[fill]**
+* Players: **\[fill]**
+* Monthly GMV: **\[fill]**
+* Stream coverage: **\[fill]%**
+  *(Replace with live numbers as soon as MVP runs.)*
+
+## Slide 8 — Business Model
+
+* Subscriptions (players, operators).
+* Challenge fees (platform take).
+* White‑label add‑ons (analytics, tournaments).
+* Merch + sponsorships.
+
+## Slide 9 — Unit Economics (Example Template)
+
+* Avg matches/player/mo: **\[assump 4–6]**
+* Avg challenge fee: **\[assump \$20–\$40]**
+* Platform take: **\[assump 10–15%]**
+* Operator share: **\[assump 5–10%]**
+* Contribution margin/hall: **\[calc once live]**
+
+## Slide 10 — Go‑To‑Market
+
+* Tri‑Cities MVP → Austin/San Antonio → white‑label packs.
+* TikTok reels, “Savage Spotlight”, local mini‑majors.
+* Creator program (“Tyga Hoodz” features).
+
+## Slide 11 — Defensibility
+
+* Community + content flywheel; operator relationships; fair‑play data; brand culture.
+
+## Slide 12 — Risk & Mitigation (We Thought of It)
+
+* Payments language + ToS; anti‑sandbagging engine; operator revenue share; incident runbooks.
+
+## Slide 13 — The Team
+
+* Founder: ops + culture + growth.
+* Advisors: operator, pro player, payments.
+
+## Slide 14 — The Ask
+
+* Operators: pilot 90 days, QR kits installed.
+* Investors: **$\[fill]** for **\[fill]%**, milestones: **\[fill]**.
+
+## Slide 15 — Mic Drop
+
+**“Don’t join a league. Join the show.”**
+
+---
+
+## Appendices
+
+* A) Terms of Play (Fair‑Play excerpts)
+* B) Suspicion Scoring Inputs & Thresholds
+* C) Dispute Evidence Checklist
+* D) Operator Launch‑Night Run‑of‑Show
+* E) Comms Templates (DMs, posts, emails)
