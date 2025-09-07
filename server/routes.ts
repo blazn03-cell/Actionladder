@@ -26,9 +26,6 @@ import { emailService } from "./email-service";
 import { sanitizeBody, createStripeDescription, sanitizeForStorage } from "./sanitize";
 import { refundDeposit, refundMatchEntry, refundTournamentEntry, canRefundPayment } from "./refund-service";
 import { calculateCommission, MEMBERSHIP_TIERS, COMMISSION_CONFIG } from "./pricing-service";
-import { analyzeSandbagging, calculateTierAdjustment, applyPenaltyLadder } from "./anti-sandbagging-service";
-import { calculateRevenueSplit, calculatePeriodEarnings } from "./revenue-sharing-service";
-import { createChallengeHold, processNoShow, verifyAttendance, generateCheckInQR } from "./no-show-service";
 
 if (!process.env.STRIPE_SECRET_KEY) {
   throw new Error('Missing required Stripe secret: STRIPE_SECRET_KEY');
@@ -3271,6 +3268,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // === MONETIZATION SYSTEM API ===
+
+  // Health check endpoint
+  app.get("/api/health", async (req, res) => {
+    res.json({ status: "Action Ladder Monetization System Online", timestamp: new Date().toISOString() });
+  });
+
   // === PRICING TIER SYSTEM API ===
 
   // Get membership tier pricing
@@ -3308,167 +3312,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // === ANTI-SANDBAGGING DETECTION API ===
-
-  // Analyze player for sandbagging
-  app.post("/api/fair-play/analyze-player", async (req, res) => {
+  // Calculate membership savings
+  app.post("/api/pricing/calculate-savings", async (req, res) => {
     try {
-      const { playerId, metrics } = req.body;
+      const { tier, monthlyMatches = 4 } = req.body;
       
-      if (!playerId || !metrics) {
-        return res.status(400).json({ message: "Player ID and metrics required" });
+      if (!tier) {
+        return res.status(400).json({ message: "Membership tier required" });
       }
 
-      const analysis = analyzeSandbagging(metrics);
-      res.json(analysis);
-    } catch (error: any) {
-      res.status(500).json({ message: error.message });
-    }
-  });
-
-  // Calculate tier adjustment
-  app.post("/api/fair-play/calculate-tier-adjustment", async (req, res) => {
-    try {
-      const { currentTier, metrics } = req.body;
-      
-      if (!currentTier || !metrics) {
-        return res.status(400).json({ message: "Current tier and metrics required" });
-      }
-
-      const adjustment = calculateTierAdjustment(currentTier, metrics);
-      res.json(adjustment);
-    } catch (error: any) {
-      res.status(500).json({ message: error.message });
-    }
-  });
-
-  // Apply penalty ladder
-  app.post("/api/fair-play/apply-penalty", async (req, res) => {
-    try {
-      const { playerId, offenseNumber } = req.body;
-      
-      if (!playerId || !offenseNumber) {
-        return res.status(400).json({ message: "Player ID and offense number required" });
-      }
-
-      const penalty = applyPenaltyLadder(offenseNumber);
-      res.json({ playerId, penalty });
-    } catch (error: any) {
-      res.status(500).json({ message: error.message });
-    }
-  });
-
-  // === REVENUE SHARING API ===
-
-  // Calculate revenue split for transaction
-  app.post("/api/revenue/calculate-split", async (req, res) => {
-    try {
-      const { amount, transactionType, membershipTier = "none", operatorTier = "basic_hall" } = req.body;
-      
-      if (!amount || !transactionType) {
-        return res.status(400).json({ message: "Amount and transaction type required" });
-      }
-
-      const split = calculateRevenueSplit(amount, transactionType, membershipTier, operatorTier);
-      res.json(split);
-    } catch (error: any) {
-      res.status(500).json({ message: error.message });
-    }
-  });
-
-  // Calculate operator earnings for period
-  app.post("/api/revenue/calculate-earnings", async (req, res) => {
-    try {
-      const { operatorId, periodStart, periodEnd, transactions } = req.body;
-      
-      if (!operatorId || !periodStart || !periodEnd || !transactions) {
-        return res.status(400).json({ message: "Operator ID, period, and transactions required" });
-      }
-
-      const earnings = calculatePeriodEarnings(
-        transactions,
-        new Date(periodStart),
-        new Date(periodEnd)
-      );
-      
-      earnings.operatorId = operatorId;
-      res.json(earnings);
-    } catch (error: any) {
-      res.status(500).json({ message: error.message });
-    }
-  });
-
-  // === NO-SHOW PREVENTION API ===
-
-  // Create challenge hold
-  app.post("/api/no-show/create-hold", async (req, res) => {
-    try {
-      const { challengeId, playerId, challengeFee, depositRequired = true } = req.body;
-      
-      if (!challengeId || !playerId || !challengeFee) {
-        return res.status(400).json({ message: "Challenge ID, player ID, and fee required" });
-      }
-
-      const hold = createChallengeHold(challengeId, playerId, challengeFee, depositRequired);
-      res.json(hold);
-    } catch (error: any) {
-      res.status(500).json({ message: error.message });
-    }
-  });
-
-  // Generate check-in QR code
-  app.post("/api/no-show/generate-qr", async (req, res) => {
-    try {
-      const { challengeId, playerId, venueId } = req.body;
-      
-      if (!challengeId || !playerId || !venueId) {
-        return res.status(400).json({ message: "Challenge ID, player ID, and venue ID required" });
-      }
-
-      const expiresAt = new Date();
-      expiresAt.setMinutes(expiresAt.getMinutes() + 30); // 30-minute expiry
-      
-      const qr = generateCheckInQR(challengeId, playerId, venueId, expiresAt);
-      res.json(qr);
-    } catch (error: any) {
-      res.status(500).json({ message: error.message });
-    }
-  });
-
-  // Verify attendance
-  app.post("/api/no-show/verify-attendance", async (req, res) => {
-    try {
-      const { playerId, challengeId, checkInMethod, location } = req.body;
-      
-      if (!playerId || !challengeId || !checkInMethod || !location) {
-        return res.status(400).json({ message: "Player ID, challenge ID, check-in method, and location required" });
-      }
-
-      const verification = verifyAttendance(playerId, challengeId, checkInMethod, location);
-      res.json(verification);
-    } catch (error: any) {
-      res.status(500).json({ message: error.message });
-    }
-  });
-
-  // Process no-show
-  app.post("/api/no-show/process", async (req, res) => {
-    try {
-      const { playerId, challengeId, scheduledTime, currentOffenseCount, holdAmount } = req.body;
-      
-      if (!playerId || !challengeId || !scheduledTime || currentOffenseCount === undefined || !holdAmount) {
-        return res.status(400).json({ message: "All fields required for no-show processing" });
-      }
-
-      const result = processNoShow(
-        playerId,
-        challengeId,
-        new Date(scheduledTime),
-        currentOffenseCount,
-        holdAmount
-      );
-      
-      res.json(result);
+      const savings = calculateSavings(tier, monthlyMatches);
+      res.json(savings);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
