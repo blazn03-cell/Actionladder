@@ -65,8 +65,9 @@ export default function MonetizationDashboard() {
   const loadDashboardData = async () => {
     try {
       // Load membership tiers
-      const tierResponse = await apiRequest("GET", "/api/pricing/tiers");
-      setTiers(tierResponse);
+      const tierResponse = await fetch("/api/pricing/tiers");
+      const tierData = await tierResponse.json();
+      setTiers(tierData);
       
       // Simulate earnings data - in production this would come from your database
       setEarnings({
@@ -86,11 +87,16 @@ export default function MonetizationDashboard() {
 
   const calculateCommissionBreakdown = async () => {
     try {
-      const response = await apiRequest("POST", "/api/pricing/calculate-commission", {
-        amount: commissionAmount * 100, // Convert to cents
-        membershipTier: commissionTier
+      const response = await fetch("/api/pricing/calculate-commission", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          amount: commissionAmount * 100, // Convert to cents
+          membershipTier: commissionTier
+        })
       });
-      setCommission(response);
+      const data = await response.json();
+      setCommission(data);
     } catch (error) {
       console.error("Failed to calculate commission:", error);
     }
