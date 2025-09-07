@@ -34,6 +34,7 @@ import TeamChallenges from "@/components/team-challenges";
 import SportsmanshipSystem from "@/components/sportsmanship-system";
 import MatchDivisions from "@/components/match-divisions";
 import OperatorSubscriptions from "@/pages/OperatorSubscriptions";
+import MonetizationDashboard from "@/pages/MonetizationDashboard";
 import NotFound from "@/pages/not-found";
 import Landing from "@/pages/Landing";
 import AuthSuccess from "@/pages/AuthSuccess";
@@ -69,6 +70,7 @@ function Navigation({ activeTab, setActiveTab }: { activeTab: string; setActiveT
     { id: "match-divisions", label: "Match Divisions" },
     { id: "sportsmanship", label: "Sportsmanship" },
     { id: "operator-subscriptions", label: "Operator Subs" },
+    { id: "monetization", label: "Revenue Dashboard" },
   ];
 
   return (
@@ -232,6 +234,7 @@ function App() {
                 {activeTab === "match-divisions" && <MatchDivisions />}
                 {activeTab === "sportsmanship" && <SportsmanshipSystem />}
                 {activeTab === "operator-subscriptions" && <OperatorSubscriptions />}
+                {activeTab === "monetization" && <MonetizationDashboard />}
               </div>
               <RealTimeNotifications />
             </Route>
