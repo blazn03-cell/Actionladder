@@ -389,6 +389,223 @@ export const insertOperatorSettingsSchema = createInsertSchema(operatorSettings)
   updatedAt: true,
 });
 
+// === PRICING TIER SYSTEM ===
+
+// Player membership subscriptions with exact pricing from monetization plan
+export const membershipSubscriptions = pgTable("membership_subscriptions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  playerId: text("player_id").notNull().unique(),
+  tier: text("tier").notNull(), // "rookie", "basic", "pro"
+  monthlyPrice: integer("monthly_price").notNull(), // $20/$25/$60 in cents
+  stripeSubscriptionId: text("stripe_subscription_id").unique(),
+  stripeCustomerId: text("stripe_customer_id"),
+  status: text("status").default("active"), // "active", "cancelled", "past_due"
+  currentPeriodStart: timestamp("current_period_start"),
+  currentPeriodEnd: timestamp("current_period_end"),
+  cancelAtPeriodEnd: boolean("cancel_at_period_end").default(false),
+  perks: text("perks").array(), // Available perks for this tier
+  commissionRate: integer("commission_rate").default(1000), // Commission rate in basis points
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Challenge fee commission tracking with round-up profit
+export const challengeCommissions = pgTable("challenge_commissions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  challengeId: text("challenge_id").notNull(), // Links to match or challenge
+  originalAmount: integer("original_amount").notNull(), // Original fee in cents
+  commissionRate: integer("commission_rate").notNull(), // Rate in basis points (500-1000)
+  calculatedCommission: integer("calculated_commission").notNull(), // Math.ceil(amount * rate)
+  roundedCommission: integer("rounded_commission").notNull(), // Rounded up to nearest $1
+  actionLadderShare: integer("action_ladder_share").notNull(), // Platform cut in cents
+  operatorShare: integer("operator_share").notNull(), // Operator cut in cents  
+  bonusFundShare: integer("bonus_fund_share").notNull(), // League bonus pot in cents
+  operatorId: text("operator_id").notNull(),
+  playerId: text("player_id").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// === ANTI-SANDBAGGING DETECTION ===
+
+// Suspicion scoring system for fair play enforcement
+export const suspicionScores = pgTable("suspicion_scores", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  playerId: text("player_id").notNull(),
+  currentScore: real("current_score").notNull().default(0), // 0-10 scale
+  winStreakVsHigher: integer("win_streak_vs_higher").default(0), // Wins against higher tier
+  breakRunPercent: real("break_run_percent").default(0), // Break and run percentage
+  rackDifferentialAvg: real("rack_differential_avg").default(0), // Average rack differential
+  suddenRatingDrops: integer("sudden_rating_drops").default(0), // Suspicious rating drops
+  operatorFlags: integer("operator_flags").default(0), // Operator suspicious activity reports
+  peerReports: integer("peer_reports").default(0), // Peer reports of sandbagging
+  outlierPerformance: real("outlier_performance").default(0), // Performance vs expected
+  lastCalculated: timestamp("last_calculated").defaultNow(),
+  triggerThreshold: real("trigger_threshold").default(7.0), // Auto-review at 7+
+  lockThreshold: real("lock_threshold").default(9.0), // Auto-lock at 9+
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Dynamic tier adjustments based on performance
+export const tierAdjustments = pgTable("tier_adjustments", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  playerId: text("player_id").notNull(),
+  fromTier: text("from_tier").notNull(),
+  toTier: text("to_tier").notNull(),
+  reason: text("reason").notNull(), // "auto_promotion", "sandbagging_detected", "manual_adjustment"
+  triggerMetric: text("trigger_metric"), // What triggered the adjustment
+  triggerValue: real("trigger_value"), // Value that triggered adjustment
+  adminId: text("admin_id"), // Admin who made manual adjustment
+  suspicionScore: real("suspicion_score"), // Score at time of adjustment
+  effectiveDate: timestamp("effective_date").defaultNow(),
+  pastResultsAdjusted: boolean("past_results_adjusted").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// === NO-SHOW PREVENTION ===
+
+// Challenge holds and deposits for no-show prevention
+export const challengeHolds = pgTable("challenge_holds", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  challengeId: text("challenge_id").notNull(),
+  playerId: text("player_id").notNull(),
+  holdAmount: integer("hold_amount").notNull(), // Pre-auth amount in cents
+  holdType: text("hold_type").notNull(), // "deposit", "challenge_fee", "penalty"
+  stripePaymentIntentId: text("stripe_payment_intent_id"),
+  status: text("status").default("active"), // "active", "released", "captured", "forfeited"
+  expiresAt: timestamp("expires_at").notNull(),
+  releasedAt: timestamp("released_at"),
+  forfeitReason: text("forfeit_reason"), // "no_show", "late_cancel", "other"
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// No-show tracking and penalty system
+export const noShows = pgTable("no_shows", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  playerId: text("player_id").notNull(),
+  challengeId: text("challenge_id").notNull(),
+  scheduledTime: timestamp("scheduled_time").notNull(),
+  gracePeriod: integer("grace_period").default(10), // Minutes of grace period
+  checkInDeadline: timestamp("check_in_deadline").notNull(),
+  actualCheckIn: timestamp("actual_check_in"),
+  noShowConfirmed: boolean("no_show_confirmed").default(false),
+  penaltyApplied: boolean("penalty_applied").default(false),
+  penaltyAmount: integer("penalty_amount").default(0), // Penalty in cents
+  operatorId: text("operator_id").notNull(),
+  opponentId: text("opponent_id"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Player penalty tracking
+export const playerPenalties = pgTable("player_penalties", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  playerId: text("player_id").notNull(),
+  penaltyType: text("penalty_type").notNull(), // "no_show", "late_cancel", "sandbagging", "misconduct"
+  severity: text("severity").notNull(), // "warning", "minor", "major", "severe"
+  description: text("description"),
+  relatedChallengeId: text("related_challenge_id"),
+  penaltyCount: integer("penalty_count").default(1), // Cumulative count for this type
+  suspensionDays: integer("suspension_days").default(0),
+  suspensionStart: timestamp("suspension_start"),
+  suspensionEnd: timestamp("suspension_end"),
+  isActive: boolean("is_active").default(true),
+  appliedBy: text("applied_by").notNull(), // Admin or system who applied penalty
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// === REVENUE SHARING AUTOMATION ===
+
+// Operator revenue sharing configuration
+export const operatorRevenue = pgTable("operator_revenue", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  operatorId: text("operator_id").notNull().unique(),
+  hallName: text("hall_name").notNull(),
+  baseCommissionRate: integer("base_commission_rate").default(500), // 5% in basis points
+  memberCommissionRate: integer("member_commission_rate").default(300), // 3% for members
+  monthlyMinimum: integer("monthly_minimum").default(0), // Minimum monthly guarantee
+  payoutFrequency: text("payout_frequency").default("weekly"), // "daily", "weekly", "monthly"
+  stripeConnectId: text("stripe_connect_id"),
+  autoPayoutEnabled: boolean("auto_payout_enabled").default(true),
+  lastPayoutAt: timestamp("last_payout_at"),
+  totalEarningsToDate: integer("total_earnings_to_date").default(0),
+  currentPeriodEarnings: integer("current_period_earnings").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Revenue split calculations for each transaction
+export const revenueSplits = pgTable("revenue_splits", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  transactionId: text("transaction_id").notNull(), // Links to match, challenge, etc.
+  transactionType: text("transaction_type").notNull(), // "challenge_fee", "membership", "tournament"
+  totalAmount: integer("total_amount").notNull(), // Total transaction in cents
+  actionLadderShare: integer("action_ladder_share").notNull(), // Platform cut
+  operatorShare: integer("operator_share").notNull(), // Operator cut
+  bonusFundShare: integer("bonus_fund_share").notNull(), // League bonus fund
+  prizePoolShare: integer("prize_pool_share").notNull(), // Remaining for winner
+  operatorId: text("operator_id").notNull(),
+  playerId: text("player_id"),
+  processed: boolean("processed").default(false),
+  processedAt: timestamp("processed_at"),
+  stripeTransferId: text("stripe_transfer_id"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// === FAIR PLAY ENFORCEMENT ===
+
+// Fair play violations and enforcement actions
+export const fairPlayViolations = pgTable("fair_play_violations", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  playerId: text("player_id").notNull(),
+  violationType: text("violation_type").notNull(), // "sandbagging", "cheating", "misconduct", "rating_manipulation"
+  severity: text("severity").notNull(), // "minor", "major", "severe"
+  description: text("description").notNull(),
+  evidence: jsonb("evidence"), // Links to footage, reports, etc.
+  reportedBy: text("reported_by"), // User ID who reported
+  reportedByType: text("reported_by_type"), // "player", "operator", "system", "admin"
+  investigatedBy: text("investigated_by"),
+  investigationNotes: text("investigation_notes"),
+  status: text("status").default("pending"), // "pending", "investigating", "confirmed", "dismissed"
+  relatedMatches: text("related_matches").array(), // Array of match IDs
+  createdAt: timestamp("created_at").defaultNow(),
+  resolvedAt: timestamp("resolved_at"),
+});
+
+// Penalty ladder system (1st, 2nd, 3rd offense escalation)
+export const penaltyLadder = pgTable("penalty_ladder", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  playerId: text("player_id").notNull(),
+  violationId: text("violation_id").notNull(), // Links to fairPlayViolations
+  offenseNumber: integer("offense_number").notNull(), // 1st, 2nd, 3rd offense
+  penaltyType: text("penalty_type").notNull(), // "warning", "tier_correction", "suspension", "pro_only"
+  penaltyDescription: text("penalty_description").notNull(),
+  creditLoss: integer("credit_loss").default(0), // Credits forfeited
+  suspensionDays: integer("suspension_days").default(0),
+  tierRestriction: text("tier_restriction"), // "pro_only", "basic_only", etc.
+  publicNotice: boolean("public_notice").default(false), // Fair Play Notice published
+  isActive: boolean("is_active").default(true),
+  expiresAt: timestamp("expires_at"),
+  appliedBy: text("applied_by").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Play-up incentives and positive reinforcement
+export const playUpIncentives = pgTable("play_up_incentives", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  playerId: text("player_id").notNull(),
+  incentiveType: text("incentive_type").notNull(), // "play_up_bonus", "upset_king", "savage_spotlight", "fast_track"
+  title: text("title").notNull(),
+  description: text("description"),
+  bonusAmount: integer("bonus_amount").default(0), // Credits or cash bonus
+  badgeEarned: text("badge_earned"), // Badge/achievement name
+  publicRecognition: boolean("public_recognition").default(false),
+  triggerMatch: text("trigger_match"), // Match that triggered incentive
+  opponentTier: text("opponent_tier"), // Tier of opponent beaten
+  awarded: boolean("awarded").default(false),
+  awardedAt: timestamp("awarded_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Operator Subscription Management
 export const operatorSubscriptions = pgTable("operator_subscriptions", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
