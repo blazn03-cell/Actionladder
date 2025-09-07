@@ -39,6 +39,10 @@ interface MembershipTier {
 }
 
 export default function MonetizationDashboard() {
+  // Mock user role - in production this would come from your auth system
+  // For demo: "OWNER", "TRUSTEE", "OPERATOR", "PLAYER"
+  const mockUser = { globalRole: "OWNER" }; // Change this to test different roles
+  
   const [earnings, setEarnings] = useState<StakeholderEarnings>({
     actionLadderTotal: 0,
     operatorTotal: 0,
@@ -103,6 +107,16 @@ export default function MonetizationDashboard() {
     return `${value.toFixed(1)}%`;
   };
 
+  // Role-based access control - PRIVACY PROTECTION
+  const isOwnerOrTrustee = mockUser?.globalRole === "OWNER" || mockUser?.globalRole === "TRUSTEE";
+  const isOperator = mockUser?.globalRole === "OPERATOR";
+  const isPlayer = mockUser?.globalRole === "PLAYER";
+
+  // STRICT PRIVACY: Only owner/trustee can see Action Ladder earnings
+  const canSeeActionLadderEarnings = isOwnerOrTrustee;
+  const canSeeOperatorEarnings = isOwnerOrTrustee || isOperator;
+  const canSeeAllData = isOwnerOrTrustee;
+
   if (loading) {
     return (
       <div className="min-h-screen bg-black text-white p-6">
@@ -121,15 +135,24 @@ export default function MonetizationDashboard() {
         <div className="flex items-center justify-between">
           <div>
             <SafeHeading className="text-3xl font-bold text-green-400">
-              Revenue & Payout Dashboard
+              {canSeeAllData ? "Complete Revenue Dashboard" : "Your Earnings Dashboard"}
             </SafeHeading>
             <SafeText className="text-gray-400 mt-2">
-              Complete financial overview for all stakeholders
+              {canSeeAllData 
+                ? "Complete financial overview - Owner/Trustee Access" 
+                : `Financial overview for ${mockUser?.globalRole?.toLowerCase() || 'user'}`}
             </SafeText>
           </div>
-          <Badge variant="outline" className="text-green-400 border-green-400">
-            Monthly Growth: +{formatPercent(earnings.monthlyGrowth)}
-          </Badge>
+          <div className="flex items-center gap-3">
+            <Badge variant="outline" className="text-green-400 border-green-400">
+              Monthly Growth: +{formatPercent(earnings.monthlyGrowth)}
+            </Badge>
+            {canSeeActionLadderEarnings && (
+              <Badge variant="outline" className="text-red-400 border-red-400">
+                PRIVATE VIEW
+              </Badge>
+            )}
+          </div>
         </div>
 
         <Tabs defaultValue="overview" className="space-y-6">
@@ -148,47 +171,51 @@ export default function MonetizationDashboard() {
           <TabsContent value="overview" className="space-y-6">
             {/* Revenue Distribution Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {/* Action Ladder (You & Trustee) */}
-              <Card className="bg-gray-900 border-green-500/30">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-green-400 flex items-center gap-2">
-                    <DollarSign className="h-5 w-5" />
-                    Action Ladder (50%)
-                  </CardTitle>
-                  <CardDescription className="text-gray-400">
-                    Platform Revenue
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-white">
-                    {formatCurrency(earnings.actionLadderTotal)}
-                  </div>
-                  <SafeText className="text-sm text-gray-400 mt-2">
-                    Owner + Trustee Share
-                  </SafeText>
-                </CardContent>
-              </Card>
+              {/* Action Ladder (OWNER + TRUSTEE ONLY) */}
+              {canSeeActionLadderEarnings && (
+                <Card className="bg-gray-900 border-green-500/30">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-green-400 flex items-center gap-2">
+                      <DollarSign className="h-5 w-5" />
+                      Action Ladder (50%)
+                    </CardTitle>
+                    <CardDescription className="text-gray-400">
+                      Platform Revenue - PRIVATE
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-white">
+                      {formatCurrency(earnings.actionLadderTotal)}
+                    </div>
+                    <SafeText className="text-sm text-gray-400 mt-2">
+                      Owner + Trustee Only
+                    </SafeText>
+                  </CardContent>
+                </Card>
+              )}
 
               {/* Operator Revenue */}
-              <Card className="bg-gray-900 border-blue-500/30">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-blue-400 flex items-center gap-2">
-                    <Users className="h-5 w-5" />
-                    Operators (30%)
-                  </CardTitle>
-                  <CardDescription className="text-gray-400">
-                    Pool Hall Partners
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-white">
-                    {formatCurrency(earnings.operatorTotal)}
-                  </div>
-                  <SafeText className="text-sm text-gray-400 mt-2">
-                    Hall Operator Payouts
-                  </SafeText>
-                </CardContent>
-              </Card>
+              {canSeeOperatorEarnings && (
+                <Card className="bg-gray-900 border-blue-500/30">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-blue-400 flex items-center gap-2">
+                      <Users className="h-5 w-5" />
+                      {isOwnerOrTrustee ? "All Operators (30%)" : "Your Earnings (30%)"}
+                    </CardTitle>
+                    <CardDescription className="text-gray-400">
+                      {isOwnerOrTrustee ? "Pool Hall Partners" : "Your Share"}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-white">
+                      {formatCurrency(earnings.operatorTotal)}
+                    </div>
+                    <SafeText className="text-sm text-gray-400 mt-2">
+                      {isOwnerOrTrustee ? "Total Operator Payouts" : "Your Operator Share"}
+                    </SafeText>
+                  </CardContent>
+                </Card>
+              )}
 
               {/* Bonus Fund */}
               <Card className="bg-gray-900 border-purple-500/30">
@@ -246,20 +273,25 @@ export default function MonetizationDashboard() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="p-4 rounded-lg bg-green-900/20 border border-green-500/30">
-                    <h4 className="text-green-400 font-semibold">Action Ladder Platform</h4>
-                    <p className="text-2xl font-bold text-white">50%</p>
-                    <SafeText className="text-sm text-gray-400">
-                      Technology, development, marketing
-                    </SafeText>
-                  </div>
-                  <div className="p-4 rounded-lg bg-blue-900/20 border border-blue-500/30">
-                    <h4 className="text-blue-400 font-semibold">Pool Hall Operators</h4>
-                    <p className="text-2xl font-bold text-white">30%</p>
-                    <SafeText className="text-sm text-gray-400">
-                      Venue partnerships, local support
-                    </SafeText>
-                  </div>
+                  {/* Only show Action Ladder split to Owner/Trustee */}
+                  {canSeeActionLadderEarnings && (
+                    <div className="p-4 rounded-lg bg-green-900/20 border border-green-500/30">
+                      <h4 className="text-green-400 font-semibold">Action Ladder Platform</h4>
+                      <p className="text-2xl font-bold text-white">50%</p>
+                      <SafeText className="text-sm text-gray-400">
+                        Technology, development, marketing
+                      </SafeText>
+                    </div>
+                  )}
+                  {canSeeOperatorEarnings && (
+                    <div className="p-4 rounded-lg bg-blue-900/20 border border-blue-500/30">
+                      <h4 className="text-blue-400 font-semibold">Pool Hall Operators</h4>
+                      <p className="text-2xl font-bold text-white">30%</p>
+                      <SafeText className="text-sm text-gray-400">
+                        Venue partnerships, local support
+                      </SafeText>
+                    </div>
+                  )}
                   <div className="p-4 rounded-lg bg-purple-900/20 border border-purple-500/30">
                     <h4 className="text-purple-400 font-semibold">Community Bonus Fund</h4>
                     <p className="text-2xl font-bold text-white">20%</p>
