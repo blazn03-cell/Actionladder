@@ -1,27 +1,27 @@
 import { sanitizeForDisplay } from "./sanitize";
 
-// Player-friendly pricing: $70 average vs $90-100+ leagues
+// Player-friendly pricing: $35-60 vs $90-100+ leagues
 export const MEMBERSHIP_TIERS = {
   ROOKIE: {
     name: "Rookie",
-    price: 5000, // $50 in cents - entry level
+    price: 3500, // $35 in cents - entry level
     commissionRate: 1000, // 10% in basis points
     perks: ["training_credits", "access_to_matches", "bonus_fund_eligible"],
-    description: "Entry level - cheaper than any league",
+    description: "Entry level - $47+ cheaper than leagues ($82+ first month)",
   },
   STANDARD: {
-    name: "Standard", 
-    price: 7000, // $70 in cents - sweet spot pricing
+    name: "Standard",
+    price: 4500, // $45 in cents - sweet spot pricing
     commissionRate: 800, // 8% in basis points
     perks: ["tournament_eligibility", "reduced_commission", "weekly_bonus_matches", "monthly_prize_drawings"],
-    description: "Most popular - $20-30 cheaper than leagues",
+    description: "Most popular - Save $37+ vs leagues ($43/month ongoing)",
   },
   PREMIUM: {
     name: "Premium",
-    price: 9000, // $90 in cents - still cheaper than most leagues
+    price: 6000, // $60 in cents - clearly cheaper than leagues
     commissionRate: 500, // 5% in basis points
     perks: ["free_tournaments", "lowest_commission", "prestige_badge", "priority_support", "bonus_fund_multiplier"],
-    description: "Premium experience, still cheaper than leagues",
+    description: "Premium tier - $22+ cheaper than leagues with premium features",
   },
 } as const;
 
@@ -68,19 +68,19 @@ export function calculateCommission(amount: number, membershipTier: string = "no
 } {
   const commissionRate = getCommissionRate(membershipTier);
   const calculatedCommission = Math.ceil(amount * (commissionRate / 10000));
-  
+
   // Round up to nearest $1 for extra profit
-  const roundedCommission = COMMISSION_CONFIG.ROUND_UP_ENABLED 
+  const roundedCommission = COMMISSION_CONFIG.ROUND_UP_ENABLED
     ? Math.ceil(calculatedCommission / 100) * 100
     : calculatedCommission;
-  
+
   // Split commission according to percentages
   const actionLadderShare = Math.floor(roundedCommission * (COMMISSION_CONFIG.SPLIT_PERCENTAGES.ACTION_LADDER / 100));
   const operatorShare = Math.floor(roundedCommission * (COMMISSION_CONFIG.SPLIT_PERCENTAGES.OPERATOR / 100));
   const bonusFundShare = Math.floor(roundedCommission * (COMMISSION_CONFIG.SPLIT_PERCENTAGES.BONUS_FUND / 100));
-  
+
   const prizePool = amount - roundedCommission;
-  
+
   return {
     originalAmount: amount,
     commissionRate,
@@ -123,23 +123,23 @@ export function calculateSavings(tier: string, monthlyMatches: number): {
   if (!tierConfig) {
     throw new Error("Invalid membership tier");
   }
-  
+
   // Real league costs: APA/BCA typically $90-100+/month + higher fees
   const competitorMonthlyCost = 9500; // $95/month league average
   const competitorMatchFee = 1500; // $15/match
-  
+
   const actionLadderMonthlyCost = tierConfig.price;
   const actionLadderMatchFee = 800; // $8/match average with player-friendly commission
-  
+
   const actionLadderTotal = actionLadderMonthlyCost + (actionLadderMatchFee * monthlyMatches);
   const competitorTotal = competitorMonthlyCost + (competitorMatchFee * monthlyMatches);
-  
+
   const monthlySavings = competitorTotal - actionLadderTotal;
   const annualSavings = monthlySavings * 12;
-  
+
   // Add bonus fund value players get back
   const bonusFundValue = Math.floor(MONTHLY_TARGETS.PLAYER_BONUS_FUND / 60); // $1000 / 60 players
-  
+
   return {
     actionLadderCost: actionLadderTotal,
     competitorCost: competitorTotal,
