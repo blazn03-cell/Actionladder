@@ -35,6 +35,7 @@ import SportsmanshipSystem from "@/components/sportsmanship-system";
 import MatchDivisions from "@/components/match-divisions";
 import OperatorSubscriptions from "@/pages/OperatorSubscriptions";
 import MonetizationDashboard from "@/pages/MonetizationDashboard";
+import { FileManager } from "@/components/file-upload";
 import NotFound from "@/pages/not-found";
 import Landing from "@/pages/Landing";
 import AuthSuccess from "@/pages/AuthSuccess";
@@ -69,6 +70,7 @@ function Navigation({ activeTab, setActiveTab }: { activeTab: string; setActiveT
     { id: "team-challenges", label: "Team Challenges" },
     { id: "match-divisions", label: "Match Divisions" },
     { id: "sportsmanship", label: "Sportsmanship" },
+    { id: "file-manager", label: "File Manager" },
     { id: "operator-subscriptions", label: "Operator Subs" },
     { id: "monetization", label: "Revenue Dashboard" },
   ];
@@ -233,6 +235,7 @@ function App() {
                 {activeTab === "team-challenges" && <TeamChallenges />}
                 {activeTab === "match-divisions" && <MatchDivisions />}
                 {activeTab === "sportsmanship" && <SportsmanshipSystem />}
+                {activeTab === "file-manager" && <FileManager />}
                 {activeTab === "operator-subscriptions" && <OperatorSubscriptions />}
                 {activeTab === "monetization" && <MonetizationDashboard />}
               </div>
