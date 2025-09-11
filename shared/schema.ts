@@ -1400,6 +1400,57 @@ export const insertTeamRegistrationSchema = createInsertSchema(teamRegistrations
   createdAt: true,
 });
 
+// === FILE UPLOAD TRACKING ===
+
+// Track uploaded files with metadata and access control
+export const uploadedFiles = pgTable("uploaded_files", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: text("user_id").notNull(), // Owner of the file
+  fileName: text("file_name").notNull(), // Original file name
+  fileSize: integer("file_size").notNull(), // File size in bytes
+  mimeType: text("mime_type").notNull(), // File MIME type
+  category: text("category").notNull().default("general_upload"), // FileCategory from objectStorage
+  objectPath: text("object_path").notNull().unique(), // Object storage path (/objects/...)
+  visibility: text("visibility").notNull().default("private"), // "public" or "private"
+  description: text("description"), // Optional file description
+  tags: text("tags").array(), // Searchable tags
+  uploadedAt: timestamp("uploaded_at").defaultNow(),
+  lastAccessedAt: timestamp("last_accessed_at"),
+  downloadCount: integer("download_count").default(0),
+  isActive: boolean("is_active").default(true), // Soft delete flag
+});
+
+// Track file sharing permissions (extends ACL system)
+export const fileShares = pgTable("file_shares", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  fileId: text("file_id").notNull(), // Links to uploaded_files
+  sharedWithUserId: text("shared_with_user_id"), // Specific user (optional)
+  sharedWithRole: text("shared_with_role"), // Role-based sharing (optional)
+  sharedWithHallId: text("shared_with_hall_id"), // Hall-based sharing (optional)
+  permission: text("permission").notNull().default("read"), // "read" or "write"
+  expiresAt: timestamp("expires_at"), // Optional expiration
+  sharedBy: text("shared_by").notNull(), // User who created the share
+  createdAt: timestamp("created_at").defaultNow(),
+  isActive: boolean("is_active").default(true),
+});
+
+// Insert schemas for file tracking
+export const insertUploadedFileSchema = createInsertSchema(uploadedFiles).omit({
+  id: true,
+  uploadedAt: true,
+});
+
+export const insertFileShareSchema = createInsertSchema(fileShares).omit({
+  id: true,
+  createdAt: true,
+});
+
+// File tracking types
+export type UploadedFile = typeof uploadedFiles.$inferSelect;
+export type InsertUploadedFile = z.infer<typeof insertUploadedFileSchema>;
+export type FileShare = typeof fileShares.$inferSelect;
+export type InsertFileShare = z.infer<typeof insertFileShareSchema>;
+
 // Match division system types
 export type MatchDivision = typeof matchDivisions.$inferSelect;
 export type InsertMatchDivision = z.infer<typeof insertMatchDivisionSchema>;

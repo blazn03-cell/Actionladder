@@ -38,6 +38,8 @@ import {
   type MatchEntry, type InsertMatchEntry,
   type PayoutDistribution, type InsertPayoutDistribution,
   type TeamRegistration, type InsertTeamRegistration,
+  type UploadedFile, type InsertUploadedFile,
+  type FileShare, type InsertFileShare,
   type GlobalRole,
   insertUserSchema,
   insertOrganizationSchema,
@@ -431,6 +433,24 @@ export interface IStorage {
   canUserBeVotedOn(userId: string, sessionId: string): Promise<boolean>;
   getLastVoteForUser(userId: string, sessionId: string): Promise<AttitudeVote | undefined>;
   isUserImmune(userId: string, sessionId: string): Promise<boolean>;
+  
+  // File Upload Tracking
+  getUploadedFile(id: string): Promise<UploadedFile | undefined>;
+  getUploadedFileByPath(objectPath: string): Promise<UploadedFile | undefined>;
+  getUserUploadedFiles(userId: string, category?: string): Promise<UploadedFile[]>;
+  getAllUploadedFiles(): Promise<UploadedFile[]>;
+  createUploadedFile(file: InsertUploadedFile): Promise<UploadedFile>;
+  updateUploadedFile(id: string, updates: Partial<UploadedFile>): Promise<UploadedFile | undefined>;
+  deleteUploadedFile(id: string): Promise<boolean>;
+  incrementFileDownloadCount(id: string): Promise<void>;
+  
+  // File Sharing
+  getFileShare(id: string): Promise<FileShare | undefined>;
+  getFileShares(fileId: string): Promise<FileShare[]>;
+  getUserSharedFiles(userId: string): Promise<FileShare[]>;
+  createFileShare(share: InsertFileShare): Promise<FileShare>;
+  updateFileShare(id: string, updates: Partial<FileShare>): Promise<FileShare | undefined>;
+  deleteFileShare(id: string): Promise<boolean>;
 }
 
 export class MemStorage implements IStorage {
@@ -488,6 +508,10 @@ export class MemStorage implements IStorage {
   private matchEntries = new Map<string, MatchEntry>();
   private payoutDistributions = new Map<string, PayoutDistribution>();
   private teamRegistrations = new Map<string, TeamRegistration>();
+  
+  // === FILE UPLOAD SYSTEM ===
+  private uploadedFiles = new Map<string, UploadedFile>();
+  private fileShares = new Map<string, FileShare>();
 
   constructor() {
     // Initialize with seed data for demonstration (disabled in production)
@@ -3144,6 +3168,131 @@ export class MemStorage implements IStorage {
     const updatedRegistration = { ...registration, ...updates };
     this.teamRegistrations.set(id, updatedRegistration);
     return updatedRegistration;
+  }
+
+  // === FILE UPLOAD TRACKING METHODS ===
+
+  async getUploadedFile(id: string): Promise<UploadedFile | undefined> {
+    return this.uploadedFiles.get(id);
+  }
+
+  async getUploadedFileByPath(objectPath: string): Promise<UploadedFile | undefined> {
+    return Array.from(this.uploadedFiles.values()).find(file => file.objectPath === objectPath);
+  }
+
+  async getUserUploadedFiles(userId: string, category?: string): Promise<UploadedFile[]> {
+    const userFiles = Array.from(this.uploadedFiles.values()).filter(file => 
+      file.userId === userId && file.isActive
+    );
+    
+    if (category) {
+      return userFiles.filter(file => file.category === category);
+    }
+    
+    return userFiles;
+  }
+
+  async getAllUploadedFiles(): Promise<UploadedFile[]> {
+    return Array.from(this.uploadedFiles.values()).filter(file => file.isActive);
+  }
+
+  async createUploadedFile(data: InsertUploadedFile): Promise<UploadedFile> {
+    const file: UploadedFile = {
+      id: randomUUID(),
+      userId: data.userId,
+      fileName: data.fileName,
+      fileSize: data.fileSize,
+      mimeType: data.mimeType,
+      objectPath: data.objectPath,
+      category: data.category || "general",
+      tags: data.tags || [],
+      isPublic: data.isPublic || false,
+      uploadedAt: new Date(),
+      downloadCount: 0,
+      isActive: true,
+    };
+    this.uploadedFiles.set(file.id, file);
+    return file;
+  }
+
+  async updateUploadedFile(id: string, updates: Partial<UploadedFile>): Promise<UploadedFile | undefined> {
+    const file = this.uploadedFiles.get(id);
+    if (!file) return undefined;
+
+    const updatedFile = { ...file, ...updates };
+    this.uploadedFiles.set(id, updatedFile);
+    return updatedFile;
+  }
+
+  async deleteUploadedFile(id: string): Promise<boolean> {
+    const file = this.uploadedFiles.get(id);
+    if (!file) return false;
+
+    // Soft delete by setting isActive to false
+    const updatedFile = { ...file, isActive: false };
+    this.uploadedFiles.set(id, updatedFile);
+    return true;
+  }
+
+  async incrementFileDownloadCount(id: string): Promise<void> {
+    const file = this.uploadedFiles.get(id);
+    if (!file) return;
+
+    const updatedFile = { ...file, downloadCount: (file.downloadCount || 0) + 1 };
+    this.uploadedFiles.set(id, updatedFile);
+  }
+
+  // === FILE SHARING METHODS ===
+
+  async getFileShare(id: string): Promise<FileShare | undefined> {
+    return this.fileShares.get(id);
+  }
+
+  async getFileShares(fileId: string): Promise<FileShare[]> {
+    return Array.from(this.fileShares.values()).filter(share => 
+      share.fileId === fileId && share.isActive
+    );
+  }
+
+  async getUserSharedFiles(userId: string): Promise<FileShare[]> {
+    return Array.from(this.fileShares.values()).filter(share => 
+      share.sharedWithUserId === userId && share.isActive
+    );
+  }
+
+  async createFileShare(data: InsertFileShare): Promise<FileShare> {
+    const share: FileShare = {
+      id: randomUUID(),
+      fileId: data.fileId,
+      sharedWithUserId: data.sharedWithUserId,
+      sharedWithRole: data.sharedWithRole,
+      sharedWithHallId: data.sharedWithHallId,
+      permissions: data.permissions || "read",
+      expiresAt: data.expiresAt,
+      createdAt: new Date(),
+      isActive: true,
+    };
+    this.fileShares.set(share.id, share);
+    return share;
+  }
+
+  async updateFileShare(id: string, updates: Partial<FileShare>): Promise<FileShare | undefined> {
+    const share = this.fileShares.get(id);
+    if (!share) return undefined;
+
+    const updatedShare = { ...share, ...updates };
+    this.fileShares.set(id, updatedShare);
+    return updatedShare;
+  }
+
+  async deleteFileShare(id: string): Promise<boolean> {
+    const share = this.fileShares.get(id);
+    if (!share) return false;
+
+    // Soft delete by setting isActive to false
+    const updatedShare = { ...share, isActive: false };
+    this.fileShares.set(id, updatedShare);
+    return true;
   }
 }
 

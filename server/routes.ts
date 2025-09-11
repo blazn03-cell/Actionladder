@@ -5,7 +5,7 @@ import { storage } from "./storage";
 import { AIService } from "./ai-service";
 import { registerAdminRoutes, registerOperatorRoutes, payStaffFromInvoice } from "./admin-routes";
 import { registerHallRoutes } from "./hall-routes";
-import { sanitizeBody, sanitizeResponse } from "./sanitizeMiddleware";
+import { sanitizeResponse } from "./sanitizeMiddleware";
 import { createSafeCheckoutSession, createSafeProduct, createSafePrice } from "./stripeSafe";
 import { 
   insertPlayerSchema, insertMatchSchema, insertTournamentSchema,
@@ -19,8 +19,11 @@ import {
   insertCheckinSchema, insertAttitudeVoteSchema, insertAttitudeBallotSchema, insertIncidentSchema,
   insertMatchDivisionSchema, insertOperatorTierSchema, insertTeamStripeAccountSchema,
   insertMatchEntrySchema, insertPayoutDistributionSchema, insertTeamRegistrationSchema,
+  insertUploadedFileSchema, insertFileShareSchema,
   type GlobalRole
 } from "@shared/schema";
+import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
+import { ObjectPermission, getObjectAclPolicy } from "./objectAcl";
 import { OperatorSubscriptionCalculator } from "./operator-subscription-utils";
 import { emailService } from "./email-service";
 import { sanitizeBody, createStripeDescription, sanitizeForStorage } from "./sanitize";
@@ -3325,6 +3328,346 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(savings);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
+    }
+  });
+
+  // === FILE UPLOAD SYSTEM API ===
+  
+  // Serve public assets (no authentication required)
+  app.get("/public-objects/:filePath(*)", async (req, res) => {
+    const filePath = req.params.filePath;
+    const objectStorageService = new ObjectStorageService();
+    try {
+      const file = await objectStorageService.searchPublicObject(filePath);
+      if (!file) {
+        return res.status(404).json({ error: "File not found" });
+      }
+      
+      // SECURITY CHECK: Verify the file is actually marked as public in its ACL policy
+      const aclPolicy = await getObjectAclPolicy(file);
+      if (!aclPolicy || aclPolicy.visibility !== "public") {
+        console.warn(`Attempted access to non-public file through public route: ${filePath}`);
+        return res.status(403).json({ error: "File is not publicly accessible" });
+      }
+      
+      objectStorageService.downloadObject(file, res);
+    } catch (error) {
+      console.error("Error serving public object:", error);
+      return res.status(500).json({ error: "Internal server error" });
+    }
+  });
+  
+  // Serve private objects with ACL checks (authentication required)
+  app.get("/objects/:objectPath(*)", async (req, res) => {
+    try {
+      // Get authenticated user ID from session or JWT
+      let userId: string | undefined;
+      if (req.isAuthenticated()) {
+        const session = req.session as any;
+        userId = session.passport?.user?.claims?.sub || session.passport?.user?.id;
+      }
+      
+      const objectStorageService = new ObjectStorageService();
+      const objectFile = await objectStorageService.getObjectEntityFile(req.path);
+      
+      const canAccess = await objectStorageService.canAccessObjectEntity({
+        objectFile,
+        userId: userId,
+        requestedPermission: ObjectPermission.READ,
+      });
+      
+      if (!canAccess) {
+        return res.sendStatus(403);
+      }
+      
+      // Update download count if user is authenticated and owns the file
+      if (userId) {
+        try {
+          const fileRecord = await storage.getUploadedFileByPath(req.path);
+          if (fileRecord && fileRecord.userId === userId) {
+            await storage.incrementFileDownloadCount(fileRecord.id);
+          }
+        } catch (error) {
+          // Non-critical error, continue with file serving
+          console.warn("Failed to update download count:", error);
+        }
+      }
+      
+      objectStorageService.downloadObject(objectFile, res);
+    } catch (error) {
+      console.error("Error serving private object:", error);
+      if (error instanceof ObjectNotFoundError) {
+        return res.sendStatus(404);
+      }
+      return res.sendStatus(500);
+    }
+  });
+  
+  // Get presigned upload URL (authentication required)
+  app.post("/api/objects/upload", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ error: "Authentication required" });
+      }
+      
+      const session = req.session as any;
+      const userId = session.passport?.user?.claims?.sub || session.passport?.user?.id;
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(401).json({ error: "User not found" });
+      }
+      
+      const { category = "general_upload", fileName } = req.body;
+      const objectStorageService = new ObjectStorageService();
+      
+      const { url, objectPath } = await objectStorageService.getObjectEntityUploadURL(
+        userId,
+        user.globalRole || "PLAYER",
+        category,
+        fileName
+      );
+      
+      res.json({ 
+        uploadURL: url, 
+        objectPath,
+        expiresIn: 900, // 15 minutes
+        maxFileSize: 50 * 1024 * 1024 // 50MB limit
+      });
+    } catch (error) {
+      console.error("Error creating upload URL:", error);
+      res.status(500).json({ error: "Failed to create upload URL" });
+    }
+  });
+  
+  // Update file metadata and set ACL policy after upload (authentication required)
+  app.put("/api/files", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ error: "Authentication required" });
+      }
+      
+      const session = req.session as any;
+      const userId = session.passport?.user?.claims?.sub || session.passport?.user?.id;
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(401).json({ error: "User not found" });
+      }
+      
+      const validatedData = insertUploadedFileSchema.parse({
+        ...req.body,
+        userId,
+        uploadedAt: new Date(),
+        isActive: true,
+      });
+      
+      // Create file record in database
+      const uploadedFile = await storage.createUploadedFile(validatedData);
+      
+      // Set ACL policy on the object
+      const objectStorageService = new ObjectStorageService();
+      const normalizedPath = await objectStorageService.trySetObjectEntityAclPolicy(
+        req.body.objectPath,
+        {
+          owner: userId,
+          visibility: req.body.visibility || "private",
+          aclRules: req.body.aclRules || [],
+        }
+      );
+      
+      res.status(201).json({
+        ...uploadedFile,
+        objectPath: normalizedPath,
+      });
+    } catch (error) {
+      console.error("Error creating file record:", error);
+      res.status(500).json({ error: "Failed to save file metadata" });
+    }
+  });
+  
+  // List user's uploaded files (authentication required)
+  app.get("/api/files", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ error: "Authentication required" });
+      }
+      
+      const session = req.session as any;
+      const userId = session.passport?.user?.claims?.sub || session.passport?.user?.id;
+      const { category } = req.query;
+      
+      const files = await storage.getUserUploadedFiles(userId, category as string);
+      res.json({ files });
+    } catch (error) {
+      console.error("Error listing files:", error);
+      res.status(500).json({ error: "Failed to list files" });
+    }
+  });
+  
+  // Get file details (authentication required)
+  app.get("/api/files/:id", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ error: "Authentication required" });
+      }
+      
+      const session = req.session as any;
+      const userId = session.passport?.user?.claims?.sub || session.passport?.user?.id;
+      const file = await storage.getUploadedFile(req.params.id);
+      
+      if (!file) {
+        return res.status(404).json({ error: "File not found" });
+      }
+      
+      // Check if user can access this file
+      if (file.userId !== userId) {
+        const user = await storage.getUser(userId);
+        const isAdmin = user?.globalRole === "OWNER" || user?.globalRole === "STAFF";
+        
+        if (!isAdmin) {
+          return res.status(403).json({ error: "Access denied" });
+        }
+      }
+      
+      res.json(file);
+    } catch (error) {
+      console.error("Error getting file:", error);
+      res.status(500).json({ error: "Failed to get file" });
+    }
+  });
+  
+  // Delete file (authentication required)
+  app.delete("/api/files/:id", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ error: "Authentication required" });
+      }
+      
+      const session = req.session as any;
+      const userId = session.passport?.user?.claims?.sub || session.passport?.user?.id;
+      const file = await storage.getUploadedFile(req.params.id);
+      
+      if (!file) {
+        return res.status(404).json({ error: "File not found" });
+      }
+      
+      // Check ownership or admin privileges
+      if (file.userId !== userId) {
+        const user = await storage.getUser(userId);
+        const isAdmin = user?.globalRole === "OWNER" || user?.globalRole === "STAFF";
+        
+        if (!isAdmin) {
+          return res.status(403).json({ error: "Access denied" });
+        }
+      }
+      
+      // Soft delete the file record
+      const deleted = await storage.deleteUploadedFile(req.params.id);
+      
+      if (deleted) {
+        res.json({ success: true, message: "File deleted successfully" });
+      } else {
+        res.status(500).json({ error: "Failed to delete file" });
+      }
+    } catch (error) {
+      console.error("Error deleting file:", error);
+      res.status(500).json({ error: "Failed to delete file" });
+    }
+  });
+  
+  // Create file share (authentication required)
+  app.post("/api/files/:id/share", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ error: "Authentication required" });
+      }
+      
+      const session = req.session as any;
+      const userId = session.passport?.user?.claims?.sub || session.passport?.user?.id;
+      const file = await storage.getUploadedFile(req.params.id);
+      
+      if (!file) {
+        return res.status(404).json({ error: "File not found" });
+      }
+      
+      // Check ownership
+      if (file.userId !== userId) {
+        return res.status(403).json({ error: "Only file owners can create shares" });
+      }
+      
+      const validatedData = insertFileShareSchema.parse({
+        ...req.body,
+        fileId: req.params.id,
+        sharedBy: userId,
+      });
+      
+      const share = await storage.createFileShare(validatedData);
+      res.status(201).json(share);
+    } catch (error) {
+      console.error("Error creating file share:", error);
+      res.status(500).json({ error: "Failed to create file share" });
+    }
+  });
+  
+  // List file shares (authentication required)
+  app.get("/api/files/:id/shares", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ error: "Authentication required" });
+      }
+      
+      const session = req.session as any;
+      const userId = session.passport?.user?.claims?.sub || session.passport?.user?.id;
+      const file = await storage.getUploadedFile(req.params.id);
+      
+      if (!file) {
+        return res.status(404).json({ error: "File not found" });
+      }
+      
+      // Check ownership
+      if (file.userId !== userId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+      
+      const shares = await storage.getFileShares(req.params.id);
+      res.json({ shares });
+    } catch (error) {
+      console.error("Error listing file shares:", error);
+      res.status(500).json({ error: "Failed to list file shares" });
+    }
+  });
+  
+  // Delete file share (authentication required)
+  app.delete("/api/shares/:shareId", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ error: "Authentication required" });
+      }
+      
+      const session = req.session as any;
+      const userId = session.passport?.user?.claims?.sub || session.passport?.user?.id;
+      const share = await storage.getFileShare(req.params.shareId);
+      
+      if (!share) {
+        return res.status(404).json({ error: "Share not found" });
+      }
+      
+      // Check if user created the share
+      if (share.sharedBy !== userId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+      
+      const deleted = await storage.deleteFileShare(req.params.shareId);
+      
+      if (deleted) {
+        res.json({ success: true, message: "Share deleted successfully" });
+      } else {
+        res.status(500).json({ error: "Failed to delete share" });
+      }
+    } catch (error) {
+      console.error("Error deleting share:", error);
+      res.status(500).json({ error: "Failed to delete share" });
     }
   });
 
