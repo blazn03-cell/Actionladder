@@ -1,54 +1,55 @@
 import { sanitizeForDisplay } from "./sanitize";
 
-// Player-friendly pricing: $35-60 vs $90-100+ leagues
+// Player-friendly pricing: $20-40 vs $43+ leagues (half the cost!)
 export const MEMBERSHIP_TIERS = {
   ROOKIE: {
     name: "Rookie",
-    price: 3500, // $35 in cents - entry level
-    commissionRate: 1000, // 10% in basis points
-    perks: ["training_credits", "access_to_matches", "bonus_fund_eligible"],
-    description: "Entry level - $47+ cheaper than leagues ($82+ first month)",
+    price: 2000, // $20 in cents - entry tier, 3-4 matches included
+    commissionRate: 1800, // 18% pot cut ($9 per $50 pot)
+    perks: ["entry_tier", "3_4_matches_included", "local_ladder_access"],
+    description: "Entry tier - Half the cost of APA! 3-4 matches included",
   },
   STANDARD: {
     name: "Standard",
-    price: 4500, // $45 in cents - sweet spot pricing
-    commissionRate: 800, // 8% in basis points
-    perks: ["tournament_eligibility", "reduced_commission", "weekly_bonus_matches", "monthly_prize_drawings"],
-    description: "Most popular - Save $37+ vs leagues ($43/month ongoing)",
+    price: 3000, // $30 in cents - unlimited local ladder
+    commissionRate: 2400, // 24% pot cut ($12 per $50 pot)
+    perks: ["unlimited_local_ladder", "priority_matching", "weekly_bonus_eligible"],
+    description: "Unlimited local ladder - Still $13 cheaper than APA ($43/month)",
   },
   PREMIUM: {
     name: "Premium",
-    price: 6000, // $60 in cents - clearly cheaper than leagues
-    commissionRate: 500, // 5% in basis points
-    perks: ["free_tournaments", "lowest_commission", "prestige_badge", "priority_support", "bonus_fund_multiplier"],
-    description: "Premium tier - $22+ cheaper than leagues with premium features",
+    price: 4000, // $40 in cents - all ladders + stream perks
+    commissionRate: 3400, // 34% pot cut ($17 per $50 pot)
+    perks: ["unlimited_all_ladders", "hall_city_state_access", "stream_perks", "priority_support"],
+    description: "All ladders + stream perks - Still $3-5 cheaper than APA!",
   },
 } as const;
 
-// Player-first commission structure: More money back to players
+// Revenue splits based on pot cuts (not membership fees)
 export const COMMISSION_CONFIG = {
-  BASE_RATE: 1000, // 10% in basis points
-  MEMBER_RATE: 500, // 5% for members in basis points
-  ROOKIE_RATE: 1000, // 10% for rookie tier
-  STANDARD_RATE: 800, // 8% for standard tier
-  PREMIUM_RATE: 500, // 5% for premium tier
+  BASE_RATE: 3000, // 30% for non-members
+  MEMBER_RATE: 1800, // 18% for rookie members
+  ROOKIE_RATE: 1800, // 18% pot cut for rookie tier
+  STANDARD_RATE: 2400, // 24% pot cut for standard tier  
+  PREMIUM_RATE: 3400, // 34% pot cut for premium tier
   ROUND_UP_ENABLED: true, // Round up to nearest $1 for extra profit
-  // NEW PLAYER-FRIENDLY SPLITS
+  // Revenue splits from pot cuts
   SPLIT_PERCENTAGES: {
-    ACTION_LADDER: 35, // 35% to platform (reduced from 50%)
-    OPERATOR: 30, // 30% to operator (fixed $700-800/month)
-    BONUS_FUND: 35, // 35% to player bonus fund (increased from 20%)
+    ACTION_LADDER: 23, // 23% to trustees/admin
+    OPERATOR: 33, // 33% to operators ($500/month target)
+    SEASON_POT: 43, // 43% goes to season pot for players
+    MONTHLY_OPERATIONS: 1, // 1% for monthly operations
   },
 } as const;
 
-// Monthly distribution targets (3 halls, 6 operators, 60 players)
+// Monthly distribution targets (50 Standard players × 4 months example)
 export const MONTHLY_TARGETS = {
-  OPERATOR_FIXED_PAYOUT: 75000, // $750 target per operator
-  PLATFORM_OWNER_SHARE: 90000, // $900 platform owner
-  TRUSTEE_A_SHARE: 80000, // $800 trustee A
-  TRUSTEE_B_SHARE: 80000, // $800 trustee B
-  PLAYER_BONUS_FUND: 100000, // $1,000+ monthly bonus fund
-  AVERAGE_PLAYER_COST: 7000, // $70 average monthly cost
+  OPERATOR_MONTHLY_TARGET: 50000, // $500/month per operator target
+  TRUSTEE_WEEKLY_TARGET: 17500, // $175/week each trustee
+  SEASON_POT_PERCENTAGE: 43, // 43% of total pot cuts go to season pot
+  PLAYER_MEMBERSHIP_COST: 3000, // $30 Standard membership average
+  TOTAL_SEASON_EXAMPLE: 600000, // $6,000 total (50 players × $30 × 4 months)
+  SEASON_POT_EXAMPLE: 260000, // $2,600 season pot
 } as const;
 
 /**
@@ -124,12 +125,12 @@ export function calculateSavings(tier: string, monthlyMatches: number): {
     throw new Error("Invalid membership tier");
   }
 
-  // Real league costs: APA/BCA typically $90-100+/month + higher fees
-  const competitorMonthlyCost = 9500; // $95/month league average
-  const competitorMatchFee = 1500; // $15/match
+  // Real league costs: APA/BCA $43-45/month + $25 annual fee, Bar leagues $32-34/month
+  const competitorMonthlyCost = 4300; // $43/month APA average (+ annual fees)
+  const competitorMatchFee = 1000; // $10/match
 
   const actionLadderMonthlyCost = tierConfig.price;
-  const actionLadderMatchFee = 800; // $8/match average with player-friendly commission
+  const actionLadderMatchFee = 600; // $6/match average with new commission structure
 
   const actionLadderTotal = actionLadderMonthlyCost + (actionLadderMatchFee * monthlyMatches);
   const competitorTotal = competitorMonthlyCost + (competitorMatchFee * monthlyMatches);
