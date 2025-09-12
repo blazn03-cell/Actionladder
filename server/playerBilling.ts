@@ -98,10 +98,16 @@ export function registerPlayerBillingRoutes(app: Express) {
   // Create player subscription checkout session
   app.post("/api/player-billing/checkout", requireAnyAuth, async (req, res) => {
     try {
-      const { tier, billingPeriod = "monthly", userId } = req.body;
+      const { tier, billingPeriod = "monthly" } = req.body;
       
-      if (!tier || !userId) {
-        return res.status(400).json({ error: "tier and userId required" });
+      if (!tier) {
+        return res.status(400).json({ error: "tier required" });
+      }
+
+      // Get authenticated user ID from session
+      const userId = (req as any).dbUser.id;
+      if (!userId) {
+        return res.status(401).json({ error: "Authentication required" });
       }
 
       const subscription = getPlayerSubscriptionTier(tier);
@@ -181,9 +187,13 @@ export function registerPlayerBillingRoutes(app: Express) {
   });
 
   // Get current player subscription status
-  app.get("/api/player-billing/status/:userId", requireAnyAuth, async (req, res) => {
+  app.get("/api/player-billing/status", requireAnyAuth, async (req, res) => {
     try {
-      const { userId } = req.params;
+      // Get authenticated user ID from session
+      const userId = (req as any).dbUser.id;
+      if (!userId) {
+        return res.status(401).json({ error: "Authentication required" });
+      }
       
       // Check if user has active subscription in our database
       const subscription = await storage.getMembershipSubscriptionByPlayerId(userId);
@@ -220,10 +230,10 @@ export function registerPlayerBillingRoutes(app: Express) {
   // Cancel player subscription
   app.post("/api/player-billing/cancel", requireAnyAuth, async (req, res) => {
     try {
-      const { userId } = req.body;
-      
+      // Get authenticated user ID from session
+      const userId = (req as any).dbUser.id;
       if (!userId) {
-        return res.status(400).json({ error: "userId required" });
+        return res.status(401).json({ error: "Authentication required" });
       }
 
       const subscription = await storage.getMembershipSubscriptionByPlayerId(userId);
@@ -252,10 +262,10 @@ export function registerPlayerBillingRoutes(app: Express) {
   // Reactivate cancelled subscription
   app.post("/api/player-billing/reactivate", requireAnyAuth, async (req, res) => {
     try {
-      const { userId } = req.body;
-      
+      // Get authenticated user ID from session
+      const userId = (req as any).dbUser.id;
       if (!userId) {
-        return res.status(400).json({ error: "userId required" });
+        return res.status(401).json({ error: "Authentication required" });
       }
 
       const subscription = await storage.getMembershipSubscriptionByPlayerId(userId);
@@ -284,10 +294,10 @@ export function registerPlayerBillingRoutes(app: Express) {
   // Player billing portal (manage subscription, payment methods, etc.)
   app.post("/api/player-billing/portal", requireAnyAuth, async (req, res) => {
     try {
-      const { userId } = req.body;
-      
+      // Get authenticated user ID from session
+      const userId = (req as any).dbUser.id;
       if (!userId) {
-        return res.status(400).json({ error: "userId required" });
+        return res.status(401).json({ error: "Authentication required" });
       }
 
       const user = await storage.getUser(userId);
