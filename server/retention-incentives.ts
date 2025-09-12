@@ -119,6 +119,10 @@ async function awardStreakBonus(playerId: string, streakCount: number, amount: n
       awardedAt: new Date(),
     });
 
+    // Log for transparency
+    const { transparencyLogger } = await import("./transparency-logs");
+    await transparencyLogger.logStreakBonus(playerId, streakCount, amount);
+
     console.log(`Awarded $${(amount / 100).toFixed(2)} streak bonus to player ${playerId}`);
   } catch (error) {
     console.error("Error awarding streak bonus:", error);
@@ -204,6 +208,10 @@ export async function drawWeeklyWinner(week: string): Promise<string | null> {
     awarded: true,
     awardedAt: new Date(),
   });
+
+  // Log for transparency
+  const { transparencyLogger } = await import("./transparency-logs");
+  await transparencyLogger.logWeeklyPrize(winner, miniPrize.prizeAmount, miniPrize.participants.length);
 
   return winner;
 }
