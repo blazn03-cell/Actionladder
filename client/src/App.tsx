@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { ChevronDown, Play, Users, Trophy, BarChart3, Camera, Megaphone, Settings } from "lucide-react";
 import type { GlobalRole } from "@shared/schema";
+import { useAuth } from "@/hooks/useAuth";
 import Dashboard from "@/components/dashboard";
 import Ladder from "@/components/ladder";
 import Tournaments from "@/components/tournaments";
@@ -48,6 +49,8 @@ import logoBackground from "@assets/assets_task_01k3jk55jwew0tmd764vvanv2x_17561
 const queryClient = new QueryClient();
 
 function Navigation({ activeTab, setActiveTab }: { activeTab: string; setActiveTab: (tab: string) => void }) {
+  const { user, isLoading, isAuthenticated } = useAuth();
+  
   // Grouped navigation structure based on user designs
   const navigationGroups = [
     {
@@ -131,13 +134,24 @@ function Navigation({ activeTab, setActiveTab }: { activeTab: string; setActiveT
     },
   ];
 
-  // TODO: Get user role from auth context - for now showing all groups  
-  const userRole: GlobalRole = "PLAYER"; // This should come from auth context
+  // Get user role from authentication - default to PLAYER if not authenticated
+  const userRole: GlobalRole = user?.globalRole || "PLAYER";
   
   // Filter groups based on user role (OWNER sees all, others see role-specific)
   const visibleGroups = navigationGroups.filter(group => 
     !group.roles || userRole === "OWNER" || group.roles.includes(userRole)
   );
+  
+  // Show loading state while fetching user data
+  if (isLoading) {
+    return (
+      <header className="sticky top-0 z-50 bg-[#0d1f12]/90 backdrop-blur border-b border-white/10">
+        <div className="mx-auto max-w-7xl px-4 py-3 flex items-center justify-center">
+          <div className="text-emerald-300">Loading...</div>
+        </div>
+      </header>
+    );
+  }
 
   return (
     <header className="sticky top-0 z-50 bg-[#0d1f12]/90 backdrop-blur border-b border-white/10">
