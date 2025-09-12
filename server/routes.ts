@@ -5,6 +5,7 @@ import { storage } from "./storage";
 import { AIService } from "./ai-service";
 import { registerAdminRoutes, registerOperatorRoutes, payStaffFromInvoice } from "./admin-routes";
 import { registerHallRoutes } from "./hall-routes";
+import { registerPlayerBillingRoutes } from "./playerBilling";
 import { sanitizeResponse } from "./sanitizeMiddleware";
 import { createSafeCheckoutSession, createSafeProduct, createSafePrice } from "./stripeSafe";
 import { 
@@ -127,6 +128,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Register operator settings routes
   registerOperatorRoutes(app);
+  
+  // Register player billing and subscription routes
+  registerPlayerBillingRoutes(app);
   
   // Register hall vs hall match routes
   registerHallRoutes(app);

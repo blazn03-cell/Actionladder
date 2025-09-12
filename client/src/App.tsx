@@ -42,6 +42,7 @@ import { FileManager } from "@/components/file-upload";
 import NotFound from "@/pages/not-found";
 import Landing from "@/pages/Landing";
 import AuthSuccess from "@/pages/AuthSuccess";
+import { PlayerSubscription } from "@/pages/PlayerSubscription";
 import logoBackground from "@assets/assets_task_01k3jk55jwew0tmd764vvanv2x_1756192093_img_0_1756634613619.webp";
 
 const queryClient = new QueryClient();
@@ -55,6 +56,7 @@ function Navigation({ activeTab, setActiveTab }: { activeTab: string; setActiveT
       icon: Play,
       items: [
         { id: "dashboard", label: "Dashboard" },
+        { id: "player-subscription", label: "Subscription Plans" },
         { id: "ladder", label: "Big Dog Throne (9ft)" },
         { id: "eightfoot-ladder", label: "Almost Big Time (8ft)" },
         { id: "barbox-ladder", label: "Kiddie Box King (7ft)" },
@@ -292,6 +294,7 @@ function App() {
 
               <div className="container mx-auto px-4 py-8">
                 {activeTab === "dashboard" && <Dashboard />}
+                {activeTab === "player-subscription" && <PlayerSubscription />}
                 {activeTab === "ladder" && <Ladder />}
                 {activeTab === "barbox-ladder" && <BarboxLadderPage />}
                 {activeTab === "eightfoot-ladder" && <EightFootLadderPage />}

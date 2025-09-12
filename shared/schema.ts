@@ -1060,6 +1060,12 @@ export const insertResolutionSchema = createInsertSchema(resolutions).omit({
   decidedAt: true,
 });
 
+export const insertMembershipSubscriptionSchema = createInsertSchema(membershipSubscriptions).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 export const insertWeightRuleSchema = createInsertSchema(weightRules).omit({
   id: true,
   createdAt: true,
@@ -1343,6 +1349,8 @@ export type Resolution = typeof resolutions.$inferSelect;
 export type InsertResolution = z.infer<typeof insertResolutionSchema>;
 export type WeightRule = typeof weightRules.$inferSelect;
 export type InsertWeightRule = z.infer<typeof insertWeightRuleSchema>;
+export type MembershipSubscription = typeof membershipSubscriptions.$inferSelect;
+export type InsertMembershipSubscription = z.infer<typeof insertMembershipSubscriptionSchema>;
 
 export const insertTutoringSessionSchema = createInsertSchema(tutoringSession).omit({
   id: true,

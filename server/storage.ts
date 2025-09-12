@@ -47,6 +47,7 @@ import {
   type PlatformEarnings, type InsertPlatformEarnings,
   type MembershipEarnings, type InsertMembershipEarnings,
   type OperatorPayout, type InsertOperatorPayout,
+  type MembershipSubscription, type InsertMembershipSubscription,
   type GlobalRole,
   insertUserSchema,
   insertOrganizationSchema,
@@ -361,6 +362,10 @@ export interface IStorage {
   createOperatorSubscription(subscription: InsertOperatorSubscription): Promise<OperatorSubscription>;
   updateOperatorSubscription(operatorId: string, updates: Partial<OperatorSubscription>): Promise<OperatorSubscription | undefined>;
   
+  // Membership Subscriptions
+  getMembershipSubscriptionByPlayerId(playerId: string): Promise<MembershipSubscription | undefined>;
+  updateMembershipSubscription(id: string, updates: Partial<MembershipSubscription>): Promise<MembershipSubscription | undefined>;
+  
   // Team Division System
   getTeam(id: string): Promise<Team | undefined>;
   getTeamsByOperator(operatorId: string): Promise<Team[]>;
@@ -566,6 +571,9 @@ export class MemStorage implements IStorage {
   private platformEarnings = new Map<string, PlatformEarnings>();
   private membershipEarnings = new Map<string, MembershipEarnings>();
   private operatorPayouts = new Map<string, OperatorPayout>();
+
+  // === MEMBERSHIP SUBSCRIPTIONS ===
+  private membershipSubscriptions = new Map<string, MembershipSubscription>();
 
   constructor() {
     // Initialize with seed data for demonstration (disabled in production)
@@ -2415,6 +2423,20 @@ export class MemStorage implements IStorage {
     }
     
     return total;
+  }
+
+  // Membership Subscription Methods
+  async getMembershipSubscriptionByPlayerId(playerId: string): Promise<MembershipSubscription | undefined> {
+    return Array.from(this.membershipSubscriptions.values()).find(sub => sub.playerId === playerId);
+  }
+
+  async updateMembershipSubscription(id: string, updates: Partial<MembershipSubscription>): Promise<MembershipSubscription | undefined> {
+    const subscription = this.membershipSubscriptions.get(id);
+    if (!subscription) return undefined;
+    
+    const updatedSubscription = { ...subscription, ...updates, updatedAt: new Date() };
+    this.membershipSubscriptions.set(id, updatedSubscription);
+    return updatedSubscription;
   }
 
   // Team Division System Methods
