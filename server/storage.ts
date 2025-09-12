@@ -364,6 +364,7 @@ export interface IStorage {
   
   // Membership Subscriptions
   getMembershipSubscriptionByPlayerId(playerId: string): Promise<MembershipSubscription | undefined>;
+  createMembershipSubscription(subscription: InsertMembershipSubscription): Promise<MembershipSubscription>;
   updateMembershipSubscription(id: string, updates: Partial<MembershipSubscription>): Promise<MembershipSubscription | undefined>;
   
   // Team Division System
@@ -2428,6 +2429,23 @@ export class MemStorage implements IStorage {
   // Membership Subscription Methods
   async getMembershipSubscriptionByPlayerId(playerId: string): Promise<MembershipSubscription | undefined> {
     return Array.from(this.membershipSubscriptions.values()).find(sub => sub.playerId === playerId);
+  }
+
+  async createMembershipSubscription(data: InsertMembershipSubscription): Promise<MembershipSubscription> {
+    const subscription: MembershipSubscription = {
+      id: randomUUID(),
+      playerId: data.playerId,
+      tier: data.tier,
+      stripeSubscriptionId: data.stripeSubscriptionId,
+      stripeCustomerId: data.stripeCustomerId,
+      status: data.status || "active",
+      currentPeriodStart: data.currentPeriodStart || new Date(),
+      currentPeriodEnd: data.currentPeriodEnd || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    this.membershipSubscriptions.set(subscription.id, subscription);
+    return subscription;
   }
 
   async updateMembershipSubscription(id: string, updates: Partial<MembershipSubscription>): Promise<MembershipSubscription | undefined> {
