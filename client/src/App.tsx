@@ -2,6 +2,9 @@ import { useState } from "react";
 import { Route, Switch } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
+import { ChevronDown, Play, Users, Trophy, BarChart3, Camera, Megaphone, Settings } from "lucide-react";
+import type { GlobalRole } from "@shared/schema";
 import Dashboard from "@/components/dashboard";
 import Ladder from "@/components/ladder";
 import Tournaments from "@/components/tournaments";
@@ -44,36 +47,95 @@ import logoBackground from "@assets/assets_task_01k3jk55jwew0tmd764vvanv2x_17561
 const queryClient = new QueryClient();
 
 function Navigation({ activeTab, setActiveTab }: { activeTab: string; setActiveTab: (tab: string) => void }) {
-  const tabs = [
-    { id: "dashboard", label: "Dashboard" },
-    { id: "ladder", label: "Big Dog Throne (9ft)" },
-    { id: "eightfoot-ladder", label: "Almost Big Time (8ft)" },
-    { id: "barbox-ladder", label: "Kiddie Box King (7ft)" },
-    { id: "rookie-section", label: "Rookie Section" },
-    { id: "escrow-challenges", label: "Challenge Matches" },
-    { id: "hall-battles", label: "Hall Battles" },
-    { id: "league-standings", label: "League Standings" },
-    { id: "qr-registration", label: "QR Registration" },
-    { id: "poster-generator", label: "Poster Generator" },
-    { id: "live-stream", label: "Live Stream" },
-    { id: "ai-features", label: "AI Features" },
-    { id: "operator-settings", label: "Operator Settings" },
-    { id: "admin", label: "Admin" },
-    { id: "tournaments", label: "Tournaments" },
-    { id: "tournament-brackets", label: "Tournament Brackets" },
-    { id: "special-games", label: "Special Games" },
-    { id: "players", label: "Players" },
-    { id: "bounties", label: "Bounties" },
-    { id: "charity", label: "Charity" },
-    { id: "team-management", label: "Team Management" },
-    { id: "team-matches", label: "Team Matches" },
-    { id: "team-challenges", label: "Team Challenges" },
-    { id: "match-divisions", label: "Match Divisions" },
-    { id: "sportsmanship", label: "Sportsmanship" },
-    { id: "file-manager", label: "File Manager" },
-    { id: "operator-subscriptions", label: "Operator Subs" },
-    { id: "monetization", label: "Revenue Dashboard" },
+  // Grouped navigation structure based on user designs
+  const navigationGroups = [
+    {
+      id: "play",
+      label: "Play",
+      icon: Play,
+      items: [
+        { id: "dashboard", label: "Dashboard" },
+        { id: "ladder", label: "Big Dog Throne (9ft)" },
+        { id: "eightfoot-ladder", label: "Almost Big Time (8ft)" },
+        { id: "barbox-ladder", label: "Kiddie Box King (7ft)" },
+        { id: "rookie-section", label: "Rookie Section" },
+        { id: "escrow-challenges", label: "Challenge Matches" },
+        { id: "hall-battles", label: "Hall Battles" },
+        { id: "match-divisions", label: "Match Divisions" },
+      ]
+    },
+    {
+      id: "teams",
+      label: "Teams",
+      icon: Users,
+      items: [
+        { id: "team-management", label: "Team Management" },
+        { id: "team-matches", label: "Team Matches" },
+        { id: "team-challenges", label: "Team Challenges" },
+        { id: "players", label: "Players" },
+        { id: "sportsmanship", label: "Sportsmanship" },
+      ]
+    },
+    {
+      id: "tournaments",
+      label: "Tournaments",
+      icon: Trophy,
+      items: [
+        { id: "tournaments", label: "Tournaments" },
+        { id: "tournament-brackets", label: "Tournament Brackets" },
+        { id: "special-games", label: "Special Games" },
+        { id: "bounties", label: "Bounties" },
+        { id: "charity", label: "Charity" },
+      ]
+    },
+    {
+      id: "rankings",
+      label: "Rankings",
+      icon: BarChart3,
+      items: [
+        { id: "league-standings", label: "League Standings" },
+      ]
+    },
+    {
+      id: "media",
+      label: "Media & AI",
+      icon: Camera,
+      items: [
+        { id: "live-stream", label: "Live Stream" },
+        { id: "ai-features", label: "AI Features" },
+        { id: "poster-generator", label: "Poster Generator" },
+        { id: "file-manager", label: "File Manager" },
+      ]
+    },
+    {
+      id: "promote",
+      label: "Promote",
+      icon: Megaphone,
+      items: [
+        { id: "qr-registration", label: "QR Registration" },
+      ]
+    },
+    {
+      id: "operator",
+      label: "Operator",
+      icon: Settings,
+      roles: ["OWNER", "OPERATOR", "TRUSTEE"], // Role-based visibility
+      items: [
+        { id: "operator-settings", label: "Operator Settings" },
+        { id: "operator-subscriptions", label: "Operator Subs" },
+        { id: "monetization", label: "Revenue Dashboard" },
+        { id: "admin", label: "Admin" },
+      ]
+    },
   ];
+
+  // TODO: Get user role from auth context - for now showing all groups  
+  const userRole: GlobalRole = "PLAYER"; // This should come from auth context
+  
+  // Filter groups based on user role (OWNER sees all, others see role-specific)
+  const visibleGroups = navigationGroups.filter(group => 
+    !group.roles || userRole === "OWNER" || group.roles.includes(userRole)
+  );
 
   return (
     <header className="sticky top-0 z-50 bg-[#0d1f12]/90 backdrop-blur border-b border-white/10">
@@ -110,30 +172,49 @@ function Navigation({ activeTab, setActiveTab }: { activeTab: string; setActiveT
         </div>
       </div>
 
-      {/* Row 2: Nav links that WRAP to 2 lines if needed */}
+      {/* Row 2: Grouped Navigation Dropdowns */}
       <nav className="mx-auto max-w-7xl px-4 pb-3">
-        <ul
-          className="flex flex-wrap gap-x-6 gap-y-2 whitespace-nowrap
-                     text-[15px] text-emerald-100/90"
-        >
-          {tabs.map((tab) => {
-            const active = activeTab === tab.id;
+        <div className="flex items-center gap-6 text-[15px] text-emerald-100/90">
+          {visibleGroups.map((group) => {
+            const Icon = group.icon;
+            const hasActiveItem = group.items.some(item => item.id === activeTab);
+            
             return (
-              <li key={tab.id}>
-                <button
-                  data-testid={`tab-${tab.id}`}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`inline-block px-1 py-1 rounded-md hover:text-white transition-colors ${
-                    active ? "text-white font-semibold underline decoration-emerald-400/70" : ""
+              <DropdownMenu key={group.id}>
+                <DropdownMenuTrigger 
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-emerald-500/10 transition-colors ${
+                    hasActiveItem ? "bg-emerald-500/20 text-white font-semibold" : "text-emerald-100/90"
                   }`}
-                  aria-current={active ? "page" : undefined}
+                  data-testid={`dropdown-${group.id}`}
                 >
-                  {tab.label}
-                </button>
-              </li>
+                  <Icon className="w-4 h-4" />
+                  <span>{group.label}</span>
+                  <ChevronDown className="w-4 h-4" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent 
+                  className="bg-[#0d1f12]/95 backdrop-blur border border-emerald-400/20 min-w-[200px]"
+                  align="start"
+                >
+                  {group.items.map((item, index) => {
+                    const isActive = activeTab === item.id;
+                    return (
+                      <DropdownMenuItem 
+                        key={item.id}
+                        onClick={() => setActiveTab(item.id)}
+                        className={`cursor-pointer px-4 py-2 text-sm hover:bg-emerald-500/20 focus:bg-emerald-500/20 ${
+                          isActive ? "bg-emerald-500/30 text-white font-semibold" : "text-emerald-100/90"
+                        }`}
+                        data-testid={`nav-item-${item.id}`}
+                      >
+                        {item.label}
+                      </DropdownMenuItem>
+                    );
+                  })}
+                </DropdownMenuContent>
+              </DropdownMenu>
             );
           })}
-        </ul>
+        </div>
       </nav>
     </header>
   );
