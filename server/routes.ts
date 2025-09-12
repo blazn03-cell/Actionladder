@@ -808,6 +808,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Handle subscriptions
       const subscriptionType = session.metadata?.subscriptionType;
       const playerId = session.metadata?.playerId;
+      const tier = session.metadata?.tier;
+      const type = session.metadata?.type;
       
       if (subscriptionType === 'rookie_pass' && playerId) {
         // Handle Rookie Pass subscription
@@ -825,6 +827,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           rookiePassActive: true,
           rookiePassExpiresAt: expiresAt,
         });
+      } else if (type === 'player_subscription' && tier && userId) {
+        // Handle player subscription checkout completion
+        console.log(`Player subscription checkout completed for user ${userId} with tier ${tier}`);
+        // The actual subscription creation will be handled in the subscription webhook
       } else if (userId) {
         // Handle regular membership subscriptions
         await storage.updatePlayer(userId, {
@@ -839,6 +845,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const userId = subscription.metadata?.userId;
     const playerId = subscription.metadata?.playerId;
     const subscriptionType = subscription.metadata?.subscriptionType;
+    const tier = subscription.metadata?.tier;
     
     if (subscriptionType === 'rookie_pass' && playerId) {
       // Handle Rookie Pass subscription status changes
@@ -857,6 +864,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
           status: subscription.status,
           expiresAt: expiresAt,
         });
+      }
+    } else if (tier && userId) {
+      // Handle player subscription tiers (rookie, standard, premium)
+      const isActive = subscription.status === 'active';
+      const currentPeriodEnd = new Date(subscription.current_period_end * 1000);
+      const cancelAtPeriodEnd = subscription.cancel_at_period_end || false;
+      
+      // Check if subscription already exists
+      const existingSubscription = await storage.getMembershipSubscriptionByPlayerId(userId);
+      
+      if (existingSubscription) {
+        // Update existing subscription
+        await storage.updateMembershipSubscription(existingSubscription.id, {
+          status: subscription.status,
+          currentPeriodEnd,
+          cancelAtPeriodEnd,
+          tier
+        });
+      } else {
+        // Create new membership subscription
+        const user = await storage.getUser(userId);
+        if (user) {
+          await storage.createMembershipSubscription({
+            playerId: userId,
+            tier,
+            status: subscription.status,
+            stripeSubscriptionId: subscription.id,
+            stripeCustomerId: user.stripeCustomerId || subscription.customer,
+            currentPeriodEnd,
+            cancelAtPeriodEnd,
+            monthlyPrice: subscription.items.data[0]?.price?.unit_amount || 0,
+            perks: [],
+            commissionRate: tier === 'rookie' ? 1000 : tier === 'standard' ? 800 : 500
+          });
+        }
       }
     } else if (userId) {
       // Handle regular membership subscriptions
