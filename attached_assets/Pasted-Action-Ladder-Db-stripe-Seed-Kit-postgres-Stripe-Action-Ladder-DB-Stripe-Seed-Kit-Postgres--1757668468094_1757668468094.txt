@@ -1,0 +1,815 @@
+Action Ladder — Db/stripe Seed Kit (postgres + Stripe)
+Action Ladder — DB/Stripe Seed Kit (Postgres + Stripe)
+
+Below is a complete, ready‑to‑paste setup for:
+
+DB choice: Neon Postgres (works with any Postgres)
+
+Core schema (minimal yet expandable)
+
+Stripe product catalog structure with metadata.domain_type
+
+One‑shot Node script to seed Stripe Products/Prices + demo Customers + demo Subscriptions (1‑month trial)
+
+SQL seed for demo users/halls
+
+.env example and notes
+
+1) Decision
+
+DB: Postgres (Neon recommended)
+
+Reason: Strong relational model for halls↔operators↔players, transactions, payouts, auditability, easy hosted serverless via Neon.
+
+2) Minimal Core Schema (Postgres)
+
+(same as before — see schema in original section)
+
+3) Stripe Product Catalog Structure
+
+(same as before)
+
+4) One‑Shot Seed Script (Node, Stripe + Postgres)
+
+Updated: demo subscriptions now created with a 30‑day free trial for players and operators.
+
+// seed_stripe_and_db.ts
+  return results;
+}
+
+
+async function createDemoSubscriptions(customerMap: Record<string, string>, priceMap: Record<string, Stripe.Price>) {
+  // Map demo users to a product tier
+  const planMap: Record<string, string> = {
+    'player.rookie@example.com': 'rookie',
+    'player.standard@example.com': 'standard',
+    'player.premium@example.com': 'premium',
+    'op.small@example.com': 'small',
+    'op.medium@example.com': 'medium'
+  };
+
+
+  for (const email of Object.keys(planMap)) {
+    const tier = planMap[email];
+    // find a price with matching tier
+    const price = Object.values(priceMap).find((p) => (p.product as any).metadata?.tier === tier);
+    if (!price) continue;
+
+
+    // Check if subscription exists
+    const subs = await stripe.subscriptions.search({
+      query: `customer:'${customerMap[email]}' AND price:'${price.id}'`,
+      limit: 1
+    });
+    if (subs.data[0]) continue;
+
+
+    await stripe.subscriptions.create({
+      customer: customerMap[email],
+      items: [{ price: price.id }],
+      trial_period_days: 30,
+    });
+  }
+}
+
+
+// ... linkStripeCustomersToDB and createDemoHalls remain the same ...
+
+
+async function main() {
+  if (!process.env.STRIPE_SECRET_KEY || !process.env.DATABASE_URL) {
+    throw new Error('Missing STRIPE_SECRET_KEY or DATABASE_URL');
+  }
+  await pg.connect();
+
+
+  // ensure schema (same as before)
+
+
+  const { products, prices } = await seedStripe();
+  for (const p of products) await mirrorProductToDB(p);
+  for (const k of Object.keys(prices)) await mirrorPriceToDB(prices[k]);
+
+
+  const customerMap = await seedDemoCustomers();
+  await linkStripeCustomersToDB(customerMap);
+  await createDemoHalls();
+  await createDemoSubscriptions(customerMap, prices);
+
+
+  console.log('Seed complete with demo subscriptions (30‑day trial).');
+  await pg.end();
+}
+
+
+main().catch(async (e) => {
+  console.error(e);
+  try { await pg.end(); } catch {}
+  process.exit(1);
+});
+5) SQL Demo Seed (unchanged)
+6) .env Example (unchanged)
+7) Notes
+
+Demo customers are now auto‑subscribed to their tier with a 1‑month free trial.
+
+You can test subscription lifecycle (trial → active → cancel) end‑to‑end.
+
+When ready for production, strip out the demo subscription creation to avoid test data in live mode.
+
+8) Next Steps
+
+Run ts-node seed_stripe_and_db.ts → you’ll see demo subs in Stripe Dashboard.
+
+Hook webhooks (customer.subscription.created, …updated, …deleted) to sync with your subscriptions table.
+
+Adjust trial length if you want a shorter demo.
+
+
+
+
+4.1 — Add 30‑Day Demo Subscriptions (Trial)
+
+Paste these new functions into seed_stripe_and_db.ts (below the existing helpers), and add the indicated call in main().
+
+// === NEW: create 30-day trial subscriptions for demo customers ===
+  // Test mode: trials work without a payment method. In Live, consider requiring one.
+  const sub = await stripe.subscriptions.create({
+    customer: customerId,
+    items: [{ price: priceId }],
+    trial_period_days: 30,
+    collection_method: 'charge_automatically',
+    payment_behavior: 'default_incomplete',
+    metadata,
+  });
+  return sub;
+}
+
+
+async function mirrorSubscriptionToDB(email: string, priceId: string, stripeSubId: string) {
+  const u = await pg.query(`SELECT id FROM users WHERE email=$1`, [email]);
+  const userId = u.rows[0]?.id;
+  if (!userId) return;
+  await pg.query(
+    `INSERT INTO subscriptions (user_id, stripe_subscription_id, stripe_price_id, status)
+     VALUES ($1,$2,$3,$4)
+     ON CONFLICT (stripe_subscription_id) DO NOTHING`,
+    [userId, stripeSubId, priceId, 'trialing']
+  );
+}
+
+
+async function seedDemoSubscriptions(priceMap: Record<string, Stripe.Price>, customerMap: Record<string, string>, products: Stripe.Product[]) {
+  // Helper: find price by product tier/domain
+  const priceBy = (domain: string, tier: string) => {
+    const product = products.find(p => p.metadata['domain_type'] === domain && p.metadata['tier'] === tier);
+    if (!product) throw new Error(`Missing product for ${domain}:${tier}`);
+    const price = priceMap[product.id];
+    if (!price) throw new Error(`Missing price for ${product.name}`);
+    return price.id;
+  };
+
+
+  // Players
+  const rookiePrice = priceBy('player_membership','rookie');
+  const standardPrice = priceBy('player_membership','standard');
+  const premiumPrice = priceBy('player_membership','premium');
+
+
+  const sub1 = await createTrialSubscription(customerMap['player.rookie@example.com'], rookiePrice, { seed: 'true', plan: 'rookie' });
+  await mirrorSubscriptionToDB('player.rookie@example.com', rookiePrice, sub1.id);
+
+
+  const sub2 = await createTrialSubscription(customerMap['player.standard@example.com'], standardPrice, { seed: 'true', plan: 'standard' });
+  await mirrorSubscriptionToDB('player.standard@example.com', standardPrice, sub2.id);
+
+
+  const sub3 = await createTrialSubscription(customerMap['player.premium@example.com'], premiumPrice, { seed: 'true', plan: 'premium' });
+  await mirrorSubscriptionToDB('player.premium@example.com', premiumPrice, sub3.id);
+
+
+  // Operators
+  const smallPrice = priceBy('operator_subscription','small');
+  const mediumPrice = priceBy('operator_subscription','medium');
+
+
+  const sub4 = await createTrialSubscription(customerMap['op.small@example.com'], smallPrice, { seed: 'true', plan: 'small' });
+  await mirrorSubscriptionToDB('op.small@example.com', smallPrice, sub4.id);
+
+
+  const sub5 = await createTrialSubscription(customerMap['op.medium@example.com'], mediumPrice, { seed: 'true', plan: 'medium' });
+  await mirrorSubscriptionToDB('op.medium@example.com', mediumPrice, sub5.id);
+}
+
+Then call it inside main() after createDemoHalls():
+
+  // NEW: create 30-day trial subscriptions
+  await seedDemoSubscriptions(prices, customerMap, products);
+Notes
+
+Trial length is 30 days via trial_period_days: 30.
+
+Keep keys in Test Mode while iterating.
+
+In Live, decide whether to require a payment method at signup; otherwise capture before trial ends.
+
+Add webhooks for customer.subscription.trial_will_end and invoice.payment_failed to notify users and lock features if needed.
+
+
+
+
+4.2 — Annual Plans + Auto‑Attach Add‑ons + Configurable Trial
+
+What changed
+
+Annual prices added (players: 11× monthly = ~1 month free; operators: 10× monthly = ~2 months free).
+
+Auto‑attach add‑ons on operator trials: Gifts & Fans for all operator tiers; Tournament Module for Medium+.
+
+Configurable trial length via TRIAL_DAYS (defaults to 30).
+
+Patch for seed_stripe_and_db.ts
+
+Drop in these edits (search the markers):
+
+// [NEW] read trial days from env
+const TRIAL_DAYS = Number(process.env.TRIAL_DAYS || 30);
+
+1) Create BOTH monthly and annual prices Find the price creation loop and replace with this block:
+
+  // Create prices (monthly + annual where applicable)
+  const priceMap: Record<string, { monthly?: Stripe.Price; annual?: Stripe.Price }> = {};
+  for (const prod of createdProducts) {
+    const domain = prod.metadata['domain_type'];
+    let monthly: Stripe.Price | undefined;
+    let annual: Stripe.Price | undefined;
+
+
+    if (domain === 'player_membership') {
+      const base = prod.metadata['tier'] === 'rookie' ? 3900 : prod.metadata['tier'] === 'standard' ? 5900 : 7900;
+      monthly = await upsertPrice(prod.id, { unit_amount: base, interval: 'month' });
+      // players: ~1 month free → 11× monthly
+      annual = await upsertPrice(prod.id, { unit_amount: base * 11, interval: 'year' });
+    } else if (domain === 'operator_subscription') {
+      const tier = prod.metadata['tier'];
+      const base = tier === 'small' ? 14900 : tier === 'medium' ? 29900 : tier === 'large' ? 49900 : 89900;
+      monthly = await upsertPrice(prod.id, { unit_amount: base, interval: 'month' });
+      // operators: ~2 months free → 10× monthly
+      annual = await upsertPrice(prod.id, { unit_amount: base * 10, interval: 'year' });
+    } else if (domain === 'addon') {
+      const t = prod.metadata['tier'];
+      const base = t === 'tournaments' ? 4900 : t === 'gifts_fans' ? 1900 : 3900;
+      monthly = await upsertPrice(prod.id, { unit_amount: base, interval: 'month' });
+      annual = await upsertPrice(prod.id, { unit_amount: base * 10, interval: 'year' });
+    }
+
+
+    priceMap[prod.id] = { monthly, annual };
+  }
+
+2) Helper to fetch a price by interval Add this small helper above seedDemoSubscriptions:
+
+function getPriceId(products: Stripe.Product[], priceMap: Record<string, { monthly?: Stripe.Price; annual?: Stripe.Price }>, domain: string, tier: string, interval: 'month'|'year'='month') {
+  const product = products.find(p => p.metadata['domain_type'] === domain && p.metadata['tier'] === tier);
+  if (!product) throw new Error(`Missing product for ${domain}:${tier}`);
+  const bucket = priceMap[product.id];
+  const price = interval === 'year' ? bucket.annual : bucket.monthly;
+  if (!price) throw new Error(`Missing ${interval} price for ${product.name}`);
+  return price.id;
+}
+
+3) Auto‑attach add‑ons for operator subs + use TRIAL_DAYS Replace createTrialSubscription and seedDemoSubscriptions with:
+
+async function createTrialSubscription(customerId: string, items: { price: string }[], metadata: Record<string, string>) {
+  const sub = await stripe.subscriptions.create({
+    customer: customerId,
+    items,
+    trial_period_days: TRIAL_DAYS,
+    collection_method: 'charge_automatically',
+    payment_behavior: 'default_incomplete',
+    metadata,
+  });
+  return sub;
+}
+
+
+async function seedDemoSubscriptions(priceMap: Record<string, { monthly?: Stripe.Price; annual?: Stripe.Price }>, customerMap: Record<string, string>, products: Stripe.Product[]) {
+  // choose intervals: players monthly, operators annual for demo
+  const rookieMonthly = getPriceId(products, priceMap, 'player_membership','rookie','month');
+  const standardMonthly = getPriceId(products, priceMap, 'player_membership','standard','month');
+  const premiumMonthly = getPriceId(products, priceMap, 'player_membership','premium','month');
+
+
+  const opSmallAnnual = getPriceId(products, priceMap, 'operator_subscription','small','year');
+  const opMediumAnnual = getPriceId(products, priceMap, 'operator_subscription','medium','year');
+
+
+  // add-ons
+  const giftsMonthly = getPriceId(products, priceMap, 'addon','gifts_fans','month');
+  const tournMonthly = getPriceId(products, priceMap, 'addon','tournaments','month');
+
+
+  // Players (single line item)
+  const s1 = await createTrialSubscription(customerMap['player.rookie@example.com'], [{ price: rookieMonthly }], { seed: 'true', plan: 'rookie_mo' });
+  await mirrorSubscriptionToDB('player.rookie@example.com', rookieMonthly, s1.id);
+
+
+  const s2 = await createTrialSubscription(customerMap['player.standard@example.com'], [{ price: standardMonthly }], { seed: 'true', plan: 'standard_mo' });
+  await mirrorSubscriptionToDB('player.standard@example.com', standardMonthly, s2.id);
+
+
+  const s3 = await createTrialSubscription(customerMap['player.premium@example.com'], [{ price: premiumMonthly }], { seed: 'true', plan: 'premium_mo' });
+  await mirrorSubscriptionToDB('player.premium@example.com', premiumMonthly, s3.id);
+
+
+  // Operators: annual + auto add-ons
+  // Small → Gifts & Fans
+  const s4 = await createTrialSubscription(
+    customerMap['op.small@example.com'],
+    [ { price: opSmallAnnual }, { price: giftsMonthly } ],
+    { seed: 'true', plan: 'small_y', addons: 'gifts' }
+  );
+  await mirrorSubscriptionToDB('op.small@example.com', opSmallAnnual, s4.id);
+
+
+  // Medium → Gifts & Fans + Tournament Module
+  const s5 = await createTrialSubscription(
+    customerMap['op.medium@example.com'],
+    [ { price: opMediumAnnual }, { price: giftsMonthly }, { price: tournMonthly } ],
+    { seed: 'true', plan: 'medium_y', addons: 'gifts,tournaments' }
+  );
+  await mirrorSubscriptionToDB('op.medium@example.com', opMediumAnnual, s5.id);
+}
+
+4) Update the main() call remains the same
+
+  await seedDemoSubscriptions(prices, customerMap, products);
+.env addition
+TRIAL_DAYS=30
+Behavior summary
+
+Players: monthly by default; annual option exists in Stripe for you to expose later.
+
+Operators: demo creates annual subs (bigger ARPU) and auto‑adds Gifts & Fans, plus Tournaments for Medium+.
+
+Change intervals any time by swapping 'month'|'year' in the getPriceId calls.
+
+
+
+
+4.3 — Switch Players to Annual in Demo + Add Large/Mega Operators w/ Analytics Pro + Configurable Annual Multipliers
+
+What changed
+
+Demo now creates ANNUAL subs for players (to showcase upfront ARPU + retention modeling).
+
+Added Operator Large and Operator Mega demo customers.
+
+Auto‑attach Analytics Pro for Large/Mega (in addition to Gifts & Fans; Medium+ still gets Tournaments).
+
+Annual price discounts are now configurable via env: PLAYER_ANNUAL_MULT (default 11 ≈ 1 month free) and OPERATOR_ANNUAL_MULT (default 10 ≈ 2 months free).
+
+Patches for seed_stripe_and_db.ts
+
+1) New env toggles (near the top):
+
+const TRIAL_DAYS = Number(process.env.TRIAL_DAYS || 30);
+const PLAYER_ANNUAL_MULT = Number(process.env.PLAYER_ANNUAL_MULT || 11);
+const OPERATOR_ANNUAL_MULT = Number(process.env.OPERATOR_ANNUAL_MULT || 10);
+
+2) Update price creation loop (replace the existing annual math):
+
+  if (domain === 'player_membership') {
+    const base = prod.metadata['tier'] === 'rookie' ? 3900 : prod.metadata['tier'] === 'standard' ? 5900 : 7900;
+    monthly = await upsertPrice(prod.id, { unit_amount: base, interval: 'month' });
+    annual  = await upsertPrice(prod.id, { unit_amount: base * PLAYER_ANNUAL_MULT, interval: 'year' });
+  } else if (domain === 'operator_subscription') {
+    const tier = prod.metadata['tier'];
+    const base = tier === 'small' ? 14900 : tier === 'medium' ? 29900 : tier === 'large' ? 49900 : 89900;
+    monthly = await upsertPrice(prod.id, { unit_amount: base, interval: 'month' });
+    annual  = await upsertPrice(prod.id, { unit_amount: base * OPERATOR_ANNUAL_MULT, interval: 'year' });
+  }
+
+3) Add demo customers for Large/Mega operators (extend seedDemoCustomers arrays):
+
+  const operators = [
+    { email: 'op.small@example.com',  name: 'Op Small Sally' },
+    { email: 'op.medium@example.com', name: 'Op Medium Mike'  },
+    { email: 'op.large@example.com',  name: 'Op Large Leo'    },
+    { email: 'op.mega@example.com',   name: 'Op Mega Mina'    }
+  ];
+
+…and mirror to DB in linkStripeCustomersToDB:
+
+    { email: 'op.large@example.com',  full_name: 'Op Large Leo', role: 'operator' },
+    { email: 'op.mega@example.com',   full_name: 'Op Mega Mina', role: 'operator' }
+
+4) Use ANNUAL for PLAYERS in demo + add Analytics Pro for Large/Mega (replace seedDemoSubscriptions body):
+
+  // Players: **annual** in demo now
+  const rookieAnnual  = getPriceId(products, priceMap, 'player_membership','rookie','year');
+  const standardAnnual= getPriceId(products, priceMap, 'player_membership','standard','year');
+  const premiumAnnual = getPriceId(products, priceMap, 'player_membership','premium','year');
+
+
+  const s1 = await createTrialSubscription(customerMap['player.rookie@example.com'],   [{ price: rookieAnnual }],   { seed: 'true', plan: 'rookie_y' });
+  await mirrorSubscriptionToDB('player.rookie@example.com', rookieAnnual, s1.id);
+  const s2 = await createTrialSubscription(customerMap['player.standard@example.com'], [{ price: standardAnnual }], { seed: 'true', plan: 'standard_y' });
+  await mirrorSubscriptionToDB('player.standard@example.com', standardAnnual, s2.id);
+  const s3 = await createTrialSubscription(customerMap['player.premium@example.com'],  [{ price: premiumAnnual }],  { seed: 'true', plan: 'premium_y' });
+  await mirrorSubscriptionToDB('player.premium@example.com', premiumAnnual, s3.id);
+
+
+  // Operators: annual + add-ons (Gifts for all; Tournaments for Medium+; Analytics Pro for Large/Mega)
+  const opSmallAnnual  = getPriceId(products, priceMap, 'operator_subscription','small','year');
+  const opMediumAnnual = getPriceId(products, priceMap, 'operator_subscription','medium','year');
+  const opLargeAnnual  = getPriceId(products, priceMap, 'operator_subscription','large','year');
+  const opMegaAnnual   = getPriceId(products, priceMap, 'operator_subscription','mega','year');
+
+
+  const giftsMonthly = getPriceId(products, priceMap, 'addon','gifts_fans','month');
+  const tournMonthly = getPriceId(products, priceMap, 'addon','tournaments','month');
+  const analyticsMonthly = getPriceId(products, priceMap, 'addon','analytics_pro','month');
+
+
+  // Small → Gifts
+  const s4 = await createTrialSubscription(
+    customerMap['op.small@example.com'],
+    [ { price: opSmallAnnual }, { price: giftsMonthly } ],
+    { seed: 'true', plan: 'small_y', addons: 'gifts' }
+  );
+  await mirrorSubscriptionToDB('op.small@example.com', opSmallAnnual, s4.id);
+
+
+  // Medium → Gifts + Tournaments
+  const s5 = await createTrialSubscription(
+    customerMap['op.medium@example.com'],
+    [ { price: opMediumAnnual }, { price: giftsMonthly }, { price: tournMonthly } ],
+    { seed: 'true', plan: 'medium_y', addons: 'gifts,tournaments' }
+  );
+  await mirrorSubscriptionToDB('op.medium@example.com', opMediumAnnual, s5.id);
+
+
+  // Large → Gifts + Tournaments + Analytics
+  const s6 = await createTrialSubscription(
+    customerMap['op.large@example.com'],
+    [ { price: opLargeAnnual }, { price: giftsMonthly }, { price: tournMonthly }, { price: analyticsMonthly } ],
+    { seed: 'true', plan: 'large_y', addons: 'gifts,tournaments,analytics' }
+  );
+  await mirrorSubscriptionToDB('op.large@example.com', opLargeAnnual, s6.id);
+
+
+  // Mega → Gifts + Tournaments + Analytics
+  const s7 = await createTrialSubscription(
+    customerMap['op.mega@example.com'],
+    [ { price: opMegaAnnual }, { price: giftsMonthly }, { price: tournMonthly }, { price: analyticsMonthly } ],
+    { seed: 'true', plan: 'mega_y', addons: 'gifts,tournaments,analytics' }
+  );
+  await mirrorSubscriptionToDB('op.mega@example.com', opMegaAnnual, s7.id);
+.env additions
+TRIAL_DAYS=30
+PLAYER_ANNUAL_MULT=11
+OPERATOR_ANNUAL_MULT=10
+Behavior summary
+
+Players in demo now use annual (with whatever multiplier you set).
+
+Operators demo spans Small → Mega, with add-ons attached by tier automatically.
+
+Discounts tweakable via env; change intervals by swapping the 'month'|'year' in getPriceId where desired.
+
+
+
+
+4.4 — Local Dev with Docker + Stripe CLI Tunnel
+
+To run everything in one shot (Postgres + Webhook relay), add these files at project root:
+
+Dockerfile
+# Base image
+FROM node:20-alpine
+
+
+# Set working directory
+WORKDIR /app
+
+
+# Install deps
+COPY package*.json ./
+RUN npm install
+
+
+# Copy source
+COPY . .
+
+
+# Build if using TS
+RUN npm run build || true
+
+
+# Default command
+CMD ["npm","run","dev"]
+docker-compose.yml
+version: '3.9'
+services:
+  db:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: action
+      POSTGRES_PASSWORD: ladder
+      POSTGRES_DB: main
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+
+
+  stripe:
+    image: stripe/stripe-cli:latest
+    entrypoint: ["sh","-c"]
+    # Forward all events to your local server (port 3000 assumed)
+    command: |
+      "stripe listen --forward-to http://host.docker.internal:3000/webhook"
+    environment:
+      - STRIPE_API_KEY=${STRIPE_SECRET_KEY}
+    depends_on:
+      - db
+    network_mode: "host"
+
+
+  app:
+    build: .
+    restart: unless-stopped
+    environment:
+      DATABASE_URL=postgresql://action:ladder@db:5432/main
+      STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
+      STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET}
+      TRIAL_DAYS=${TRIAL_DAYS}
+      PLAYER_ANNUAL_MULT=${PLAYER_ANNUAL_MULT}
+      OPERATOR_ANNUAL_MULT=${OPERATOR_ANNUAL_MULT}
+    ports:
+      - "3000:3000"
+    depends_on:
+      - db
+    command: ["npm","run","dev"]
+
+
+volumes:
+  db_data:
+.env additions (local only)
+POSTGRES_USER=action
+POSTGRES_PASSWORD=ladder
+POSTGRES_DB=main
+DATABASE_URL=postgresql://action:ladder@db:5432/main
+Usage
+# Build and run all
+docker-compose up --build
+
+
+# Seed DB + Stripe (inside container)
+docker-compose run --rm app npx ts-node seed_stripe_and_db.ts
+Notes
+
+db is a local Postgres (swap with Neon in prod).
+
+stripe service runs Stripe CLI to open a webhook tunnel. Your app at http://localhost:3000/webhook will receive events.
+
+app is your Node/TS server. Replace npm run dev with node server.js or similar entrypoint.
+
+host.docker.internal ensures the Stripe CLI container forwards events to your host‑exposed app.
+
+You can still use Neon by pointing DATABASE_URL to Neon instead of db.
+
+
+
+
+4.5 — Minimal Express Webhook Handler
+
+To complete end‑to‑end local testing, add an Express server with a /webhook endpoint.
+
+server.ts
+import 'dotenv/config';
+import express from 'express';
+import bodyParser from 'body-parser';
+import Stripe from 'stripe';
+
+
+const app = express();
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2024-06-20' });
+const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+
+
+// Stripe requires raw body to validate signature
+app.post('/webhook', bodyParser.raw({ type: 'application/json' }), (req, res) => {
+  const sig = req.headers['stripe-signature'] as string;
+  let event: Stripe.Event;
+
+
+  try {
+    if (!webhookSecret) throw new Error('Missing STRIPE_WEBHOOK_SECRET');
+    event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
+  } catch (err: any) {
+    console.error('⚠️  Webhook signature verification failed:', err.message);
+    return res.status(400).send(`Webhook Error: ${err.message}`);
+  }
+
+
+  // Handle event types
+  switch (event.type) {
+    case 'customer.subscription.created':
+      console.log('✅ Subscription created:', event.data.object['id']);
+      break;
+    case 'customer.subscription.trial_will_end':
+      console.log('⏳ Trial ending soon:', event.data.object['id']);
+      break;
+    case 'invoice.payment_succeeded':
+      console.log('💰 Invoice paid:', event.data.object['id']);
+      break;
+    case 'invoice.payment_failed':
+      console.log('❌ Payment failed:', event.data.object['id']);
+      break;
+    default:
+      console.log(`ℹ️  Unhandled event type: ${event.type}`);
+  }
+
+
+  res.json({ received: true });
+});
+
+
+app.get('/', (_req, res) => {
+  res.send('Action Ladder API is running.');
+});
+
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`🚀 Server listening on port ${PORT}`));
+package.json additions
+{
+  "dependencies": {
+    "express": "^4.18.2",
+    "body-parser": "^1.20.2",
+    "stripe": "^16.0.0",
+    "dotenv": "^16.4.0"
+  },
+  "scripts": {
+    "dev": "ts-node server.ts"
+  }
+}
+Stripe CLI hookup
+
+When you run docker-compose up, the stripe service will listen and forward events:
+
+stripe listen --forward-to http://host.docker.internal:3000/webhook
+
+You should see logs like:
+
+✅ Subscription created: sub_123
+⏳ Trial ending soon: sub_123
+Next Steps
+
+Extend the switch block to persist subscription status in Postgres.
+
+Add error handling + retries.
+
+Use ngrok/Stripe CLI directly if not in Docker.
+
+
+
+
+4.5 — Minimal Express Webhook Handler (/webhook)
+
+Add a tiny Express server that verifies Stripe signatures, logs key subscription events into audit_logs, and plays nicely with Docker/Stripe CLI.
+
+1) Install deps
+npm i express body-parser stripe
+npm i -D ts-node tsx @types/express @types/node
+2) server.ts
+import 'dotenv/config';
+import { Client } from 'pg';
+
+
+const app = express();
+const port = process.env.PORT || 3000;
+
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2024-06-20' });
+const pg = new Client({ connectionString: process.env.DATABASE_URL });
+
+
+// Use JSON for normal routes
+app.use('/health', express.json());
+app.get('/health', (_req, res) => res.json({ ok: true }));
+
+
+// Stripe requires the raw body to verify signature
+app.post(
+  '/webhook',
+  bodyParser.raw({ type: 'application/json' }),
+  async (req, res) => {
+    const sig = req.headers['stripe-signature'] as string | undefined;
+    const whSecret = process.env.STRIPE_WEBHOOK_SECRET;
+
+
+    if (!whSecret) {
+      console.error('Missing STRIPE_WEBHOOK_SECRET');
+      return res.status(500).send('webhook secret not set');
+    }
+
+
+    let event: Stripe.Event;
+    try {
+      event = stripe.webhooks.constructEvent(req.body, sig!, whSecret);
+    } catch (err: any) {
+      console.error('⚠️  Webhook signature verification failed.', err.message);
+      return res.status(400).send(`Webhook Error: ${err.message}`);
+    }
+
+
+    try {
+      // Lazy-connect on first webhook
+      // In a real app, connect on startup and reuse a pool
+      // Here we keep it simple for the demo
+      // @ts-ignore
+      if (pg._connecting !== true && (pg as any)._connected !== true) {
+        await pg.connect().catch(() => {});
+      }
+
+
+      const log = async (action: string, details: any) => {
+        try {
+          await pg.query(
+            `INSERT INTO audit_logs (action, details) VALUES ($1,$2)`,
+            [action, details]
+          );
+        } catch (e) {
+          console.error('Failed to write audit log', e);
+        }
+      };
+
+
+      switch (event.type) {
+        case 'customer.subscription.created':
+        case 'customer.subscription.updated':
+        case 'customer.subscription.deleted':
+        case 'customer.subscription.trial_will_end':
+        case 'invoice.payment_succeeded':
+        case 'invoice.payment_failed': {
+          await log(event.type, event.data.object);
+          break;
+        }
+        default: {
+          // Keep the noise down, but you can log everything while debugging
+          // await log(event.type, event.data.object);
+        }
+      }
+
+
+      res.json({ received: true });
+    } catch (e) {
+      console.error('Webhook handler error', e);
+      res.status(500).send('server error');
+    }
+  }
+);
+
+
+app.listen(port, () => console.log(`Server listening on http://localhost:${port}`));
+3) package.json scripts (add/update)
+{
+  "scripts": {
+    "dev": "tsx watch server.ts",
+    "start": "node dist/server.js",
+    "seed": "tsx seed_stripe_and_db.ts"
+  }
+}
+4) Wire Docker to run the server
+
+In docker-compose.yml, the app service already exposes port 3000 and runs npm run dev. No change required unless you prefer npm run start.
+
+5) Get your webhook signing secret
+
+Run on your host (or inside the stripe service container) to fetch the signing secret once, then place it in .env:
+
+stripe listen --print-secret
+# copy value → STRIPE_WEBHOOK_SECRET=whsec_****************
+# optional: simultaneously forward events
+stripe listen --forward-to http://localhost:3000/webhook
+
+The compose stripe service already forwards to /webhook, but it won’t automatically inject the printed secret into your app. Paste it into .env (or .env.local) so verification succeeds.
+
+6) Test flow
+# 1) Bring everything up
+docker-compose up --build -d
+
+
+# 2) Seed products/customers/subscriptions (with trials)
+docker-compose run --rm app npm run seed
+
+
+# 3) Trigger a test event
+stripe trigger customer.subscription.trial_will_end
+stripe trigger invoice.payment_succeeded
+
+You’ll see rows appear in audit_logs and JSON logs in the server output if everything is wired correctly.

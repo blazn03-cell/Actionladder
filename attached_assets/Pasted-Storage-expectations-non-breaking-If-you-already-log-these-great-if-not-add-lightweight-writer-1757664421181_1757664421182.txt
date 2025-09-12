@@ -1,0 +1,270 @@
+Storage expectations (non-breaking)
+
+If you already log these, great; if not, add lightweight writers later.
+
+Payments: subscriptions & challenge fees
+
+Distributions: splits to operator / trustees / pots
+
+Incentives: you already log via createPlayUpIncentive
+
+Withdrawals/Payouts: optional (player cashouts)
+
+2) Code: revenue report (actuals + forecast)
+// revenue.ts
+import { storage } from "./storage";
+import { RETENTION_INCENTIVES } from "./retention"; // your file above if you split it
+// If it's same file, remove this import and reference directly.
+
+export type Cents = number;
+
+export interface RevenueReport {
+  range: { start: Date; end: Date };
+  mode: "actuals" | "forecast";
+  totals: {
+    grossInflow: Cents;          // money collected from players (subs + challenge fees)
+    incentivesCost: Cents;       // retention incentives paid out
+    operatorPayouts: Cents;      // paid/owed to operators
+    trusteePayouts: Cents;       // paid/owed to trustees (combined)
+    potAccruals: Cents;          // event/tourney pots accrual (if you track)
+    playerNet: Cents;            // net to players (winnings + incentives - fees paid)
+    platformNet: Cents;          // keeper after costs (sanity check)
+  };
+  byStakeholder: {
+    players: {
+      subsPaid: Cents;
+      challengeFeesPaid: Cents;
+      winnings: Cents;
+      incentivesWon: Cents;
+      net: Cents;
+    };
+    operators: {
+      inflow: Cents;   // owed/paid to operators
+    };
+    trustees: {
+      inflow: Cents;   // owed/paid to trustees (sum of all trustees)
+    };
+  };
+  notes?: string[];
+}
+
+/** ACTUALS: expects these storage readers (name them as you like)
+ * storage.getPayments({ start, end, types: ["subscription","challenge_fee"] })
+ *   -> { type, playerId, amount, createdAt }
+ * storage.getDistributions({ start, end })
+ *   -> { kind: "operator"|"trustee"|"pot"|"player_winnings", amount, createdAt }
+ * storage.getIncentives({ start, end })
+ *   -> { playerId, bonusAmount, incentiveType, awardedAt }
+ * (Optional) storage.getCashouts({ start, end }) -> { playerId, amount, createdAt }
+ */
+export async function getRevenueReportActuals(
+  start: Date,
+  end: Date
+): Promise<RevenueReport> {
+  const [payments, distributions, incentives] = await Promise.all([
+    storage.getPayments({ start, end, types: ["subscription", "challenge_fee"] }),
+    storage.getDistributions({ start, end }),
+    storage.getIncentives({ start, end }),
+  ]);
+
+  // Inflows from players
+  const subsPaid = sum(payments.filter(p => p.type === "subscription").map(p => p.amount));
+  const challengeFeesPaid = sum(payments.filter(p => p.type === "challenge_fee").map(p => p.amount));
+  const grossInflow = subsPaid + challengeFeesPaid;
+
+  // Distributions out
+  const operatorPayouts = sum(distributions.filter(d => d.kind === "operator").map(d => d.amount));
+  const trusteePayouts = sum(distributions.filter(d => d.kind === "trustee").map(d => d.amount));
+  const potAccruals = sum(distributions.filter(d => d.kind === "pot").map(d => d.amount));
+  const playerWinnings = sum(distributions.filter(d => d.kind === "player_winnings").map(d => d.amount));
+
+  // Incentives cost (you already log these via createPlayUpIncentive)
+  const incentivesCost = sum(incentives.map(i => i.bonusAmount));
+
+  // Player economics
+  const incentivesWon = incentivesCost;
+  const playersPaid = subsPaid + challengeFeesPaid;
+  const playerNet = (playerWinnings + incentivesWon) - playersPaid;
+
+  // Platform
+  const platformOutflows = operatorPayouts + trusteePayouts + potAccruals + playerWinnings + incentivesCost;
+  const platformNet = grossInflow - platformOutflows;
+
+  return {
+    range: { start, end },
+    mode: "actuals",
+    totals: {
+      grossInflow,
+      incentivesCost,
+      operatorPayouts,
+      trusteePayouts,
+      potAccruals,
+      playerNet,
+      platformNet,
+    },
+    byStakeholder: {
+      players: {
+        subsPaid,
+        challengeFeesPaid,
+        winnings: playerWinnings,
+        incentivesWon,
+        net: playerNet,
+      },
+      operators: {
+        inflow: operatorPayouts,
+      },
+      trustees: {
+        inflow: trusteePayouts,
+      },
+    },
+    notes: [
+      "grossInflow = subscriptions + challenge fees",
+      "platformNet = grossInflow − (operators + trustees + pots + playerWinnings + incentivesCost)",
+    ],
+  };
+}
+
+/** FORECAST: pass assumptions when you don’t have actual transactions */
+export interface ForecastInputs {
+  players: number;                // e.g., 20
+  matchesPerPlayerPerMonth: number; // e.g., 8, 30–40 total matches across ladder → divide by players as needed
+  subscriptionCents: Cents;       // e.g., 6000 = $60
+  challengeFeeCents: Cents;       // per match per player (your "challenge fee" / rake portion)
+  operatorSharePct: number;       // e.g., 0.35 (35% of gross inflow or a base — see shareBase)
+  trusteesSharePct: number;       // e.g., 0.20 (combined)
+  shareBase: "gross" | "subs_only" | "fees_only"; // where operator/trustee pct applies
+  weeks: number;                  // usually 4 or 4.3
+  weeklyMiniPrizeCents?: Cents;   // default from RETENTION_INCENTIVES
+  expectedStreakCostPerPlayerCents?: Cents; // safe accrual (e.g., 500 = $5)
+  expectedProgressCostPerPlayerCents?: Cents; // safe accrual (e.g., 300 = $3)
+  potAccrualPct?: number;         // % of gross to event/tourney pots
+  avgPlayerWinningsVsFeesPct?: number; // how much fees circle back as winnings (0–1)
+}
+
+export function forecastRevenue(
+  inputs: ForecastInputs
+): RevenueReport {
+  const {
+    players,
+    matchesPerPlayerPerMonth,
+    subscriptionCents,
+    challengeFeeCents,
+    operatorSharePct,
+    trusteesSharePct,
+    shareBase,
+    weeks,
+    weeklyMiniPrizeCents = RETENTION_INCENTIVES.WEEKLY_MINI_PRIZES.amount,
+    expectedStreakCostPerPlayerCents = 500,   // ~$5 / mo conservative accrual
+    expectedProgressCostPerPlayerCents = 300, // ~$3 / mo conservative accrual
+    potAccrualPct = 0.05,                     // 5% to pots
+    avgPlayerWinningsVsFeesPct = 0.55,        // 55% of fees cycle back as winnings
+  } = inputs;
+
+  const totalMatches = Math.round(players * matchesPerPlayerPerMonth);
+  const subsPaid = players * subscriptionCents;
+  const challengeFeesPaid = totalMatches * challengeFeeCents; // fees collected (not wager pool)
+  const grossInflow = subsPaid + challengeFeesPaid;
+
+  const shareBaseAmount =
+    shareBase === "gross" ? grossInflow
+    : shareBase === "subs_only" ? subsPaid
+    : challengeFeesPaid; // "fees_only"
+
+  const operatorPayouts = Math.round(shareBaseAmount * operatorSharePct);
+  const trusteePayouts = Math.round(shareBaseAmount * trusteesSharePct);
+
+  const potAccruals = Math.round(grossInflow * potAccrualPct);
+
+  // Incentive accruals (weekly + streak + progress)
+  const weeklyPrizeCost = Math.round(weeks * weeklyMiniPrizeCents);
+  const streakAccrual = players * expectedStreakCostPerPlayerCents;
+  const progressAccrual = players * expectedProgressCostPerPlayerCents;
+  const incentivesCost = weeklyPrizeCost + streakAccrual + progressAccrual;
+
+  // Assume some % of fees flow back to players as "winnings"
+  const playerWinnings = Math.round(challengeFeesPaid * avgPlayerWinningsVsFeesPct);
+
+  const playersPaid = subsPaid + challengeFeesPaid;
+  const playerNet = (playerWinnings + incentivesCost) - playersPaid;
+
+  const platformOutflows = operatorPayouts + trusteePayouts + potAccruals + playerWinnings + incentivesCost;
+  const platformNet = grossInflow - platformOutflows;
+
+  return {
+    range: { start: new Date(), end: new Date() },
+    mode: "forecast",
+    totals: {
+      grossInflow,
+      incentivesCost,
+      operatorPayouts,
+      trusteePayouts,
+      potAccruals,
+      playerNet,
+      platformNet,
+    },
+    byStakeholder: {
+      players: {
+        subsPaid,
+        challengeFeesPaid,
+        winnings: playerWinnings,
+        incentivesWon: incentivesCost, // accrual assumption
+        net: playerNet,
+      },
+      operators: { inflow: operatorPayouts },
+      trustees: { inflow: trusteePayouts },
+    },
+    notes: [
+      `totalMatches ≈ players × matchesPerPlayerPerMonth = ${totalMatches}`,
+      `operator/trustee shares applied to: ${shareBase}`,
+      `incentivesCost = weekly(${weeklyPrizeCost}) + streak(${streakAccrual}) + progress(${progressAccrual})`,
+    ],
+  };
+}
+
+// Small helper
+function sum(nums: number[]): number {
+  return nums.reduce((a, b) => a + (b || 0), 0);
+}
+
+3) Example usage (plug numbers you’ve mentioned before)
+// Example: 30 players, ~8 matches/player/month, $60 subs, $3 challenge fee rake per match
+const report = forecastRevenue({
+  players: 30,
+  matchesPerPlayerPerMonth: 8,
+  subscriptionCents: 6000,
+  challengeFeeCents: 300,     // $3 platform fee per match (not the $60 side action)
+  operatorSharePct: 0.35,
+  trusteesSharePct: 0.20,     // combined trustees
+  shareBase: "gross",         // split on (subs + fees)
+  weeks: 4.3,
+  potAccrualPct: 0.06,        // 6% to pots
+  avgPlayerWinningsVsFeesPct: 0.6,
+});
+console.log(report);
+
+
+Why this split works
+
+Operators get a clear %, tied to activity → easy to sell halls.
+
+Trustees get a stable slice across all inflows.
+
+Players see incentives (streaks, progress, weekly prizes) explicitly costed — you can raise/trim later.
+
+4) Hook the “actuals” to your storage
+
+Add these minimal readers (map to your collections):
+
+// storage.ts (sketch)
+export async function getPayments({ start, end, types }: { start: Date; end: Date; types: string[] }) {
+  // return [{ type: "subscription"|"challenge_fee", playerId, amount, createdAt }]
+}
+export async function getDistributions({ start, end }: { start: Date; end: Date }) {
+  // return [{ kind: "operator"|"trustee"|"pot"|"player_winnings", amount, createdAt }]
+}
+export async function getIncentives({ start, end }: { start: Date; end: Date }) {
+  // return rows you already create via createPlayUpIncentive(...)
+}
+
+
+If you want, I can also wire this to Stripe reporting (PaymentIntents/Transfers) and auto-generate a monthly PDF with the breakdown for each stakeholder.
