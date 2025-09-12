@@ -593,7 +593,7 @@ export const penaltyLadder = pgTable("penalty_ladder", {
 export const playUpIncentives = pgTable("play_up_incentives", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   playerId: text("player_id").notNull(),
-  incentiveType: text("incentive_type").notNull(), // "play_up_bonus", "upset_king", "savage_spotlight", "fast_track"
+  incentiveType: text("incentive_type").notNull(), // "play_up_bonus", "upset_king", "savage_spotlight", "fast_track", "streak_bonus", "weekly_mini_prize"
   title: text("title").notNull(),
   description: text("description"),
   bonusAmount: integer("bonus_amount").default(0), // Credits or cash bonus
@@ -603,6 +603,31 @@ export const playUpIncentives = pgTable("play_up_incentives", {
   opponentTier: text("opponent_tier"), // Tier of opponent beaten
   awarded: boolean("awarded").default(false),
   awardedAt: timestamp("awarded_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Player attendance streak tracking
+export const playerStreaks = pgTable("player_streaks", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  playerId: text("player_id").notNull().unique(),
+  currentStreak: integer("current_streak").default(0),
+  longestStreak: integer("longest_streak").default(0),
+  lastMatchDate: timestamp("last_match_date"),
+  totalRewardsEarned: integer("total_rewards_earned").default(0), // Total in cents
+  streakRewardsClaimed: integer("streak_rewards_claimed").array().default([]),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Weekly mini-prize drawings
+export const weeklyMiniPrizes = pgTable("weekly_mini_prizes", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  week: text("week").notNull().unique(), // "2024-01"
+  prizeAmount: integer("prize_amount").notNull(), // $50 in cents
+  participants: text("participants").array().default([]),
+  winner: text("winner"),
+  drawn: boolean("drawn").default(false),
+  drawnAt: timestamp("drawn_at"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
