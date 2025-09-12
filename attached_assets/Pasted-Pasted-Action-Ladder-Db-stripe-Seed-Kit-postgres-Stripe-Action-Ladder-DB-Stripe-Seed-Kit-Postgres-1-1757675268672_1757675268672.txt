@@ -1,0 +1,169 @@
+Pasted-Action-Ladder-Db-stripe-Seed-Kit-postgres-Stripe-Action-Ladder-DB-Stripe-Seed-Kit-Postgres--1757668468094_1757668468094.txt
+Action Ladder — Db/stripe Seed Kit (postgres + Stripe)
+Action Ladder — DB/Stripe Seed Kit (Postgres + Stripe)
+
+Below is a complete, ready‑to‑paste setup for:
+
+DB choice: Neon Postgres (works with any Postgres)
+
+Core schema (minimal yet expandable)
+
+Stripe product catalog structure with metadata.domain_type
+
+One‑shot Node script to seed Stripe Products/Prices + demo Customers + demo Subscriptions (1‑month trial)
+
+SQL seed for demo users/halls
+
+.env example and notes
+
+1) Decision
+
+DB: Postgres (Neon recommended)
+
+Reason: Strong relational model for halls↔operators↔players, transactions, payouts, auditability, easy hosted serverless via Neon.
+
+2) Minimal Core Schema (Postgres)
+
+(same as before — see schema in original section)
+
+3) Stripe Product Catalog Structure
+
+(same as before)
+
+4) One‑Shot Seed Script (Node, Stripe + Postgres)
+
+Updated: demo subscriptions now created with a 30‑day free trial for players and operators.
+
+// seed_stripe_and_db.ts
+  return results;
+}
+
+
+async function createDemoSubscriptions(customerMap: Record<string, string>, priceMap: Record<string, Stripe.Price>) {
+  // Map demo users to a product tier
+  const planMap: Record<string, string> = {
+    'player.rookie@example.com': 'rookie',
+    'player.standard@example.com': 'standard',
+    'player.premium@example.com': 'premium',
+    'op.small@example.com': 'small',
+    'op.medium@example.com': 'medium'
+  };
+
+
+  for (const email of Object.keys(planMap)) {
+    const tier = planMap[email];
+    // find a price with matching tier
+    const price = Object.values(priceMap).find((p) => (p.product as any).metadata?.tier === tier);
+    if (!price) continue;
+
+
+    // Check if subscription exists
+    const subs = await stripe.subscriptions.search({
+      query: `customer:'${customerMap[email]}' AND price:'${price.id}'`,
+      limit: 1
+    });
+    if (subs.data[0]) continue;
+
+
+    await stripe.subscriptions.create({
+      customer: customerMap[email],
+      items: [{ price: price.id }],
+      trial_period_days: 30,
+    });
+  }
+}
+
+
+// ... linkStripeCustomersToDB and createDemoHalls remain the same ...
+
+
+async function main() {
+  if (!process.env.STRIPE_SECRET_KEY || !process.env.DATABASE_URL) {
+    throw new Error('Missing STRIPE_SECRET_KEY or DATABASE_URL');
+  }
+  await pg.connect();
+
+
+  // ensure schema (same as before)
+
+
+  const { products, prices } = await seedStripe();
+  for (const p of products) await mirrorProductToDB(p);
+  for (const k of Object.keys(prices)) await mirrorPriceToDB(prices[k]);
+
+
+  const customerMap = await seedDemoCustomers();
+  await linkStripeCustomersToDB(customerMap);
+  await createDemoHalls();
+  await createDemoSubscriptions(customerMap, prices);
+
+
+  console.log('Seed complete with demo subscriptions (30‑day trial).');
+  await pg.end();
+}
+
+
+main().catch(async (e) => {
+  console.error(e);
+  try { await pg.end(); } catch {}
+  process.exit(1);
+});
+5) SQL Demo Seed (unchanged)
+6) .env Example (unchanged)
+7) Notes
+
+Demo customers are now auto‑subscribed to their tier with a 1‑month free trial.
+
+You can test subscription lifecycle (trial → active → cancel) end‑to‑end.
+
+When ready for production, strip out the demo subscription creation to avoid test data in live mode.
+
+8) Next Steps
+
+Run ts-node seed_stripe_and_db.ts → you’ll see demo subs in Stripe Dashboard.
+
+Hook webhooks (customer.subscription.created, …updated, …deleted) to sync with your subscriptions table.
+
+Adjust trial length if you want a shorter demo.
+
+
+
+
+4.1 — Add 30‑Day Demo Subscriptions (Trial)
+
+Paste these new functions into seed_stripe_and_db.ts (below the existing helpers), and add the indicated call in main().
+
+// === NEW: create 30-day trial subscriptions for demo customers ===
+  // Test mode: trials work without a payment method. In Live, consider requiring one.
+  const sub = await stripe.subscriptions.create({
+    customer: customerId,
+    items: [{ price: priceId }],
+    trial_period_days: 30,
+    collection_method: 'charge_automatically',
+    payment_behavior: 'default_incomplete',
+    metadata,
+  });
+  return sub;
+}
+
+
+async function mirrorSubscriptionToDB(email: string, priceId: string, stripeSubId: string) {
+  const u = await pg.query(`SELECT id FROM users WHERE email=$1`, [email]);
+  const userId = u.rows[0]?.id;
+  if (!userId) return;
+  await pg.query(
+    `INSERT INTO subscriptions (user_id, stripe_subscription_id, stripe_price_id, status)
+     VALUES ($1,$2,$3,$4)
+     ON CONFLICT (stripe_subscription_id) DO NOTHING`,
+    [userId, stripeSubId, priceId, 'trialing']
+  );
+}
+
+
+async function seedDemoSubscriptions(priceMap: Record<string, Stripe.Price>, customerMap: Record<string, string>, products: Stripe.Product[]) {
+  // Helper: find price by product tier/domain
+  const priceBy = (domain: string, tier: string) => {
+    const product = products.find(p => p.metadata['domain_type'] === domain && p.metadata['tier'] === tier);
+    if (!product) throw new Error(`Missing product for ${domain}:${tier}`);
+    const price = priceMap[product.id];
+    if (!price) thr...

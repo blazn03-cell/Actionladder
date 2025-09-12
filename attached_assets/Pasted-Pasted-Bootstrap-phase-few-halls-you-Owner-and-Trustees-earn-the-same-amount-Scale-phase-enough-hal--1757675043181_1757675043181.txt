@@ -1,0 +1,128 @@
+Pasted-Bootstrap-phase-few-halls-you-Owner-and-Trustees-earn-the-same-amount-Scale-phase-enough-hal-1757664449451_1757664449451.txt
+Bootstrap phase (few halls): you (Owner) and Trustees earn the same amount.
+
+Scale phase (enough halls): Operators “take over” the match ladder %, and you collect Operator Subscriptions (SaaS) as your main revenue.
+
+Drop this next to your current file; it reuses the same storage pattern and cents convention.
+
+// revenue_plus.ts
+import { storage } from "./storage";
+import { RETENTION_INCENTIVES } from "./retention"; // or same file if combined
+
+export type Cents = number;
+
+export interface RevenueReport {
+  range: { start: Date; end: Date };
+  mode: "actuals" | "forecast";
+  phase: "bootstrap" | "scale";
+  totals: {
+    // inflows by source
+    playerSubs: Cents;
+    challengeFees: Cents;
+    fanTipsGross: Cents;
+    giftedSubsGross: Cents;
+    operatorSubscriptions: Cents;
+
+    grossInflow: Cents;
+
+    // outflows/costs
+    incentivesCost: Cents;
+    operatorPayouts: Cents;
+    trusteePayouts: Cents;
+    ownerPayouts: Cents;     // YOU
+    potAccruals: Cents;
+    playerWinnings: Cents;
+
+    // player net & platform remainder
+    playersPaid: Cents;
+    playerNet: Cents;
+
+    platformNetAfterOwner: Cents; // sanity check bucket / reserve
+  };
+  byStakeholder: {
+    players: {
+      subsPaid: Cents;           // only the subs actually paid by players (excludes gifted)
+      challengeFeesPaid: Cents;
+      fanTipsReceived: Cents;    // after platform rake
+      giftedMonthsReceived: number; // count of gifted subs
+      winnings: Cents;
+      incentivesWon: Cents;
+      net: Cents;
+    };
+    operators: { inflow: Cents };
+    trustees: { inflow: Cents };
+    owner: { inflow: Cents }; // YOU
+  };
+  notes?: string[];
+}
+
+/* ---------- CONFIG FOR GIFTS & FANS & PROMOS ---------- */
+export const ADDON_CONFIG = {
+  fans: {
+    platformRakePctDefault: 0.10, // 10% rake on fan tips
+  },
+  gifts: {
+    // Gifted subscriptions are paid by fans/sponsors (counted as giftedSubsGross).
+    // Player doesn't pay for that month; they still get service.
+  },
+  promos: {
+    // Global promo toggle to comp some % of months (no cash collected).
+    enabledByDefault: true,
+  },
+} as const;
+
+/* ---------- ACTUALS (requires minimal new storage readers) ----------
+ * storage.getFanTips({ start, end }) -> { playerId, amount, createdAt }
+ * storage.getGiftedSubs({ start, end }) -> { playerId, amount, createdAt }
+ * storage.getOperatorSubscriptions({ start, end }) -> { hallId, amount, createdAt }
+ * storage.getDistributions(...) should also include kind "owner" if you already log it.
+ */
+export async function getRevenueReportActuals(
+  start: Date,
+  end: Date,
+  opts: { hallsThresholdForScale: number; operatorHalls?: number }
+): Promise<RevenueReport> {
+  const operatorHalls = opts.operatorHalls ?? (await storage.countOperatorHalls());
+  const phase: "bootstrap" | "scale" =
+    operatorHalls >= opts.hallsThresholdForScale ? "scale" : "bootstrap";
+
+  const [payments, distributions, incentives, fanTips, giftedSubs, opSubs] = await Promise.all([
+    storage.getPayments({ start, end, types: ["subscription", "challenge_fee"] }),
+    storage.getDistributions({ start, end }),
+    storage.getIncentives({ start, end }),
+    storage.getFanTips({ start, end }),
+    storage.getGiftedSubs({ start, end }),
+    storage.getOperatorSubscriptions({ start, end }),
+  ]);
+
+  const subsPaidByPlayers = sum(payments.filter(p => p.type === "subscription").map(p => p.amount));
+  const challengeFees = sum(payments.filter(p => p.type === "challenge_fee").map(p => p.amount));
+  const fanTipsGross = sum(fanTips.map(t => t.amount));
+  const giftedSubsGross = sum(giftedSubs.map(g => g.amount));
+  const operatorSubscriptions = sum(opSubs.map(s => s.amount));
+
+  // Player-facing
+  const fanRakePct = ADDON_CONFIG.fans.platformRakePctDefault;
+  const fanTipsRake = Math.round(fanTipsGross * fanRakePct);
+  const fanTipsToPlayers = fanTipsGross - fanTipsRake;
+
+  const playerWinnings = sum(distributions.filter(d => d.kind === "player_winnings").map(d => d.amount));
+  const incentivesCost = sum(incentives.map(i => i.bonusAmount));
+  const incentivesWon = incentivesCost;
+
+  // Payouts
+  let operatorPayouts = sum(distributions.filter(d => d.kind === "operator").map(d => d.amount));
+  let trusteePayouts = sum(distributions.filter(d => d.kind === "trustee").map(d => d.amount));
+  let ownerPayoutsLogged = sum(distributions.filter(d => d.kind === "owner").map(d => d.amount));
+  const potAccruals = sum(distributions.filter(d => d.kind === "pot").map(d => d.amount));
+
+  // Phase policy:
+  // - Bootstrap: ensure Owner inflow == Trustee inflow (adjust from platform remainder if needed)
+  // - Scale: Owner inflow = operatorSubscriptions (SaaS). If you already logged owner, keep it; otherwise, attribute here.
+  const grossInflow =
+    subsPaidByPlayers + challengeFees + fanTipsGross + giftedSubsGross + operatorSubscriptions;
+
+  const platformOutflowsBeforeOwner =
+    operatorPayouts + trusteePayouts + potAccruals + playerWinnings + incentivesCost + fanTipsToPlayers;
+
+  let ownerPayouts =...

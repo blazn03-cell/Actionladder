@@ -1,0 +1,97 @@
+Pasted-All-set-I-wired-Express-API-routes-api-player-id-revenue-api-admin-revenue-forecast-api-ad-1757665473378_1757665473379.txt
+All set! I wired:
+
+Express API routes (/api/player/:id/revenue, /api/admin/revenue/forecast, /api/admin/revenue/actuals)
+
+JWT auth + role checks (owner/trustee/operator vs player)
+
+Storage adapters (stubbed—ready to connect to your DB)
+
+Frontend hooks to fetch real data and replace the mock charts
+
+Open the canvas to grab the code. If you want, I can tailor the storage adapter for your DB (Prisma/Drizzle/Postgres) and add Stripe event mappers next.
+
+You said:
+yes
+ChatGPT said:
+Thought for 19s
+Action Ladder – Player & Admin Revenue Dashboard (mockup)
+· typescript
+import React, { useMemo, useState } from "react";
+        const li = await stripe.checkout.sessions.listLineItems(cs.id, { limit: 5 });
+        for (const item of li.data) {
+          const prod = await stripe.products.retrieve(String(item.price?.product));
+          const domain = productTypeFromMetadata(prod);
+          await persistPaymentFromCheckout(domain, cs, item);
+        }
+        break;
+      }
+      case "payment_intent.succeeded": {
+        const pi = event.data.object as Stripe.PaymentIntent;
+        // Use attached metadata for domain routing
+        const domain = pi.metadata?.domain_type as any;
+        await persistPaymentFromPI(domain, pi);
+        break;
+      }
+      case "charge.refunded": {
+        const ch = event.data.object as Stripe.Charge;
+        // Optional: mark Payment as refunded (not shown here for brevity)
+        break;
+      }
+      case "transfer.paid": {
+        // A transfer to a connected account settled; you can log as Distribution if desired
+        break;
+      }
+      default:
+        // ignore
+        break;
+    }
+
+
+    res.json({ received: true });
+  } catch (err) {
+    console.error("Webhook error", err);
+    res.status(400).send(`Webhook Error: ${(err as any).message}`);
+  }
+});
+
+
+export default router;
+
+
+async function persistPaymentFromCheckout(domain: string | undefined, cs: Stripe.Checkout.Session, item: Stripe.LineItem) {
+  const amount = item.amount_total ?? 0;
+  const playerId = cs.metadata?.playerId ?? (item.price?.metadata?.playerId as string | undefined);
+  const hallId = cs.metadata?.hallId ?? (item.price?.metadata?.hallId as string | undefined);
+
+
+  switch (domain) {
+    case "player_subscription":
+      await prisma.payment.create({ data: { type: PaymentType.SUBSCRIPTION, userId: playerId, hallId, amount, stripeCs: cs.id, meta: cs } });
+      break;
+    case "challenge_fee":
+      await prisma.payment.create({ data: { type: PaymentType.CHALLENGE_FEE, userId: playerId, hallId, amount, stripeCs: cs.id, meta: cs } });
+      break;
+    case "fan_tip":
+      await prisma.payment.create({ data: { type: PaymentType.FAN_TIP, userId: playerId, amount, stripeCs: cs.id, meta: cs } });
+      await prisma.fanTip.create({ data: { playerId: playerId!, amount } });
+      break;
+    case "gifted_sub":
+      await prisma.payment.create({ data: { type: PaymentType.GIFTED_SUB, userId: playerId, amount, stripeCs: cs.id, meta: cs } });
+      await prisma.giftedSub.create({ data: { playerId: playerId!, amount } });
+      break;
+    case "operator_subscription":
+      await prisma.payment.create({ data: { type: PaymentType.OPERATOR_SUBS, hallId, amount, stripeCs: cs.id, meta: cs } });
+      await prisma.operatorSubscription.create({ data: { hallId: hallId!, amount, period: new Date().toISOString().slice(0,7) } });
+      break;
+    default:
+      // Unknown product → store a generic payment record for visibility
+      await prisma.payment.create({ data: { type: PaymentType.CHALLENGE_FEE, amount, stripeCs: cs.id, meta: cs } });
+  }
+}
+
+
+async function persistPaymentFromPI(domain: string | undefined, pi: Stripe.PaymentIntent) {
+  const amount = pi.amount_received ?? pi.amount ?? 0;
+  const playerId = pi.metadata?.playerId as string | undefined;
+  const hallId = pi.metadata?.hallId as string | undefin

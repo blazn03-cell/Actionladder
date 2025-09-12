@@ -1,0 +1,169 @@
+Pasted-Action-Ladder-Db-stripe-Seed-Kit-postgres-Stripe-Action-Ladder-DB-Stripe-Seed-Kit-Postgres--1757666802500_1757666802501.txt
+Action Ladder — Db/stripe Seed Kit (postgres + Stripe)
+Action Ladder — DB/Stripe Seed Kit (Postgres + Stripe)
+
+Below is a complete, ready‑to‑paste setup for:
+
+DB choice: Neon Postgres (works with any Postgres)
+
+Core schema (minimal yet expandable)
+
+Stripe product catalog structure with metadata.domain_type
+
+One‑shot Node script to seed Stripe Products/Prices + demo Customers
+
+SQL seed for demo users/halls
+
+.env example and notes
+
+1) Decision
+
+DB: Postgres (Neon recommended)
+
+Reason: Strong relational model for halls↔operators↔players, transactions, payouts, auditability, easy hosted serverless via Neon.
+
+2) Minimal Core Schema (Postgres)
+
+Focused on just what the seed and early flows need. You can expand later (tournaments, streaks, gifts/fans events, etc.).
+
+-- 01_users.sql
+CREATE TABLE IF NOT EXISTS users (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  email TEXT UNIQUE NOT NULL,
+  full_name TEXT NOT NULL,
+  role TEXT NOT NULL CHECK (role IN ('player','operator','trustee','owner','admin')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  stripe_customer_id TEXT,
+  CONSTRAINT email_chk CHECK (position('@' in email) > 1)
+);
+
+
+-- 02_halls.sql
+CREATE TABLE IF NOT EXISTS halls (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
+  city TEXT,
+  state TEXT,
+  table_mix JSONB, -- {"nine_ft":2, "eight_ft":4, "barbox":6}
+  owner_user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+
+-- 03_user_hall_roles.sql
+CREATE TABLE IF NOT EXISTS user_hall_roles (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  hall_id UUID NOT NULL REFERENCES halls(id) ON DELETE CASCADE,
+  role TEXT NOT NULL CHECK (role IN ('operator','player','trustee')),
+  UNIQUE(user_id, hall_id, role)
+);
+
+
+-- 04_products_shadow.sql
+-- Optional shadow tables to mirror Stripe for quick lookups
+CREATE TABLE IF NOT EXISTS stripe_products (
+  id TEXT PRIMARY KEY,          -- stripe product id
+  name TEXT NOT NULL,
+  domain_type TEXT NOT NULL,    -- player_membership | operator_subscription | addon
+  tier TEXT,                    -- rookie | standard | premium | small | medium | large | mega
+  visibility TEXT,              -- player | operator | private
+  raw JSONB,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+
+CREATE TABLE IF NOT EXISTS stripe_prices (
+  id TEXT PRIMARY KEY,          -- stripe price id
+  product_id TEXT NOT NULL REFERENCES stripe_products(id) ON DELETE CASCADE,
+  currency TEXT NOT NULL,
+  unit_amount INTEGER,          -- cents
+  interval TEXT,                -- month | year | week | one_time
+  trial_days INTEGER,
+  raw JSONB,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+
+-- 05_subscriptions.sql (IDs stored only; actual billing in Stripe)
+CREATE TABLE IF NOT EXISTS subscriptions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  hall_id UUID REFERENCES halls(id) ON DELETE SET NULL,
+  stripe_subscription_id TEXT UNIQUE,
+  stripe_price_id TEXT REFERENCES stripe_prices(id),
+  status TEXT NOT NULL DEFAULT 'created',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+
+Extensions (optional):
+
+CREATE EXTENSION IF NOT EXISTS pgcrypto; -- for gen_random_uuid on Neon
+3) Stripe Product Catalog Structure
+
+We’ll create three domains using product.metadata.domain_type:
+
+player_membership — player‑visible plans (cheaper than typical leagues)
+
+operator_subscription — private to player UI (only operator/owner/trustees see revenue details)
+
+addon — optional modules (e.g., Tournaments, Gifts & Fans, Analytics)
+
+Common metadata keys we’ll store on Product:
+
+domain_type: player_membership | operator_subscription | addon
+
+tier: e.g., rookie|standard|premium or small|medium|large|mega
+
+visibility: player | operator | private
+
+weekly_dues: e.g., 800 (=$8) if we ever surface weekly comparison
+
+intro_fee: e.g., 0 to beat league first‑month cost
+
+match_fee_pct: e.g., 5 (platform share on challenge fees if applicable)
+
+hall_limit: for operator tiers (e.g., 1/3/6/12 halls)
+
+features_json: JSON string of feature flags (for UI)
+
+Prices will use recurring intervals:
+
+Players → monthly plans (no big upfront hit; win vs leagues)
+
+Operators → monthly or annual
+
+Add‑ons → monthly (can also do one‑time event fees)
+
+Player Memberships (example pricing)
+
+Rookie — $39/month (beats leagues; minimal perks)
+
+Standard — $59/month (balanced perks)
+
+Premium — $79/month (max perks, priority events)
+
+Operator Subscriptions (private)
+
+Small — $149/month (up to 1 hall)
+
+Medium — $299/month (up to 3 halls)
+
+Large — $499/month (up to 6 halls)
+
+Mega — $899/month (12 halls, white‑label, analytics)
+
+Add‑ons
+
+Tournament Module — $49/month
+
+Gifts & Fans — $19/month
+
+Analytics Pro — $39/month
+
+You can tweak numbers as we finalize the revenue story.
+
+4) One‑Shot Seed Script (Node, Stripe + Postgres)
+
+File: seed_stripe_and_db.ts (works with ts-node or transpile with tsc)
+
+// seed_str...

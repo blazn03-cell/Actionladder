@@ -1,0 +1,76 @@
+Pasted-Action-Ladder-Grouped-Navbar-play-teams-tournaments-rankings-media-Ai-promote-operator-types-1757668148579_1757668148579.txt
+Action Ladder – Grouped Navbar (play/teams/tournaments/rankings/media & Ai/promote/operator)
+· typescript
+import React, { useState, useContext, createContext } from 'react';
+                {c.label}
+              </a>
+            ) : null
+          )}
+        </div>
+      </div>
+    );
+  }
+  return (
+    <a href={item.path || '#'} className="block px-3 py-2 rounded-md hover:bg-zinc-800">
+      {item.label}
+    </a>
+  );
+}
+
+
+function MobileItem({ item, role }: { item: NavItem; role: Role }) {
+  if (!item.children) {
+    return (
+      <a href={item.path || '#'} className="block px-3 py-2 rounded-md hover:bg-zinc-800">{item.label}</a>
+    );
+  }
+  return (
+    <details className="rounded-lg">
+      <summary className="px-3 py-2 rounded-md hover:bg-zinc-800 cursor-pointer">{item.label}</summary>
+      <div className="ml-2 mt-1 space-y-1">
+        {item.children.map((c) =>
+          canSee(c, role) ? (
+            c.children ? (
+              <details key={c.label} className="ml-2">
+                <summary className="px-3 py-2 rounded-md hover:bg-zinc-800 cursor-pointer">{c.label}</summary>
+                <div className="ml-2 mt-1">
+                  {c.children.map((g) =>
+                    canSee(g, role) ? (
+                      <a key={g.label} href={g.path || '#'} className="block px-3 py-2 rounded-md hover:bg-zinc-800">
+                        {g.label}
+                      </a>
+                    ) : null
+                  )}
+                </div>
+              </details>
+            ) : (
+              <a key={c.label} href={c.path || '#'} className="block px-3 py-2 rounded-md hover:bg-zinc-800">{c.label}</a>
+            )
+          ) : null
+        )}
+      </div>
+    </details>
+  );
+}
+
+
+// --------------- Demo Page ----------------
+export default function App() {
+  const { role, setRole } = useAuth();
+  return (
+    <div className="min-h-screen bg-zinc-950">
+      <Navbar />
+      <div className="mx-auto max-w-7xl px-4 py-10 text-zinc-200">
+        <div className="flex items-center gap-2 mb-6">
+          <span className="text-sm">View as:</span>
+          <button onClick={() => setRole('public')} className={`px-3 py-1 rounded-lg border ${role==='public'?'bg-zinc-800':'border-zinc-700 hover:bg-zinc-900'}`}>Public</button>
+          <button onClick={() => setRole('operator')} className={`px-3 py-1 rounded-lg border ${role==='operator'?'bg-zinc-800':'border-zinc-700 hover:bg-zinc-900'}`}>Operator</button>
+          <button onClick={() => setRole('admin')} className={`px-3 py-1 rounded-lg border ${role==='admin'?'bg-zinc-800':'border-zinc-700 hover:bg-zinc-900'}`}>Admin</button>
+        </div>
+        <p className="text-zinc-400">
+          Auth‑aware navbar: switch roles to show/hide Operator/Admin items. Replace AuthProvider with your real auth provider when integrating.
+        </p>
+      </div>
+    </div>
+  );
+}
