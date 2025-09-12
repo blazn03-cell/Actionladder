@@ -395,8 +395,16 @@ export default function MonetizationDashboard() {
             </Card>
 
             {/* Key Features */}
-            <Card className="bg-gray-900 border-gray-700"
-</new_str>
+            <Card className="bg-gray-900 border-gray-700">
+              <CardHeader>
+                <CardTitle className="text-white">Key Features</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-gray-300">
+                  <p>Additional monetization features coming soon...</p>
+                </div>
+              </CardContent>
+            </Card>
           </TabsContent>
 
           <TabsContent value="calculator" className="space-y-6">
