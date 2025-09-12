@@ -42,7 +42,7 @@ export default function MonetizationDashboard() {
   // Mock user role - in production this would come from your auth system
   // For demo: "OWNER", "TRUSTEE", "OPERATOR", "PLAYER"
   const mockUser = { globalRole: "OWNER" }; // Change this to test different roles
-  
+
   const [earnings, setEarnings] = useState<StakeholderEarnings>({
     actionLadderTotal: 0,
     operatorTotal: 0,
@@ -52,7 +52,7 @@ export default function MonetizationDashboard() {
   });
   const [tiers, setTiers] = useState<MembershipTier[]>([]);
   const [loading, setLoading] = useState(true);
-  
+
   // Commission Calculator
   const [commissionAmount, setCommissionAmount] = useState(100);
   const [commissionTier, setCommissionTier] = useState("none");
@@ -68,16 +68,16 @@ export default function MonetizationDashboard() {
       const tierResponse = await fetch("/api/pricing/tiers");
       const tierData = await tierResponse.json();
       setTiers(tierData);
-      
+
       // NEW PLAYER-FRIENDLY DISTRIBUTION MODEL
       setEarnings({
         actionLadderTotal: 25000, // $250 total: $90 owner + $80 trustee A + $80 trustee B
-        operatorTotal: 45000,     // $450 total: 6 operators x $75 each = $4,500 
+        operatorTotal: 45000,     // $450 total: 6 operators x $75 each = $4,500
         bonusFundTotal: 100000,   // $1,000+ monthly player bonus fund (35% of commission)
         playerWinnings: 120000,   // $1,200 monthly player winnings from matches
         monthlyGrowth: 18.5
       });
-      
+
       setLoading(false);
     } catch (error) {
       console.error("Failed to load dashboard data:", error);
@@ -144,8 +144,8 @@ export default function MonetizationDashboard() {
               {canSeeAllData ? "Complete Revenue Dashboard" : "Your Earnings Dashboard"}
             </SafeHeading>
             <SafeText className="text-gray-400 mt-2">
-              {canSeeAllData 
-                ? "Complete financial overview - Owner/Trustee Access" 
+              {canSeeAllData
+                ? "Complete financial overview - Owner/Trustee Access"
                 : `Financial overview for ${mockUser?.globalRole?.toLowerCase() || 'user'}`}
             </SafeText>
           </div>
@@ -302,15 +302,101 @@ export default function MonetizationDashboard() {
                     </div>
                   )}
                   <div className="p-4 rounded-lg bg-purple-900/20 border border-purple-500/30">
-                    <h4 className="text-purple-400 font-semibold">Player Bonus Fund</h4>
-                    <p className="text-2xl font-bold text-white">35%</p>
+                    <h4 className="text-purple-400 font-semibold">Bonus Pool Fund</h4>
+                    <p className="text-2xl font-bold text-white">5-10%</p>
                     <SafeText className="text-sm text-gray-400">
-                      Weekly bonuses, monthly prizes, event nights
+                      King of the Hill, Hill-Hill Chaos, tournaments
                     </SafeText>
                   </div>
                 </div>
+
+                {/* Operator Revenue Examples */}
+                {canSeeOperatorEarnings && (
+                  <div className="mt-6">
+                    <h4 className="text-lg font-semibold text-white mb-4">Operator + Trustee Revenue — 4-Month Season</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="p-4 rounded-lg bg-blue-900/20 border border-blue-500/30">
+                        <h5 className="text-blue-400 font-semibold">15 Players @ $60</h5>
+                        <p className="text-sm text-gray-300 mb-2">30 matches/month</p>
+                        <p className="text-xl font-bold text-white">$3,600</p>
+                        <SafeText className="text-xs text-gray-400">
+                          Operator share per 4-month season
+                        </SafeText>
+                      </div>
+                      <div className="p-4 rounded-lg bg-purple-900/20 border border-purple-500/30">
+                        <h5 className="text-purple-400 font-semibold">30 Players @ $100</h5>
+                        <p className="text-sm text-gray-300 mb-2">60 matches/month</p>
+                        <p className="text-xl font-bold text-white">$12,000</p>
+                        <SafeText className="text-xs text-gray-400">
+                          Operator share per 4-month season
+                        </SafeText>
+                      </div>
+                      <div className="p-4 rounded-lg bg-yellow-900/20 border border-yellow-500/30">
+                        <h5 className="text-yellow-400 font-semibold">50 Players Mixed</h5>
+                        <p className="text-sm text-gray-300 mb-2">100+ matches/month</p>
+                        <p className="text-xl font-bold text-white">$17,000</p>
+                        <SafeText className="text-xs text-gray-400">
+                          Operator share per 4-month season
+                        </SafeText>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
+
+            {/* Challenge Pools Section */}
+            <Card className="bg-gray-900 border-gray-700">
+              <CardHeader>
+                <CardTitle className="text-white flex items-center gap-2">
+                  <TrendingUp className="h-5 w-5" />
+                  Challenge Pools
+                </CardTitle>
+                <CardDescription>
+                  Lock in before the break - winner takes the pool
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="p-4 rounded-lg bg-blue-900/20 border border-blue-500/30">
+                    <h4 className="text-blue-400 font-semibold">Individual Pools</h4>
+                    <p className="text-sm text-gray-300 mb-2">$5 - $100,000 per side</p>
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                      <span className="text-green-400 font-medium">Available Now</span>
+                    </div>
+                    <SafeText className="text-xs text-gray-400 mt-2">
+                      Lock funds before first break, winner takes pool minus service fee
+                    </SafeText>
+                  </div>
+                  <div className="p-4 rounded-lg bg-gray-700/20 border border-gray-500/30">
+                    <h4 className="text-gray-400 font-semibold">Team Challenge Pools</h4>
+                    <p className="text-sm text-gray-300 mb-2">2-man, 3-man, 5-man teams</p>
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 bg-yellow-500 rounded-full animate-pulse"></div>
+                      <span className="text-yellow-400 font-medium">Coming Soon</span>
+                    </div>
+                    <SafeText className="text-xs text-gray-400 mt-2">
+                      Team pools with Pro membership requirements
+                    </SafeText>
+                  </div>
+                </div>
+
+                <div className="p-4 bg-green-900/10 rounded border border-green-500/20">
+                  <h5 className="text-green-400 font-semibold mb-2">How Challenge Pools Work</h5>
+                  <ul className="text-sm text-gray-300 space-y-1">
+                    <li>• Players lock credits before match starts</li>
+                    <li>• Winner receives pool minus small service fee (5-8.5%)</li>
+                    <li>• Disputes must be filed within 12 hours</li>
+                    <li>• Auto-resolution after dispute period expires</li>
+                  </ul>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Key Features */}
+            <Card className="bg-gray-900 border-gray-700"
+</new_str>
           </TabsContent>
 
           <TabsContent value="calculator" className="space-y-6">
@@ -349,8 +435,8 @@ export default function MonetizationDashboard() {
                     </Select>
                   </div>
                 </div>
-                
-                <Button 
+
+                <Button
                   onClick={calculateCommissionBreakdown}
                   className="bg-green-600 hover:bg-green-700 text-white"
                   data-testid="button-calculate-commission"
@@ -421,7 +507,7 @@ export default function MonetizationDashboard() {
                         Commission: {(tier.commissionRate / 100).toFixed(1)}%
                       </p>
                     </div>
-                    
+
                     <div>
                       <h4 className="font-semibold text-white mb-2">Perks</h4>
                       <ul className="space-y-1">

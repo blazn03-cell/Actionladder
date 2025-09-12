@@ -32,6 +32,10 @@ interface SidePot {
   description?: string; // Custom bet description
   customCreatedBy?: string; // Who created this custom bet
   createdAt: string;
+  disputeDeadline?: string;
+  disputeStatus?: string;
+  autoResolvedAt?: string;
+  winningSide?: string;
 }
 
 interface SideBet {
@@ -58,13 +62,13 @@ interface LedgerEntry {
 export default function ChallengePools() {
   const [userId] = useState("user-123"); // This would come from auth context
   const [topUpAmount, setTopUpAmount] = useState("");
-  const [newPoolEntry, setNewPoolEntry] = useState("");
+  const [newPotStake, setNewPotStake] = useState("");
   const [sideALabel, setSideALabel] = useState("");
   const [sideBLabel, setSideBLabel] = useState("");
   const [description, setDescription] = useState(""); // Custom challenge description
-  const [challengeType, setChallengeType] = useState("yes_no");
+  const [betType, setBetType] = useState("yes_no");
   const [verificationSource, setVerificationSource] = useState("Official Stream");
-  const [showHighEntryWarning, setShowHighEntryWarning] = useState(false);
+  const [showHighStakeWarning, setShowHighStakeWarning] = useState(false);
   const [isDescriptionValid, setIsDescriptionValid] = useState(true);
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -96,12 +100,12 @@ export default function ChallengePools() {
   });
 
   // Fetch challenge pools
-  const { data: challengePools = [], isLoading: poolsLoading } = useQuery<SidePot[]>({
+  const { data: sidePots = [], isLoading: poolsLoading } = useQuery<SidePot[]>({
     queryKey: ["/api/challenge-pools"],
   });
 
   // Fetch user's entries
-  const { data: userEntries = [], isLoading: entriesLoading } = useQuery<SideBet[]>({
+  const { data: userBets = [], isLoading: betsLoading } = useQuery<SideBet[]>({
     queryKey: ["/api/challenge-entries/user", userId],
   });
 
@@ -114,10 +118,10 @@ export default function ChallengePools() {
   const topUpMutation = useMutation({
     mutationFn: async (amount: number) => {
       const response = await apiRequest("POST", `/api/wallet/${userId}/topup`, { amount });
-      
+
       // Simulate Stripe payment completion for demo
       await new Promise(resolve => setTimeout(resolve, 2000));
-      
+
       return apiRequest("POST", `/api/wallet/${userId}/topup/complete`, { 
         paymentIntentId: `pi_demo_${Date.now()}`, 
         amount 
@@ -164,11 +168,11 @@ export default function ChallengePools() {
   });
 
   // Place entry mutation
-  const placeEntryMutation = useMutation({
+  const placeBetMutation = useMutation({
     mutationFn: (data: any) => apiRequest("POST", "/api/challenge-entries", data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/wallet", userId] });
-      queryClient.invalidateQueries({ queryKey: ["/api/side-bets/user", userId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/challenge-entries/user", userId] });
       queryClient.invalidateQueries({ queryKey: ["/api/side-pots"] });
       toast({
         title: "Joined Side Pot",
@@ -206,38 +210,38 @@ export default function ChallengePools() {
   const handleCreatePot = () => {
     const stake = parseFloat(newPotStake);
     const trimmedDesc = description.trim();
-    
+
     // Validation
     if (stake < 5) {
       toast({ title: "Error", description: "Minimum challenge is 500 credits ($5)", variant: "destructive" });
       return;
     }
-    
+
     if (!validateDescription(trimmedDesc)) {
       toast({ title: "Error", description: "Description must be 5-200 characters and objective", variant: "destructive" });
       return;
     }
-    
+
     if (!sideALabel || !sideBLabel) {
       toast({ title: "Error", description: "Both side labels are required", variant: "destructive" });
       return;
     }
-    
+
     if (stake >= 5 && stake <= 100000 && sideALabel && sideBLabel && validateDescription(trimmedDesc)) {
       // Show warning for high stakes to prevent mistakes
       if (stake >= 1000 && !showHighStakeWarning) {
         setShowHighStakeWarning(true);
         return;
       }
-      
+
       // Calculate service fee based on total pot
       const totalPot = stake * 2;
       const serviceFeePercent = totalPot > 500 ? 5 : 8.5;
-      
+
       // Calculate lock cutoff (T-5 minutes default)
       const lockCutoffAt = new Date();
       lockCutoffAt.setMinutes(lockCutoffAt.getMinutes() + 5);
-      
+
       createPotMutation.mutate({
         creatorId: userId,
         sideALabel,
@@ -257,11 +261,11 @@ export default function ChallengePools() {
     setShowHighStakeWarning(false);
     const stake = parseFloat(newPotStake);
     const trimmedDesc = description.trim();
-    
+
     // Calculate lock cutoff (T-5 minutes default)
     const lockCutoffAt = new Date();
     lockCutoffAt.setMinutes(lockCutoffAt.getMinutes() + 5);
-    
+
     createPotMutation.mutate({
       creatorId: userId,
       sideALabel,
@@ -296,15 +300,15 @@ export default function ChallengePools() {
     }).format(cents / 100);
   };
 
-  if (walletLoading || potsLoading || betsLoading) {
+  if (walletLoading || poolsLoading || betsLoading) {
     return <div className="flex justify-center p-8">Loading...</div>;
   }
 
   return (
     <div className="container mx-auto p-6 space-y-6">
       <div className="text-center">
-        <h1 className="text-3xl font-bold mb-2">Side Pots</h1>
-        <p className="text-green-400">Lock into the side pot before the break</p>
+        <h1 className="text-3xl font-bold mb-2">Challenge Pools</h1>
+        <p className="text-green-400">Lock into the challenge pool before the break</p>
       </div>
 
       <Tabs defaultValue="wallet" className="w-full">
@@ -315,7 +319,7 @@ export default function ChallengePools() {
           </TabsTrigger>
           <TabsTrigger value="pots" data-testid="tab-side-pots">
             <TrendingUp className="mr-2 h-4 w-4" />
-            Side Pots
+            Challenge Pools
           </TabsTrigger>
           <TabsTrigger value="bets" data-testid="tab-my-bets">My Entries</TabsTrigger>
           <TabsTrigger value="history" data-testid="tab-history">
@@ -345,7 +349,7 @@ export default function ChallengePools() {
                   </div>
                 </div>
               </div>
-              
+
               <div className="border-t pt-4">
                 <Label htmlFor="topup-amount">Top Up Amount ($)</Label>
                 <div className="flex gap-2 mt-2">
@@ -378,7 +382,7 @@ export default function ChallengePools() {
               <div className="flex justify-between items-center">
                 <CardTitle>
                   <Plus className="mr-2 h-5 w-5 inline" />
-                  Create Side Pot
+                  Create Challenge Pool
                 </CardTitle>
                 <Button
                   size="sm"
@@ -394,7 +398,7 @@ export default function ChallengePools() {
             <CardContent className="space-y-4">
               <div>
                 <Label htmlFor="description" className="flex items-center gap-2">
-                  Bet Description (required)
+                  Challenge Description (required)
                   <span className="text-red-500">*</span>
                 </Label>
                 <textarea
@@ -434,7 +438,7 @@ export default function ChallengePools() {
                     </SelectContent>
                   </Select>
                 </div>
-                
+
                 <div>
                   <Label htmlFor="verification-source">Verification Source</Label>
                   <Select value={verificationSource} onValueChange={setVerificationSource} data-testid="select-verification-source">
@@ -482,7 +486,7 @@ export default function ChallengePools() {
               </div>
               <div>
                 <Label htmlFor="stake-amount">Challenge Credits Per Side (500 - 10,000,000)</Label>
-                
+
                 {/* Preset Amount Buttons */}
                 <div className="flex gap-2 mt-2 mb-3 flex-wrap">
                   {[25, 50, 100, 250, 500].map(amount => (
@@ -509,7 +513,7 @@ export default function ChallengePools() {
                     </div>
                   </div>
                 )}
-                
+
                 <div className="flex gap-2">
                   <Input
                     id="stake-amount"
@@ -544,9 +548,9 @@ export default function ChallengePools() {
                         {pot.sideALabel} vs {pot.sideBLabel}
                       </CardTitle>
                       <CardDescription>
-                        Each side puts up {formatCurrency(pot.stakePerSide)} • Winner receives the pot minus service fee ({(pot.feeBps / 100).toFixed(1)}%)
+                        Each side puts up {formatCurrency(pot.stakePerSide)} • Winner receives the challenge pool minus service fee ({(pot.feeBps / 100).toFixed(1)}%)
                       </CardDescription>
-                      
+
                       {/* Dispute Period Indicator */}
                       {pot.status === "resolved" && pot.disputeDeadline && (
                         <div className="mt-2 p-2 bg-yellow-100 dark:bg-yellow-900 border border-yellow-300 dark:border-yellow-700 rounded text-sm">
@@ -582,7 +586,7 @@ export default function ChallengePools() {
                       variant={pot.status === "open" ? "default" : pot.status === "resolved" ? "destructive" : "secondary"}
                       data-testid={`pot-status-${pot.id}`}
                     >
-                      {pot.status}
+                      {pot.status === "open" ? "Coming Soon" : pot.status === "resolved" ? "Resolved" : "Locked"}
                       {pot.winningSide && ` (${pot.winningSide} wins)`}
                     </Badge>
                   </div>
