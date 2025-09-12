@@ -4,7 +4,7 @@ import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
 // Global user roles for platform management
-export const globalRoles = ["OWNER", "STAFF", "OPERATOR", "CREATOR", "PLAYER"] as const;
+export const globalRoles = ["OWNER", "STAFF", "OPERATOR", "CREATOR", "PLAYER", "TRUSTEE"] as const;
 export type GlobalRole = typeof globalRoles[number];
 
 export const users = pgTable("users", {
@@ -1476,6 +1476,102 @@ export type InsertUploadedFile = z.infer<typeof insertUploadedFileSchema>;
 export type FileShare = typeof fileShares.$inferSelect;
 export type InsertFileShare = z.infer<typeof insertFileShareSchema>;
 
+// === FAN TIPS SYSTEM ===
+
+// Fan tips for supporting players during matches and events
+export const fanTips = pgTable("fan_tips", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  fanUserId: text("fan_user_id").notNull(), // User giving the tip
+  recipientUserId: text("recipient_user_id").notNull(), // Player receiving the tip
+  amount: integer("amount").notNull(), // Tip amount in cents
+  message: text("message"), // Optional message from fan
+  matchId: text("match_id"), // Associated match (optional)
+  tournamentId: text("tournament_id"), // Associated tournament (optional)
+  isAnonymous: boolean("is_anonymous").default(false), // Anonymous tip option
+  stripePaymentIntentId: text("stripe_payment_intent_id"), // Stripe payment
+  platformFeeBps: integer("platform_fee_bps").default(250), // 2.5% platform fee
+  platformFeeAmount: integer("platform_fee_amount").notNull(), // Platform fee in cents
+  netAmount: integer("net_amount").notNull(), // Amount after fees
+  status: text("status").default("pending"), // "pending", "completed", "failed", "refunded"
+  processedAt: timestamp("processed_at"),
+  refundedAt: timestamp("refunded_at"),
+  refundReason: text("refund_reason"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Fan tip analytics and leaderboards
+export const fanTipLeaderboards = pgTable("fan_tip_leaderboards", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  playerId: text("player_id").notNull().unique(),
+  totalTipsReceived: integer("total_tips_received").default(0), // Total in cents
+  totalTipsCount: integer("total_tips_count").default(0), // Number of tips
+  averageTipAmount: integer("average_tip_amount").default(0), // Average tip in cents
+  biggestTip: integer("biggest_tip").default(0), // Largest single tip
+  thisMonthTips: integer("this_month_tips").default(0), // Current month total
+  thisWeekTips: integer("this_week_tips").default(0), // Current week total
+  fanCount: integer("fan_count").default(0), // Unique fans who tipped
+  rank: integer("rank").default(0), // Leaderboard rank
+  lastTipAt: timestamp("last_tip_at"),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// === GIFTED SUBSCRIPTIONS SYSTEM ===
+
+// Gifted subscription purchases and tracking
+export const giftedSubscriptions = pgTable("gifted_subscriptions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  giftedBy: text("gifted_by").notNull(), // User who purchased the gift
+  giftedTo: text("gifted_to").notNull(), // User receiving the gift
+  subscriptionTier: text("subscription_tier").notNull(), // "rookie", "standard", "premium"
+  monthlyPrice: integer("monthly_price").notNull(), // Price paid in cents
+  durationMonths: integer("duration_months").notNull(), // How many months gifted
+  totalAmount: integer("total_amount").notNull(), // Total amount paid
+  message: text("message"), // Optional gift message
+  isAnonymous: boolean("is_anonymous").default(false), // Anonymous gift option
+  stripePaymentIntentId: text("stripe_payment_intent_id"), // Stripe payment
+  stripeSubscriptionId: text("stripe_subscription_id"), // Created subscription
+  status: text("status").default("pending"), // "pending", "activated", "expired", "cancelled"
+  activatedAt: timestamp("activated_at"), // When recipient activated
+  expiresAt: timestamp("expires_at").notNull(), // When gift expires
+  remainingMonths: integer("remaining_months").notNull(), // Months left on gift
+  autoRenew: boolean("auto_renew").default(false), // Auto-renew after gift expires
+  notificationSent: boolean("notification_sent").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Gift subscription redemption tracking
+export const giftRedemptions = pgTable("gift_redemptions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  giftId: text("gift_id").notNull(), // Links to gifted_subscriptions
+  redeemedBy: text("redeemed_by").notNull(), // User who redeemed
+  redeemedAt: timestamp("redeemed_at").defaultNow(),
+  ipAddress: text("ip_address"), // For fraud prevention
+  userAgent: text("user_agent"), // Browser info
+  redemptionCode: text("redemption_code"), // Optional redemption code
+  thankYouMessageSent: boolean("thank_you_message_sent").default(false),
+});
+
+// Enhanced player incentive tracking for your competition system
+export const playerIncentives = pgTable("player_incentives", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  playerId: text("player_id").notNull().unique(),
+  currentStreak: integer("current_streak").default(0), // Current win streak
+  longestStreak: integer("longest_streak").default(0), // All-time longest streak
+  weeklyWins: integer("weekly_wins").default(0), // Wins this week
+  monthlyWins: integer("monthly_wins").default(0), // Wins this month
+  weeklyPrizeEligible: boolean("weekly_prize_eligible").default(true),
+  monthlyPrizeEligible: boolean("monthly_prize_eligible").default(true),
+  streakBonusCredits: integer("streak_bonus_credits").default(0), // Accumulated credits from streaks
+  progressPoints: integer("progress_points").default(0), // General progress points
+  milestoneLevel: integer("milestone_level").default(1), // Current milestone level
+  nextMilestoneAt: integer("next_milestone_at").default(100), // Points needed for next level
+  lastStreakBonusAt: timestamp("last_streak_bonus_at"),
+  lastWeeklyResetAt: timestamp("last_weekly_reset_at"),
+  lastMonthlyResetAt: timestamp("last_monthly_reset_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 // Match division system types
 export type MatchDivision = typeof matchDivisions.$inferSelect;
 export type InsertMatchDivision = z.infer<typeof insertMatchDivisionSchema>;
@@ -1489,3 +1585,46 @@ export type PayoutDistribution = typeof payoutDistributions.$inferSelect;
 export type InsertPayoutDistribution = z.infer<typeof insertPayoutDistributionSchema>;
 export type TeamRegistration = typeof teamRegistrations.$inferSelect;
 export type InsertTeamRegistration = z.infer<typeof insertTeamRegistrationSchema>;
+
+// Insert schemas for fan tips system
+export const insertFanTipSchema = createInsertSchema(fanTips).omit({
+  id: true,
+  createdAt: true,
+  processedAt: true,
+  refundedAt: true,
+});
+
+export const insertFanTipLeaderboardSchema = createInsertSchema(fanTipLeaderboards).omit({
+  id: true,
+  updatedAt: true,
+});
+
+// Insert schemas for gifted subscriptions
+export const insertGiftedSubscriptionSchema = createInsertSchema(giftedSubscriptions).omit({
+  id: true,
+  createdAt: true,
+  activatedAt: true,
+});
+
+export const insertGiftRedemptionSchema = createInsertSchema(giftRedemptions).omit({
+  id: true,
+  redeemedAt: true,
+});
+
+export const insertPlayerIncentiveSchema = createInsertSchema(playerIncentives).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+// Fan tips and gifts types
+export type FanTip = typeof fanTips.$inferSelect;
+export type InsertFanTip = z.infer<typeof insertFanTipSchema>;
+export type FanTipLeaderboard = typeof fanTipLeaderboards.$inferSelect;
+export type InsertFanTipLeaderboard = z.infer<typeof insertFanTipLeaderboardSchema>;
+export type GiftedSubscription = typeof giftedSubscriptions.$inferSelect;
+export type InsertGiftedSubscription = z.infer<typeof insertGiftedSubscriptionSchema>;
+export type GiftRedemption = typeof giftRedemptions.$inferSelect;
+export type InsertGiftRedemption = z.infer<typeof insertGiftRedemptionSchema>;
+export type PlayerIncentive = typeof playerIncentives.$inferSelect;
+export type InsertPlayerIncentive = z.infer<typeof insertPlayerIncentiveSchema>;

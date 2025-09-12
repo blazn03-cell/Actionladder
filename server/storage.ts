@@ -40,6 +40,13 @@ import {
   type TeamRegistration, type InsertTeamRegistration,
   type UploadedFile, type InsertUploadedFile,
   type FileShare, type InsertFileShare,
+  type WeightRule, type InsertWeightRule,
+  type TutoringSession, type InsertTutoringSession,
+  type TutoringCredits, type InsertTutoringCredits,
+  type CommissionRate, type InsertCommissionRate,
+  type PlatformEarnings, type InsertPlatformEarnings,
+  type MembershipEarnings, type InsertMembershipEarnings,
+  type OperatorPayout, type InsertOperatorPayout,
   type GlobalRole,
   insertUserSchema,
   insertOrganizationSchema,
@@ -451,6 +458,40 @@ export interface IStorage {
   createFileShare(share: InsertFileShare): Promise<FileShare>;
   updateFileShare(id: string, updates: Partial<FileShare>): Promise<FileShare | undefined>;
   deleteFileShare(id: string): Promise<boolean>;
+
+  // Weight Rules
+  getWeightRule(id: string): Promise<WeightRule | undefined>;
+  getWeightRulesByPlayer(playerId: string): Promise<WeightRule[]>;
+  createWeightRule(rule: InsertWeightRule): Promise<WeightRule>;
+  updateWeightRule(id: string, updates: Partial<WeightRule>): Promise<WeightRule | undefined>;
+
+  // Tutoring System
+  getTutoringSession(id: string): Promise<TutoringSession | undefined>;
+  getTutoringSessionsByTutor(tutorId: string): Promise<TutoringSession[]>;
+  getTutoringSessionsByRookie(rookieId: string): Promise<TutoringSession[]>;
+  createTutoringSession(session: InsertTutoringSession): Promise<TutoringSession>;
+  updateTutoringSession(id: string, updates: Partial<TutoringSession>): Promise<TutoringSession | undefined>;
+  
+  getTutoringCredits(id: string): Promise<TutoringCredits | undefined>;
+  getTutoringCreditsByTutor(tutorId: string): Promise<TutoringCredits[]>;
+  createTutoringCredits(credits: InsertTutoringCredits): Promise<TutoringCredits>;
+  
+  // Commission and Earnings Tracking
+  getCommissionRate(id: string): Promise<CommissionRate | undefined>;
+  getCommissionRatesByOperator(operatorId: string): Promise<CommissionRate[]>;
+  createCommissionRate(rate: InsertCommissionRate): Promise<CommissionRate>;
+  
+  getPlatformEarnings(id: string): Promise<PlatformEarnings | undefined>;
+  getPlatformEarningsByOperator(operatorId: string): Promise<PlatformEarnings[]>;
+  createPlatformEarnings(earnings: InsertPlatformEarnings): Promise<PlatformEarnings>;
+  
+  getMembershipEarnings(id: string): Promise<MembershipEarnings | undefined>;
+  getMembershipEarningsByOperator(operatorId: string): Promise<MembershipEarnings[]>;
+  createMembershipEarnings(earnings: InsertMembershipEarnings): Promise<MembershipEarnings>;
+  
+  getOperatorPayout(id: string): Promise<OperatorPayout | undefined>;
+  getOperatorPayoutsByOperator(operatorId: string): Promise<OperatorPayout[]>;
+  createOperatorPayout(payout: InsertOperatorPayout): Promise<OperatorPayout>;
 }
 
 export class MemStorage implements IStorage {
@@ -512,6 +553,19 @@ export class MemStorage implements IStorage {
   // === FILE UPLOAD SYSTEM ===
   private uploadedFiles = new Map<string, UploadedFile>();
   private fileShares = new Map<string, FileShare>();
+
+  // === WEIGHT RULES SYSTEM ===
+  private weightRules = new Map<string, WeightRule>();
+
+  // === TUTORING SYSTEM ===
+  private tutoringSessions = new Map<string, TutoringSession>();
+  private tutoringCredits = new Map<string, TutoringCredits>();
+
+  // === COMMISSION AND EARNINGS TRACKING ===
+  private commissionRates = new Map<string, CommissionRate>();
+  private platformEarnings = new Map<string, PlatformEarnings>();
+  private membershipEarnings = new Map<string, MembershipEarnings>();
+  private operatorPayouts = new Map<string, OperatorPayout>();
 
   constructor() {
     // Initialize with seed data for demonstration (disabled in production)
@@ -3293,6 +3347,211 @@ export class MemStorage implements IStorage {
     const updatedShare = { ...share, isActive: false };
     this.fileShares.set(id, updatedShare);
     return true;
+  }
+
+  // === WEIGHT RULES METHODS ===
+
+  async getWeightRule(id: string): Promise<WeightRule | undefined> {
+    return this.weightRules.get(id);
+  }
+
+  async getWeightRulesByPlayer(playerId: string): Promise<WeightRule[]> {
+    return Array.from(this.weightRules.values()).filter(rule => rule.playerId === playerId);
+  }
+
+  async createWeightRule(data: InsertWeightRule): Promise<WeightRule> {
+    const rule: WeightRule = {
+      id: randomUUID(),
+      playerId: data.playerId,
+      opponentId: data.opponentId,
+      consecutiveLosses: data.consecutiveLosses || 0,
+      totalLosses: data.totalLosses || 0,
+      weightOwed: data.weightOwed || false,
+      lastLossAt: data.lastLossAt || null,
+      createdAt: new Date(),
+    };
+    this.weightRules.set(rule.id, rule);
+    return rule;
+  }
+
+  async updateWeightRule(id: string, updates: Partial<WeightRule>): Promise<WeightRule | undefined> {
+    const rule = this.weightRules.get(id);
+    if (!rule) return undefined;
+
+    const updatedRule = { ...rule, ...updates };
+    this.weightRules.set(id, updatedRule);
+    return updatedRule;
+  }
+
+  // === TUTORING SYSTEM METHODS ===
+
+  async getTutoringSession(id: string): Promise<TutoringSession | undefined> {
+    return this.tutoringSessions.get(id);
+  }
+
+  async getTutoringSessionsByTutor(tutorId: string): Promise<TutoringSession[]> {
+    return Array.from(this.tutoringSessions.values()).filter(session => session.tutorId === tutorId);
+  }
+
+  async getTutoringSessionsByRookie(rookieId: string): Promise<TutoringSession[]> {
+    return Array.from(this.tutoringSessions.values()).filter(session => session.rookieId === rookieId);
+  }
+
+  async createTutoringSession(data: InsertTutoringSession): Promise<TutoringSession> {
+    const session: TutoringSession = {
+      id: randomUUID(),
+      tutorId: data.tutorId,
+      rookieId: data.rookieId,
+      scheduledAt: data.scheduledAt,
+      duration: data.duration || 30,
+      status: data.status || "scheduled",
+      rookieConfirmed: data.rookieConfirmed || false,
+      creditAmount: data.creditAmount || 1000,
+      creditApplied: data.creditApplied || false,
+      notes: data.notes || null,
+      completedAt: data.completedAt || null,
+      createdAt: new Date(),
+    };
+    this.tutoringSessions.set(session.id, session);
+    return session;
+  }
+
+  async updateTutoringSession(id: string, updates: Partial<TutoringSession>): Promise<TutoringSession | undefined> {
+    const session = this.tutoringSessions.get(id);
+    if (!session) return undefined;
+
+    const updatedSession = { ...session, ...updates };
+    this.tutoringSessions.set(id, updatedSession);
+    return updatedSession;
+  }
+
+  async getTutoringCredits(id: string): Promise<TutoringCredits | undefined> {
+    return this.tutoringCredits.get(id);
+  }
+
+  async getTutoringCreditsByTutor(tutorId: string): Promise<TutoringCredits[]> {
+    return Array.from(this.tutoringCredits.values()).filter(credits => credits.tutorId === tutorId);
+  }
+
+  async createTutoringCredits(data: InsertTutoringCredits): Promise<TutoringCredits> {
+    const credits: TutoringCredits = {
+      id: randomUUID(),
+      tutorId: data.tutorId,
+      sessionId: data.sessionId,
+      amount: data.amount,
+      applied: data.applied || false,
+      createdAt: new Date(),
+    };
+    this.tutoringCredits.set(credits.id, credits);
+    return credits;
+  }
+
+  // === COMMISSION AND EARNINGS METHODS ===
+
+  async getCommissionRate(id: string): Promise<CommissionRate | undefined> {
+    return this.commissionRates.get(id);
+  }
+
+  async getCommissionRatesByOperator(operatorId: string): Promise<CommissionRate[]> {
+    return Array.from(this.commissionRates.values()).filter(rate => rate.operatorId === operatorId);
+  }
+
+  async createCommissionRate(data: InsertCommissionRate): Promise<CommissionRate> {
+    const rate: CommissionRate = {
+      id: randomUUID(),
+      operatorId: data.operatorId,
+      membershipTier: data.membershipTier,
+      platformCommissionBps: data.platformCommissionBps,
+      operatorCommissionBps: data.operatorCommissionBps,
+      escrowCommissionBps: data.escrowCommissionBps || 250,
+      effectiveDate: data.effectiveDate || new Date(),
+      createdAt: new Date(),
+    };
+    this.commissionRates.set(rate.id, rate);
+    return rate;
+  }
+
+  async getPlatformEarnings(id: string): Promise<PlatformEarnings | undefined> {
+    return this.platformEarnings.get(id);
+  }
+
+  async getPlatformEarningsByOperator(operatorId: string): Promise<PlatformEarnings[]> {
+    return Array.from(this.platformEarnings.values()).filter(earnings => earnings.operatorId === operatorId);
+  }
+
+  async createPlatformEarnings(data: InsertPlatformEarnings): Promise<PlatformEarnings> {
+    const earnings: PlatformEarnings = {
+      id: randomUUID(),
+      operatorId: data.operatorId,
+      sourceType: data.sourceType,
+      sourceId: data.sourceId || null,
+      grossAmount: data.grossAmount,
+      platformAmount: data.platformAmount,
+      operatorAmount: data.operatorAmount,
+      platformCommissionBps: data.platformCommissionBps,
+      operatorCommissionBps: data.operatorCommissionBps,
+      settlementStatus: data.settlementStatus || "pending",
+      settledAt: data.settledAt || null,
+      stripeTransferId: data.stripeTransferId || null,
+      createdAt: new Date(),
+    };
+    this.platformEarnings.set(earnings.id, earnings);
+    return earnings;
+  }
+
+  async getMembershipEarnings(id: string): Promise<MembershipEarnings | undefined> {
+    return this.membershipEarnings.get(id);
+  }
+
+  async getMembershipEarningsByOperator(operatorId: string): Promise<MembershipEarnings[]> {
+    return Array.from(this.membershipEarnings.values()).filter(earnings => earnings.operatorId === operatorId);
+  }
+
+  async createMembershipEarnings(data: InsertMembershipEarnings): Promise<MembershipEarnings> {
+    const earnings: MembershipEarnings = {
+      id: randomUUID(),
+      subscriptionId: data.subscriptionId,
+      operatorId: data.operatorId,
+      playerId: data.playerId,
+      membershipTier: data.membershipTier,
+      grossAmount: data.grossAmount,
+      platformAmount: data.platformAmount,
+      operatorAmount: data.operatorAmount,
+      billingPeriodStart: data.billingPeriodStart,
+      billingPeriodEnd: data.billingPeriodEnd,
+      processedAt: new Date(),
+    };
+    this.membershipEarnings.set(earnings.id, earnings);
+    return earnings;
+  }
+
+  async getOperatorPayout(id: string): Promise<OperatorPayout | undefined> {
+    return this.operatorPayouts.get(id);
+  }
+
+  async getOperatorPayoutsByOperator(operatorId: string): Promise<OperatorPayout[]> {
+    return Array.from(this.operatorPayouts.values()).filter(payout => payout.operatorId === operatorId);
+  }
+
+  async createOperatorPayout(data: InsertOperatorPayout): Promise<OperatorPayout> {
+    const payout: OperatorPayout = {
+      id: randomUUID(),
+      operatorId: data.operatorId,
+      periodStart: data.periodStart,
+      periodEnd: data.periodEnd,
+      totalEarnings: data.totalEarnings,
+      matchCommissions: data.matchCommissions || 0,
+      membershipCommissions: data.membershipCommissions || 0,
+      escrowCommissions: data.escrowCommissions || 0,
+      otherEarnings: data.otherEarnings || 0,
+      stripeTransferId: data.stripeTransferId || null,
+      payoutStatus: data.payoutStatus || "pending",
+      payoutMethod: data.payoutMethod || "stripe_transfer",
+      processedAt: data.processedAt || null,
+      createdAt: new Date(),
+    };
+    this.operatorPayouts.set(payout.id, payout);
+    return payout;
   }
 }
 
