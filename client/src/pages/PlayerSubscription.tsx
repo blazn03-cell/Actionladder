@@ -88,7 +88,7 @@ export function PlayerSubscription() {
                 <div className="space-y-2">
                   <h3 className="font-semibold text-emerald-400">What's the commission rate?</h3>
                   <p className="text-sm text-gray-300">
-                    Rookie: 15%, Standard: 10%, Premium: 5%. Lower rates mean you keep more 
+                    Rookie: 10%, Standard: 8%, Premium: 5%. Lower rates mean you keep more 
                     of your winnings from challenges and tournaments.
                   </p>
                 </div>
