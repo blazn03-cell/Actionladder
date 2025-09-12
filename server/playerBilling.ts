@@ -4,7 +4,7 @@ import { storage } from "./storage";
 import { requireAnyAuth } from "./auth";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: "2025-08-27.basil",
+  apiVersion: "2024-06-20",
 });
 
 // Player subscription tiers - designed to compete with traditional leagues
@@ -16,8 +16,8 @@ export function getPlayerSubscriptionTier(tier: string) {
         name: "Rookie",
         monthlyPrice: 3900, // $39/month
         yearlyPrice: 39900, // $399/year (save $69)
-        priceId: process.env.PLAYER_SUBSCRIPTION_PRICE_ID || "price_rookie_monthly",
-        yearlyPriceId: process.env.PLAYER_SUBSCRIPTION_PRICE_ID || "price_rookie_yearly",
+        priceId: process.env.PLAYER_ROOKIE_MONTHLY_PRICE_ID || "price_rookie_monthly",
+        yearlyPriceId: process.env.PLAYER_ROOKIE_YEARLY_PRICE_ID || "price_rookie_yearly",
         traditionalLeagueCost: 8000, // $80/month typical league cost
         monthlySavings: 4100, // $41/month savings
         yearlySavings: 56100, // $561/year savings
@@ -39,8 +39,8 @@ export function getPlayerSubscriptionTier(tier: string) {
         name: "Standard",
         monthlyPrice: 5900, // $59/month
         yearlyPrice: 59900, // $599/year (save $109)
-        priceId: process.env.PLAYER_SUBSCRIPTION_PRICE_ID || "price_standard_monthly",
-        yearlyPriceId: process.env.PLAYER_SUBSCRIPTION_PRICE_ID || "price_standard_yearly",
+        priceId: process.env.PLAYER_STANDARD_MONTHLY_PRICE_ID || "price_standard_monthly",
+        yearlyPriceId: process.env.PLAYER_STANDARD_YEARLY_PRICE_ID || "price_standard_yearly",
         traditionalLeagueCost: 8000, // $80/month typical league cost
         monthlySavings: 2100, // $21/month savings
         yearlySavings: 36100, // $361/year savings
@@ -63,8 +63,8 @@ export function getPlayerSubscriptionTier(tier: string) {
         name: "Premium", 
         monthlyPrice: 7900, // $79/month
         yearlyPrice: 79900, // $799/year (save $149)
-        priceId: process.env.PLAYER_SUBSCRIPTION_PRICE_ID || "price_premium_monthly",
-        yearlyPriceId: process.env.PLAYER_SUBSCRIPTION_PRICE_ID || "price_premium_yearly",
+        priceId: process.env.PLAYER_PREMIUM_MONTHLY_PRICE_ID || "price_premium_monthly",
+        yearlyPriceId: process.env.PLAYER_PREMIUM_YEARLY_PRICE_ID || "price_premium_yearly",
         traditionalLeagueCost: 8000, // $80/month typical league cost
         monthlySavings: 100, // $1/month savings (same price but better value)
         yearlySavings: 12100, // $121/year savings with yearly plan
