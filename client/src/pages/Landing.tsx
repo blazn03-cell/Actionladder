@@ -85,7 +85,22 @@ export default function Landing() {
                 </span>
               </div>
             </div>
-            
+
+            <nav className="flex items-center gap-6">
+              <button className="flex items-center gap-2 px-4 py-2 bg-emerald-600/20 border border-emerald-500/30 rounded-lg text-emerald-300 hover:bg-emerald-600/30 transition-colors">
+                <span>▶</span>
+                Action
+                <span>▼</span>
+              </button>
+              <button className="flex items-center gap-2 px-4 py-2 text-gray-300 hover:text-emerald-300 transition-colors">
+                Teams
+                <span>▼</span>
+              </button>
+              <button className="flex items-center gap-2 px-4 py-2 text-gray-300 hover:text-emerald-300 transition-colors">
+                Tournaments
+              </button>
+            </nav>
+
             {showAdminLogin && (
               <Button
                 onClick={() => window.location.href = "/api/login?role=admin"}
@@ -151,7 +166,7 @@ export default function Landing() {
                       </div>
                     ))}
                   </div>
-                  
+
                   <Button 
                     onClick={() => window.location.href = "/api/login?role=player"}
                     className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3 text-lg font-semibold"
@@ -160,7 +175,7 @@ export default function Landing() {
                     Sign Up as Player
                     <ChevronRight className="ml-2 h-5 w-5" />
                   </Button>
-                  
+
                   <div className="text-center">
                     <Badge variant="secondary" className="bg-emerald-900/30 text-emerald-300">
                       Free Registration • Start Competing Today
@@ -192,7 +207,7 @@ export default function Landing() {
                       </div>
                     ))}
                   </div>
-                  
+
                   <Button 
                     onClick={() => window.location.href = "/api/login?role=operator"}
                     className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 text-lg font-semibold"
@@ -201,7 +216,7 @@ export default function Landing() {
                     Sign Up as Operator
                     <ChevronRight className="ml-2 h-5 w-5" />
                   </Button>
-                  
+
                   <div className="text-center">
                     <Badge variant="secondary" className="bg-blue-900/30 text-blue-300">
                       Professional Tools • Subscription Based
@@ -246,7 +261,7 @@ export default function Landing() {
             <h2 className="text-3xl font-bold text-center text-white mb-12">
               Why Action Ladder?
             </h2>
-            
+
             <div className="grid md:grid-cols-3 gap-8">
               <div className="text-center">
                 <Target className="h-16 w-16 text-emerald-400 mx-auto mb-4" />
@@ -256,7 +271,7 @@ export default function Landing() {
                   Performance credits, challenge fees, and prize pools.
                 </p>
               </div>
-              
+
               <div className="text-center">
                 <Shield className="h-16 w-16 text-blue-400 mx-auto mb-4" />
                 <h3 className="text-xl font-semibold text-white mb-3">Secure Operations</h3>
@@ -265,7 +280,7 @@ export default function Landing() {
                   and encrypted data management.
                 </p>
               </div>
-              
+
               <div className="text-center">
                 <Star className="h-16 w-16 text-yellow-400 mx-auto mb-4" />
                 <h3 className="text-xl font-semibold text-white mb-3">Community Driven</h3>
