@@ -14,13 +14,13 @@ export function getPlayerSubscriptionTier(tier: string) {
       return {
         tier: "rookie",
         name: "Rookie",
-        monthlyPrice: 3900, // $39/month
-        yearlyPrice: 39900, // $399/year (save $69)
+        monthlyPrice: 2500, // $25/month
+        yearlyPrice: 25500, // $255/year (save $45)
         priceId: process.env.PLAYER_ROOKIE_MONTHLY_PRICE_ID || "price_rookie_monthly",
         yearlyPriceId: process.env.PLAYER_ROOKIE_YEARLY_PRICE_ID || "price_rookie_yearly",
-        traditionalLeagueCost: 8000, // $80/month typical league cost
-        monthlySavings: 4100, // $41/month savings
-        yearlySavings: 56100, // $561/year savings
+        traditionalLeagueCost: 3700, // $37/month typical league cost
+        monthlySavings: 1200, // $12/month savings
+        yearlySavings: 18500, // $185/year savings
         perks: [
           "Access to all ladder divisions",
           "Challenge match system",
@@ -37,13 +37,13 @@ export function getPlayerSubscriptionTier(tier: string) {
       return {
         tier: "standard", 
         name: "Standard",
-        monthlyPrice: 5900, // $59/month
-        yearlyPrice: 59900, // $599/year (save $109)
+        monthlyPrice: 3500, // $35/month
+        yearlyPrice: 35700, // $357/year (save $63)
         priceId: process.env.PLAYER_STANDARD_MONTHLY_PRICE_ID || "price_standard_monthly",
         yearlyPriceId: process.env.PLAYER_STANDARD_YEARLY_PRICE_ID || "price_standard_yearly",
-        traditionalLeagueCost: 8000, // $80/month typical league cost
-        monthlySavings: 2100, // $21/month savings
-        yearlySavings: 36100, // $361/year savings
+        traditionalLeagueCost: 3700, // $37/month typical league cost
+        monthlySavings: 200, // $2/month savings
+        yearlySavings: 2300, // $23/year savings
         perks: [
           "Everything in Rookie",
           "Premium tournament access",
@@ -61,23 +61,27 @@ export function getPlayerSubscriptionTier(tier: string) {
       return {
         tier: "premium",
         name: "Premium", 
-        monthlyPrice: 7900, // $79/month
-        yearlyPrice: 79900, // $799/year (save $149)
+        monthlyPrice: 4500, // $45/month
+        yearlyPrice: 45900, // $459/year (save $81)
         priceId: process.env.PLAYER_PREMIUM_MONTHLY_PRICE_ID || "price_premium_monthly",
         yearlyPriceId: process.env.PLAYER_PREMIUM_YEARLY_PRICE_ID || "price_premium_yearly",
-        traditionalLeagueCost: 8000, // $80/month typical league cost
-        monthlySavings: 100, // $1/month savings (same price but better value)
-        yearlySavings: 12100, // $121/year savings with yearly plan
+        traditionalLeagueCost: 3700, // $37/month typical league cost
+        monthlySavings: -800, // $8/month more but saves $40+ through perks
+        yearlySavings: -1900, // $19/year more but saves $400+ annually through perks
         perks: [
           "Everything in Standard",
           "VIP tournament seeding",
           "Personal performance coaching",
           "Fan tip collection system",
-          "5% commission rate on side bets",
+          "5% commission rate on side bets (vs 10% for Rookie)",
           "Exclusive premium events",
           "Direct line to pros for mentoring",
           "Revenue sharing on content creation",
-          "White-glove support"
+          "White-glove support",
+          "Loyalty discount: 10% off after 6 months",
+          "Referral bonus: $10 credit per successful referral",
+          "Free monthly tutoring session ($30 value)",
+          "Tournament winnings bonus: Keep 95% vs 90%"
         ],
         commissionRate: 500, // 5% in basis points
         description: "Elite tier for top competitors and content creators"
@@ -93,6 +97,74 @@ export function registerPlayerBillingRoutes(app: Express) {
   app.get("/api/player-billing/tiers", (req, res) => {
     const tiers = ["rookie", "standard", "premium"].map(tier => getPlayerSubscriptionTier(tier));
     res.json({ tiers });
+  });
+
+  // Get premium user savings breakdown
+  app.get("/api/player-billing/premium-savings", requireAnyAuth, async (req, res) => {
+    try {
+      const userId = (req as any).dbUser.id;
+      if (!userId) {
+        return res.status(401).json({ error: "Authentication required" });
+      }
+
+      const subscription = await storage.getMembershipSubscriptionByPlayerId(userId);
+      
+      if (!subscription || subscription.tier !== 'premium') {
+        return res.json({
+          isPremium: false,
+          message: "Premium subscription required to view savings breakdown"
+        });
+      }
+
+      // Calculate actual savings for premium users
+      const subscriptionCost = 4500; // $45/month
+      const commissionSavings = 200 * 0.05 * 100; // $10/month from 5% vs 10% commission on $200 avg bets
+      const tutoringValue = 3000; // $30/month free tutoring session
+      const tournamentBonus = 100 * 0.05 * 100; // $5/month from 95% vs 90% tournament winnings on $100 avg
+      const referralCredits = 1000; // $10/month average referral bonus
+      
+      // Check loyalty discount eligibility
+      const user = await storage.getUser(userId);
+      let loyaltyDiscount = 0;
+      let loyaltyEligible = false;
+      
+      if (user?.createdAt) {
+        const sixMonthsAgo = new Date().getTime() - (6 * 30 * 24 * 60 * 60 * 1000);
+        loyaltyEligible = new Date(user.createdAt).getTime() < sixMonthsAgo;
+        if (loyaltyEligible) {
+          loyaltyDiscount = subscriptionCost * 0.1; // 10% discount
+        }
+      }
+
+      const totalSavings = commissionSavings + tutoringValue + tournamentBonus + referralCredits + loyaltyDiscount;
+      const netCost = Math.max(subscriptionCost - totalSavings, 0);
+
+      res.json({
+        isPremium: true,
+        subscriptionCost,
+        savings: {
+          commissionSavings,
+          tutoringValue,
+          tournamentBonus,
+          referralCredits,
+          loyaltyDiscount
+        },
+        totalSavings,
+        netCost,
+        loyaltyEligible,
+        breakdown: {
+          "Lower Commission (5% vs 10%)": `$${(commissionSavings/100).toFixed(0)}/month`,
+          "Free Monthly Tutoring": `$${(tutoringValue/100).toFixed(0)}/month`,
+          "Tournament Winnings Bonus": `$${(tournamentBonus/100).toFixed(0)}/month`,
+          "Referral Credits": `$${(referralCredits/100).toFixed(0)}/month`,
+          ...(loyaltyEligible && {"Loyalty Discount": `$${(loyaltyDiscount/100).toFixed(2)}/month`})
+        }
+      });
+
+    } catch (error: any) {
+      console.error("Premium savings calculation error:", error);
+      res.status(500).json({ error: error.message });
+    }
   });
 
   // Create player subscription checkout session
@@ -139,7 +211,13 @@ export function registerPlayerBillingRoutes(app: Express) {
 
       // Select price based on billing period
       const priceId = billingPeriod === "yearly" ? subscription.yearlyPriceId : subscription.priceId;
-      const amount = billingPeriod === "yearly" ? subscription.yearlyPrice : subscription.monthlyPrice;
+      let amount = billingPeriod === "yearly" ? subscription.yearlyPrice : subscription.monthlyPrice;
+      
+      // Apply loyalty discount for Premium users (10% off after 6 months)
+      if (tier === "premium" && user.createdAt && 
+          new Date().getTime() - new Date(user.createdAt).getTime() > (6 * 30 * 24 * 60 * 60 * 1000)) {
+        amount = Math.floor(amount * 0.9); // 10% loyalty discount
+      }
 
       const session = await stripe.checkout.sessions.create({
         mode: "subscription",
