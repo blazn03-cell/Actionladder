@@ -14,6 +14,8 @@ import {
 import dayjs from "dayjs";
 import stripe from "stripe";
 import { sanitizeResponse } from "./sanitizeMiddleware";
+import { getFeeScheduler } from "./feeScheduler";
+import { requireStaffOrOwner } from "./replitAuth";
 
 const router = Router();
 
@@ -185,18 +187,72 @@ export function setupChallengeCalendarRoutes(app: any, storage: IStorage, stripe
         const hoursUntilChallenge = dayjs(challenge.scheduledAt).diff(dayjs(), 'hours');
         
         if (hoursUntilChallenge < (policy.cancellationThresholdHours ?? 24)) {
-          // Apply cancellation fee
-          const fee = await storage.createChallengeFee({
-            challengeId: id,
-            playerId: cancelledBy || challenge.aPlayerId,
-            feeType: 'cancellation',
-            amount: policy.cancellationFeeAmount ?? 1000,
-            scheduledAt: challenge.scheduledAt,
-            actualAt: new Date(),
-            minutesLate: 0
-          });
+          // Apply cancellation fee immediately
+          const playerId = cancelledBy || challenge.aPlayerId;
+          const feeAmount = policy.cancellationFeeAmount ?? 1000;
           
-          // TODO: Process payment (task 3)
+          try {
+            // Get player information
+            const player = await storage.getPlayer(playerId);
+            if (!player || !player.stripeCustomerId) {
+              console.error('Cannot charge cancellation fee: Player not found or no Stripe customer ID');
+            } else {
+              // Get customer's default payment method
+              const customer = await stripeClient.customers.retrieve(player.stripeCustomerId);
+              const defaultPaymentMethodId = (customer as any).invoice_settings?.default_payment_method;
+              
+              let feeStatus = 'pending';
+              let stripeChargeId;
+              
+              if (defaultPaymentMethodId) {
+                // Create deterministic idempotency key
+                const idempotencyKey = `cancellation_${id}_${playerId}`;
+                
+                try {
+                  // Create payment intent for off-session use
+                  const paymentIntent = await stripeClient.paymentIntents.create({
+                    amount: feeAmount,
+                    currency: 'usd',
+                    customer: player.stripeCustomerId,
+                    payment_method: defaultPaymentMethodId,
+                    description: `Challenge cancellation fee: ${hoursUntilChallenge}h notice`,
+                    metadata: {
+                      type: 'challenge_fee',
+                      challengeId: id,
+                      playerId,
+                      feeType: 'cancellation'
+                    },
+                    confirmation_method: 'automatic',
+                    confirm: true,
+                    off_session: true
+                  }, {
+                    idempotencyKey
+                  });
+                  
+                  feeStatus = paymentIntent.status === 'succeeded' ? 'charged' : 'pending';
+                  stripeChargeId = paymentIntent.id;
+                } catch (stripeError: any) {
+                  console.error('Stripe payment failed for cancellation fee:', stripeError);
+                  feeStatus = 'failed';
+                }
+              }
+              
+              // Record fee in database
+              await storage.createChallengeFee({
+                challengeId: id,
+                playerId,
+                feeType: 'cancellation',
+                amount: feeAmount,
+                scheduledAt: challenge.scheduledAt,
+                actualAt: new Date(),
+                minutesLate: 0,
+                stripeChargeId,
+                status: feeStatus
+              });
+            }
+          } catch (error) {
+            console.error('Error processing cancellation fee:', error);
+          }
         }
       }
       
@@ -405,6 +461,59 @@ export function setupChallengeCalendarRoutes(app: any, storage: IStorage, stripe
       res.json(updatedFee);
     } catch (error: any) {
       console.error("Waive fee error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ================================
+  // AUTO FEE EVALUATION ENDPOINTS
+  // ================================
+
+  // Run manual fee evaluation for all challenges
+  app.post("/api/challenge-fees/evaluate-all", requireStaffOrOwner, async (req: Request, res: Response) => {
+    try {
+      const scheduler = getFeeScheduler();
+      if (!scheduler) {
+        return res.status(500).json({ error: "Fee scheduler not initialized" });
+      }
+      
+      const result = await scheduler.runEvaluation();
+      res.json(sanitizeResponse(result));
+    } catch (error: any) {
+      console.error("Manual fee evaluation error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Evaluate fees for a specific challenge
+  app.post("/api/challenges/:challengeId/evaluate-fees", requireStaffOrOwner, async (req: Request, res: Response) => {
+    try {
+      const { challengeId } = req.params;
+      const scheduler = getFeeScheduler();
+      if (!scheduler) {
+        return res.status(500).json({ error: "Fee scheduler not initialized" });
+      }
+      
+      const result = await scheduler.evaluateChallenge(challengeId);
+      res.json(sanitizeResponse(result));
+    } catch (error: any) {
+      console.error("Challenge fee evaluation error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get fee scheduler status
+  app.get("/api/admin/fee-scheduler/status", requireStaffOrOwner, async (req: Request, res: Response) => {
+    try {
+      const scheduler = getFeeScheduler();
+      if (!scheduler) {
+        return res.status(500).json({ error: "Fee scheduler not initialized" });
+      }
+      
+      const status = scheduler.getStatus();
+      res.json(status);
+    } catch (error: any) {
+      console.error("Fee scheduler status error:", error);
       res.status(500).json({ error: error.message });
     }
   });

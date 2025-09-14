@@ -611,6 +611,7 @@ export interface IStorage {
   createChallengeFee(fee: InsertChallengeFee): Promise<ChallengeFee>;
   updateChallengeFee(id: string, updates: Partial<ChallengeFee>): Promise<ChallengeFee | undefined>;
   getChallengeFeesByChallenge(challengeId: string): Promise<ChallengeFee[]>;
+  getChallengeFeesByStatus(statuses: string[]): Promise<ChallengeFee[]>;
   
   // Challenge Check-ins
   createChallengeCheckIn(checkIn: InsertChallengeCheckIn): Promise<ChallengeCheckIn>;
@@ -3854,6 +3855,10 @@ export class MemStorage implements IStorage {
     return Array.from(this.challengeFees.values()).filter(
       fee => fee.challengeId === challengeId
     );
+  }
+
+  async getChallengeFeesByStatus(statuses: string[]): Promise<ChallengeFee[]> {
+    return Array.from(this.challengeFees.values()).filter(fee => statuses.includes(fee.status));
   }
 
   // Challenge Check-ins

@@ -4,6 +4,7 @@ import Stripe from "stripe";
 import { storage } from "./storage";
 import { AIService } from "./ai-service";
 import { setupChallengeCalendarRoutes } from "./challengeCalendarRoutes";
+import { initializeFeeScheduler } from "./feeScheduler";
 import { registerAdminRoutes, registerOperatorRoutes, payStaffFromInvoice } from "./admin-routes";
 import { registerHallRoutes } from "./hall-routes";
 import { registerPlayerBillingRoutes } from "./playerBilling";
@@ -3828,6 +3829,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // CHALLENGE CALENDAR INTEGRATION
   // ================================
   setupChallengeCalendarRoutes(app, storage, stripe);
+  
+  // Initialize auto fee evaluation scheduler
+  initializeFeeScheduler(storage, stripe);
 
   const httpServer = createServer(app);
   return httpServer;
