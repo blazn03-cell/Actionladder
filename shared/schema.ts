@@ -1839,3 +1839,336 @@ export type QrCodeNonce = typeof qrCodeNonces.$inferSelect;
 export type InsertQrCodeNonce = z.infer<typeof insertQrCodeNonceSchema>;
 export type IcalFeedToken = typeof icalFeedTokens.$inferSelect;
 export type InsertIcalFeedToken = z.infer<typeof insertIcalFeedTokenSchema>;
+
+// === ENHANCED PAYMENT SYSTEM ===
+
+// Payment methods collected via SetupIntent during onboarding
+export const paymentMethods = pgTable("payment_methods", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: text("user_id").notNull(),
+  stripePaymentMethodId: text("stripe_payment_method_id").notNull().unique(),
+  stripeSetupIntentId: text("stripe_setup_intent_id"),
+  type: text("type").notNull(), // "card", "bank_account", etc.
+  brand: text("brand"), // "visa", "mastercard", etc.
+  last4: text("last4"), // Last 4 digits
+  expiryMonth: integer("expiry_month"),
+  expiryYear: integer("expiry_year"),
+  isDefault: boolean("is_default").default(false),
+  isActive: boolean("is_active").default(true),
+  metadata: jsonb("metadata"), // Additional payment method details
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => ({
+  userIdIdx: index("payment_methods_user_id_idx").on(table.userId),
+  defaultIdx: index("payment_methods_default_idx").on(table.userId, table.isDefault),
+}));
+
+// Enhanced stakes hold system with manual capture
+export const stakesHolds = pgTable("stakes_holds", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  challengeId: text("challenge_id").notNull(),
+  playerId: text("player_id").notNull(),
+  amount: integer("amount").notNull(), // Stakes amount in cents
+  stripePaymentIntentId: text("stripe_payment_intent_id").notNull().unique(),
+  status: text("status").default("held"), // "held", "captured", "released", "expired"
+  holdExpiresAt: timestamp("hold_expires_at").notNull(), // ~7 days from creation
+  capturedAt: timestamp("captured_at"),
+  releasedAt: timestamp("released_at"),
+  captureReason: text("capture_reason"), // "winner", "no_show", "forfeit"
+  releaseReason: text("release_reason"), // "cancelled", "dispute_resolved"
+  metadata: jsonb("metadata"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  challengeIdx: index("stakes_holds_challenge_idx").on(table.challengeId),
+  playerIdx: index("stakes_holds_player_idx").on(table.playerId),
+  statusIdx: index("stakes_holds_status_idx").on(table.status),
+}));
+
+// === NOTIFICATION SYSTEM ===
+
+// User notification preferences and delivery settings
+export const notificationSettings = pgTable("notification_settings", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: text("user_id").notNull().unique(),
+  // Email settings
+  emailEnabled: boolean("email_enabled").default(true),
+  emailAddress: text("email_address"),
+  emailVerified: boolean("email_verified").default(false),
+  // SMS settings  
+  smsEnabled: boolean("sms_enabled").default(false),
+  phoneNumber: text("phone_number"),
+  phoneVerified: boolean("phone_verified").default(false),
+  // Push notifications
+  pushEnabled: boolean("push_enabled").default(true),
+  // Notification types
+  reminderT24h: boolean("reminder_t24h").default(true),
+  reminderT2h: boolean("reminder_t2h").default(true),
+  reminderT30m: boolean("reminder_t30m").default(true),
+  windowOpenPing: boolean("window_open_ping").default(true),
+  lateClockStarted: boolean("late_clock_started").default(true),
+  noShowFeeCharged: boolean("no_show_fee_charged").default(true),
+  matchResults: boolean("match_results").default(true),
+  // Quiet hours
+  quietHoursEnabled: boolean("quiet_hours_enabled").default(false),
+  quietHoursStart: text("quiet_hours_start").default("22:00"), // 24-hour format
+  quietHoursEnd: text("quiet_hours_end").default("08:00"),
+  timezone: text("timezone").default("America/New_York"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Notification delivery log with status tracking
+export const notificationDeliveries = pgTable("notification_deliveries", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: text("user_id").notNull(),
+  challengeId: text("challenge_id"),
+  type: text("type").notNull(), // "reminder_t24h", "reminder_t2h", "late_fee", etc.
+  channel: text("channel").notNull(), // "email", "sms", "push"
+  recipient: text("recipient").notNull(), // email/phone/device token
+  subject: text("subject"),
+  content: text("content").notNull(),
+  status: text("status").default("pending"), // "pending", "sent", "delivered", "failed", "bounced"
+  providerId: text("provider_id"), // SendGrid message ID, Twilio SID, etc.
+  errorMessage: text("error_message"),
+  sentAt: timestamp("sent_at"),
+  deliveredAt: timestamp("delivered_at"),
+  metadata: jsonb("metadata"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  userIdx: index("notification_deliveries_user_idx").on(table.userId),
+  challengeIdx: index("notification_deliveries_challenge_idx").on(table.challengeId),
+  statusIdx: index("notification_deliveries_status_idx").on(table.status),
+  typeIdx: index("notification_deliveries_type_idx").on(table.type),
+}));
+
+// === DISPUTE MANAGEMENT SYSTEM ===
+
+// Evidence and dispute resolution tracking
+export const disputeResolutions = pgTable("dispute_resolutions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  challengeId: text("challenge_id").notNull(),
+  challengeFeeId: text("challenge_fee_id"), // Link to specific fee being disputed
+  disputeType: text("dispute_type").notNull(), // "late_fee", "no_show_fee", "stakes_dispute", "other"
+  filedBy: text("filed_by").notNull(), // Player ID who filed dispute
+  filedAgainst: text("filed_against"), // Player ID dispute is against (if applicable)
+  description: text("description").notNull(),
+  // Evidence attachments
+  evidenceUrls: text("evidence_urls").array(), // URLs to uploaded evidence files
+  evidenceTypes: text("evidence_types").array(), // "cctv", "receipt", "witness", "photo", "video"
+  evidenceNotes: text("evidence_notes"),
+  // Resolution
+  status: text("status").default("open"), // "open", "investigating", "resolved", "rejected"
+  resolution: text("resolution"), // Final resolution explanation
+  resolvedBy: text("resolved_by"), // Operator/admin who resolved
+  resolutionAction: text("resolution_action"), // "waive_fee", "partial_refund", "full_refund", "uphold_fee"
+  refundAmount: integer("refund_amount").default(0), // Refund amount in cents
+  operatorNotes: text("operator_notes"),
+  // Timeline
+  filedAt: timestamp("filed_at").defaultNow(),
+  resolvedAt: timestamp("resolved_at"),
+  // Audit trail
+  auditLog: jsonb("audit_log"), // JSON array of status changes and actions
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => ({
+  challengeIdx: index("dispute_resolutions_challenge_idx").on(table.challengeId),
+  statusIdx: index("dispute_resolutions_status_idx").on(table.status),
+  filedByIdx: index("dispute_resolutions_filed_by_idx").on(table.filedBy),
+}));
+
+// === ANTI-ABUSE SYSTEM ===
+
+// Player cooldown and blacklist management
+export const playerCooldowns = pgTable("player_cooldowns", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  playerId: text("player_id").notNull(),
+  cooldownType: text("cooldown_type").notNull(), // "no_show", "late_cancel", "abuse", "manual"
+  reason: text("reason").notNull(),
+  appliedBy: text("applied_by").notNull(), // Admin/system who applied cooldown
+  severity: text("severity").default("minor"), // "minor", "major", "severe"
+  noShowCount: integer("no_show_count").default(0), // Count in last 60 days
+  cooldownDays: integer("cooldown_days").default(14),
+  isActive: boolean("is_active").default(true),
+  canOperatorLift: boolean("can_operator_lift").default(true),
+  effectiveAt: timestamp("effective_at").defaultNow(),
+  expiresAt: timestamp("expires_at").notNull(),
+  liftedAt: timestamp("lifted_at"),
+  liftedBy: text("lifted_by"), // Who lifted the cooldown early
+  liftReason: text("lift_reason"),
+  metadata: jsonb("metadata"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  playerIdx: index("player_cooldowns_player_idx").on(table.playerId),
+  activeIdx: index("player_cooldowns_active_idx").on(table.isActive),
+  expiresIdx: index("player_cooldowns_expires_idx").on(table.expiresAt),
+}));
+
+// Device attestation for check-in verification
+export const deviceAttestations = pgTable("device_attestations", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  playerId: text("player_id").notNull(),
+  challengeId: text("challenge_id").notNull(),
+  deviceFingerprint: text("device_fingerprint").notNull(),
+  geolocation: jsonb("geolocation"), // lat, lng, accuracy, timestamp
+  withinGeofence: boolean("within_geofence").default(false),
+  distanceFromHall: real("distance_from_hall"), // meters
+  ipAddress: text("ip_address"),
+  userAgent: text("user_agent"),
+  isStaffScan: boolean("is_staff_scan").default(false),
+  scannerStaffId: text("scanner_staff_id"),
+  verificationMethod: text("verification_method").notNull(), // "geofence", "staff_scan", "manual_override"
+  riskScore: real("risk_score").default(0), // 0-10 risk assessment
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  playerIdx: index("device_attestations_player_idx").on(table.playerId),
+  challengeIdx: index("device_attestations_challenge_idx").on(table.challengeId),
+  riskIdx: index("device_attestations_risk_idx").on(table.riskScore),
+}));
+
+// === JOB QUEUE SYSTEM ===
+
+// Background job tracking for notifications and processing
+export const jobQueue = pgTable("job_queue", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  jobType: text("job_type").notNull(), // "notification", "fee_evaluation", "poster_generation", etc.
+  payload: jsonb("payload").notNull(), // Job-specific data
+  priority: integer("priority").default(5), // 1-10, higher = more priority
+  status: text("status").default("pending"), // "pending", "processing", "completed", "failed", "retrying"
+  attempts: integer("attempts").default(0),
+  maxAttempts: integer("max_attempts").default(3),
+  processedBy: text("processed_by"), // Worker ID that processed the job
+  scheduledFor: timestamp("scheduled_for").defaultNow(),
+  startedAt: timestamp("started_at"),
+  completedAt: timestamp("completed_at"),
+  errorMessage: text("error_message"),
+  result: jsonb("result"), // Job result data
+  metadata: jsonb("metadata"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => ({
+  statusIdx: index("job_queue_status_idx").on(table.status),
+  priorityIdx: index("job_queue_priority_idx").on(table.priority),
+  scheduledIdx: index("job_queue_scheduled_idx").on(table.scheduledFor),
+  typeIdx: index("job_queue_type_idx").on(table.jobType),
+}));
+
+// === METRICS & MONITORING ===
+
+// System health and business metrics tracking
+export const systemMetrics = pgTable("system_metrics", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  metricType: text("metric_type").notNull(), // "fee_rate", "no_show_rate", "charge_failure", etc.
+  hallId: text("hall_id"), // Null for system-wide metrics
+  timeWindow: text("time_window").notNull(), // "hour", "day", "week", "month"
+  windowStart: timestamp("window_start").notNull(),
+  windowEnd: timestamp("window_end").notNull(),
+  value: real("value").notNull(),
+  count: integer("count").default(0),
+  metadata: jsonb("metadata"), // Additional metric context
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  typeIdx: index("system_metrics_type_idx").on(table.metricType),
+  hallIdx: index("system_metrics_hall_idx").on(table.hallId),
+  windowIdx: index("system_metrics_window_idx").on(table.windowStart, table.windowEnd),
+}));
+
+// Alert configuration and firing history
+export const systemAlerts = pgTable("system_alerts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  alertType: text("alert_type").notNull(), // "evaluator_backlog", "webhook_failures", "charge_failures"
+  severity: text("severity").default("medium"), // "low", "medium", "high", "critical"
+  condition: text("condition").notNull(), // Alert trigger condition
+  threshold: real("threshold").notNull(),
+  currentValue: real("current_value"),
+  isActive: boolean("is_active").default(true),
+  isFiring: boolean("is_firing").default(false),
+  lastTriggered: timestamp("last_triggered"),
+  notificationChannels: text("notification_channels").array(), // "slack", "email", "sms"
+  message: text("message").notNull(),
+  metadata: jsonb("metadata"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => ({
+  typeIdx: index("system_alerts_type_idx").on(table.alertType),
+  activeIdx: index("system_alerts_active_idx").on(table.isActive),
+  firingIdx: index("system_alerts_firing_idx").on(table.isFiring),
+}));
+
+// Insert schemas for new tables
+export const insertPaymentMethodSchema = createInsertSchema(paymentMethods).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertStakesHoldSchema = createInsertSchema(stakesHolds).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertNotificationSettingsSchema = createInsertSchema(notificationSettings).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertNotificationDeliverySchema = createInsertSchema(notificationDeliveries).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertDisputeResolutionSchema = createInsertSchema(disputeResolutions).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  filedAt: true,
+});
+
+export const insertPlayerCooldownSchema = createInsertSchema(playerCooldowns).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertDeviceAttestationSchema = createInsertSchema(deviceAttestations).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertJobQueueSchema = createInsertSchema(jobQueue).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertSystemMetricSchema = createInsertSchema(systemMetrics).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertSystemAlertSchema = createInsertSchema(systemAlerts).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+// Types for new tables
+export type PaymentMethod = typeof paymentMethods.$inferSelect;
+export type InsertPaymentMethod = z.infer<typeof insertPaymentMethodSchema>;
+export type StakesHold = typeof stakesHolds.$inferSelect;
+export type InsertStakesHold = z.infer<typeof insertStakesHoldSchema>;
+export type NotificationSettings = typeof notificationSettings.$inferSelect;
+export type InsertNotificationSettings = z.infer<typeof insertNotificationSettingsSchema>;
+export type NotificationDelivery = typeof notificationDeliveries.$inferSelect;
+export type InsertNotificationDelivery = z.infer<typeof insertNotificationDeliverySchema>;
+export type DisputeResolution = typeof disputeResolutions.$inferSelect;
+export type InsertDisputeResolution = z.infer<typeof insertDisputeResolutionSchema>;
+export type PlayerCooldown = typeof playerCooldowns.$inferSelect;
+export type InsertPlayerCooldown = z.infer<typeof insertPlayerCooldownSchema>;
+export type DeviceAttestation = typeof deviceAttestations.$inferSelect;
+export type InsertDeviceAttestation = z.infer<typeof insertDeviceAttestationSchema>;
+export type JobQueue = typeof jobQueue.$inferSelect;
+export type InsertJobQueue = z.infer<typeof insertJobQueueSchema>;
+export type SystemMetric = typeof systemMetrics.$inferSelect;
+export type InsertSystemMetric = z.infer<typeof insertSystemMetricSchema>;
+export type SystemAlert = typeof systemAlerts.$inferSelect;
+export type InsertSystemAlert = z.infer<typeof insertSystemAlertSchema>;

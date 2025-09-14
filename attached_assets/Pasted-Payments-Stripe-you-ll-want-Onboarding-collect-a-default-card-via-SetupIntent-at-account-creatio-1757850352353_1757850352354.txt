@@ -1,0 +1,95 @@
+Payments (Stripe) you’ll want
+
+Onboarding: collect a default card via SetupIntent at account creation (required for auto-late/no-show).
+
+Holds vs charges: hold stakes with manual capture (mind the ~7-day capture window); charge late/no-show immediately (separate PaymentIntent).
+
+Idempotency everywhere: use idempotency keys on create/charge + webhook handlers; store them in payments.
+
+Receipts & notifications: email/SMS on fees & captures (itemized: “Late fee – 22 minutes past start”).
+
+Refunds & waivers: operator UI to issue partial/full refunds with reason codes (audit trail).
+
+Calendar & Realtime UX
+
+Check-in QR: per-challenge, single-use token, expires at start+60min (prevents screenshot abuse).
+
+Personal iCal feeds: /players/:id/ical and Hall iCal /halls/:id/ical with ETag caching.
+
+Operator board: “Now”, “Next 2 hours”, “Tonight” lanes; orange for late, red for no-show.
+
+Reschedule flow: window, fee, and consent from both players (logs the “who requested” + timestamps).
+
+Challenge poster (AI image) pipeline
+
+Consent & likeness: checkbox on profile (“Allow match posters”); fallback to initials monogram if no avatar.
+
+Asset quality guardrails: min 512×512 avatars, face-crop, background removal; safe-content filter.
+
+Storage & CDN: upload to S3/Supabase Storage; sign public URLs; purge on profile privacy change.
+
+Admin / Operator tools
+
+Fee policy editor per hall (grace mins, late tiers, no-show amount).
+
+Manual overrides: mark “operator verified arrival time” (for front-desk disputes).
+
+Dispute center: attach evidence (CCTV note, witness, receipt); one-click waive/refund with notes.
+
+Blacklist / cooldowns: auto-apply after 3 no-shows in 60 days; cooldown 14 days (operator can lift).
+
+Calendar lock windows: e.g., cannot book inside T-30min without operator approval.
+
+Anti-abuse & edge cases
+
+Ghost check-ins: require staff scan OR geofence (within 150m of hall) + device attestation.
+
+Double booking: unique player/time constraint with 15-min buffer; soft warnings across halls.
+
+Capture expiry: if stake hold nears expiry before match result → auto-extend (re-auth) or message both to confirm.
+
+Clocks: use server time only; client time never trusted for fees.
+
+Partial arrivals: if one is checked in and the other isn’t, start late clock only for the missing side.
+
+Notifications (recommended)
+
+T-24h reminder, T-2h, T-30m; “Window open” ping at T-15; “Late clock started”; “No-show fee charged.”
+
+Channels: Email + SMS/WhatsApp + Push (Expo/FCM/APNS). Respect user quiet hours.
+
+Compliance & policy copy (drop into ToS)
+
+“By scheduling, you authorize automatic charges for late/no-shows according to posted hall policy.”
+
+“You can cancel without penalty up to 2 hours before start; inside 2h, a reschedule fee may apply.”
+
+“Disputes must be filed within 24 hours; operator decisions are final for fee reversals.”
+
+Observability & ops
+
+Job queue: BullMQ/Cloud Tasks for the 5-min evaluator + poster jobs.
+
+Metrics: fee rate, no-show rate by hall/time, avg lateness, waivers issued, charge failures by reason.
+
+Alerts: Slack/Email when evaluator backlog >1 run, webhook failures, or charge failure spikes.
+
+Logs: structured (challenge_id, player_id, policy_version); keep 90 days hot.
+
+Testing you’ll really want
+
+Unit tests for fee evaluator: table of cases (early, grace, 14/15/45/46 mins, both late, mixed).
+
+Integration tests: Stripe webhooks idempotency, network retries, partial refunds.
+
+Timezone & DST tests: matches spanning DST shift; halls in different timezones.
+
+Nice-to-have (but clutch)
+
+Holdback escrow: if stakes need routing to winner/operator pot post-match with dispute window.
+
+Operator calendar export with color-coding by table (9ft/8ft/barbox).
+
+Rate limits on challenge creation & edits to stop spam.
+
+Player reliability score: shown to operators (arrivals %, disputes, withdrawals).

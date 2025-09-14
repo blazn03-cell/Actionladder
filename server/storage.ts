@@ -54,6 +54,16 @@ import {
   type ChallengePolicy, type InsertChallengePolicy,
   type QrCodeNonce, type InsertQrCodeNonce,
   type IcalFeedToken, type InsertIcalFeedToken,
+  type PaymentMethod, type InsertPaymentMethod,
+  type StakesHold, type InsertStakesHold,
+  type NotificationSettings, type InsertNotificationSettings,
+  type NotificationDelivery, type InsertNotificationDelivery,
+  type DisputeResolution, type InsertDisputeResolution,
+  type PlayerCooldown, type InsertPlayerCooldown,
+  type DeviceAttestation, type InsertDeviceAttestation,
+  type JobQueue, type InsertJobQueue,
+  type SystemMetric, type InsertSystemMetric,
+  type SystemAlert, type InsertSystemAlert,
   type GlobalRole,
   insertUserSchema,
   insertOrganizationSchema,
@@ -243,6 +253,16 @@ const NULLABLE_FIELDS = {
   ChallengeCheckIn: ["checkedInBy", "location"] as const satisfies readonly NullableKeys<ChallengeCheckIn>[],
   ChallengePolicy: [] as const satisfies readonly NullableKeys<ChallengePolicy>[],
   IcalFeedToken: ["name", "lastUsedAt", "hallId", "expiresAt", "revokedAt", "revokedBy", "revokeReason"] as const satisfies readonly NullableKeys<IcalFeedToken>[],
+  PaymentMethod: ["stripeSetupIntentId", "brand", "last4", "expiryMonth", "expiryYear", "metadata"] as const satisfies readonly NullableKeys<PaymentMethod>[],
+  StakesHold: ["capturedAt", "releasedAt", "captureReason", "releaseReason", "metadata"] as const satisfies readonly NullableKeys<StakesHold>[],
+  NotificationSettings: ["emailAddress", "phoneNumber"] as const satisfies readonly NullableKeys<NotificationSettings>[],
+  NotificationDelivery: ["challengeId", "providerId", "errorMessage", "sentAt", "deliveredAt", "metadata"] as const satisfies readonly NullableKeys<NotificationDelivery>[],
+  DisputeResolution: ["challengeFeeId", "filedAgainst", "evidenceNotes", "resolution", "resolvedBy", "resolutionAction", "operatorNotes", "resolvedAt", "auditLog"] as const satisfies readonly NullableKeys<DisputeResolution>[],
+  PlayerCooldown: ["liftedAt", "liftedBy", "liftReason", "metadata"] as const satisfies readonly NullableKeys<PlayerCooldown>[],
+  DeviceAttestation: ["geolocation", "distanceFromHall", "ipAddress", "userAgent", "scannerStaffId"] as const satisfies readonly NullableKeys<DeviceAttestation>[],
+  JobQueue: ["processedBy", "startedAt", "completedAt", "errorMessage", "result", "metadata"] as const satisfies readonly NullableKeys<JobQueue>[],
+  SystemMetric: ["hallId", "metadata"] as const satisfies readonly NullableKeys<SystemMetric>[],
+  SystemAlert: ["currentValue", "lastTriggered", "metadata"] as const satisfies readonly NullableKeys<SystemAlert>[],
 } as const;
 
 // Centralized update helper that handles nullable fields properly
@@ -1477,7 +1497,7 @@ export class MemStorage implements IStorage {
   }
 
   async getPlayerByUserId(userId: string): Promise<Player | undefined> {
-    for (const player of this.players.values()) {
+    for (const player of Array.from(this.players.values())) {
       if (player.userId === userId) {
         return player;
       }
@@ -4011,7 +4031,7 @@ export class MemStorage implements IStorage {
     const now = new Date();
     let cleanedCount = 0;
     
-    for (const [nonceKey, nonceValue] of this.qrCodeNonces.entries()) {
+    for (const [nonceKey, nonceValue] of Array.from(this.qrCodeNonces.entries())) {
       if (nonceValue.expiresAt < now) {
         this.qrCodeNonces.delete(nonceKey);
         cleanedCount++;
@@ -4093,7 +4113,7 @@ export class MemStorage implements IStorage {
     const now = new Date();
     let cleanedCount = 0;
     
-    for (const [tokenId, tokenValue] of this.icalFeedTokens.entries()) {
+    for (const [tokenId, tokenValue] of Array.from(this.icalFeedTokens.entries())) {
       if (tokenValue.expiresAt && tokenValue.expiresAt < now) {
         this.icalFeedTokens.delete(tokenId);
         cleanedCount++;
