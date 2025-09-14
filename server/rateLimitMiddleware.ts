@@ -110,6 +110,13 @@ export const rateLimiters = {
     message: "Upload limit reached, please wait before uploading more files"
   }),
 
+  // Challenge check-in (strict - prevent spam)
+  checkin: createRateLimit({
+    windowMs: 60 * 1000, // 1 minute
+    max: 10, // 10 check-in attempts per minute per IP
+    message: "Too many check-in attempts, please wait before trying again"
+  }),
+
   // Admin operations (very strict)
   admin: createRateLimit({
     windowMs: 5 * 60 * 1000, // 5 minutes

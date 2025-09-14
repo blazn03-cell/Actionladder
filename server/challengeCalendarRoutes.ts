@@ -15,7 +15,9 @@ import dayjs from "dayjs";
 import stripe from "stripe";
 import { sanitizeResponse } from "./sanitizeMiddleware";
 import { getFeeScheduler } from "./feeScheduler";
-import { requireStaffOrOwner } from "./replitAuth";
+import { QRCodeService } from "./qrCodeService";
+import { requireStaffOrOwner, isAuthenticated } from "./replitAuth";
+import { rateLimiters } from "./rateLimitMiddleware";
 
 const router = Router();
 
@@ -24,6 +26,9 @@ const router = Router();
 // ================================
 
 export function setupChallengeCalendarRoutes(app: any, storage: IStorage, stripeClient: stripe) {
+  
+  // Initialize QR Code Service
+  const qrCodeService = new QRCodeService(storage);
 
   // Get all challenges with optional filtering
   app.get("/api/challenges", async (req: Request, res: Response) => {
@@ -516,6 +521,178 @@ export function setupChallengeCalendarRoutes(app: any, storage: IStorage, stripe
       console.error("Fee scheduler status error:", error);
       res.status(500).json({ error: error.message });
     }
+  });
+
+  // ================================
+  // QR CODE CHECK-IN ENDPOINTS  
+  // ================================
+
+  // Generate secure QR code for challenge check-in (authenticated)
+  app.get("/api/challenges/:challengeId/qr-code", 
+    rateLimiters.general,
+    isAuthenticated,
+    async (req: Request, res: Response) => {
+      try {
+        const { challengeId } = req.params;
+        
+        const challenge = await storage.getChallenge(challengeId);
+        if (!challenge) {
+          return res.status(404).json({ error: "Challenge not found" });
+        }
+        
+        // Build request context for proper origin detection
+        const protocol = req.secure || req.get('x-forwarded-proto') === 'https' ? 'https' : 'http';
+        const host = req.get('host') || 'localhost:5000';
+        const requestContext = {
+          protocol,
+          host,
+          ipAddress: req.ip || req.connection.remoteAddress,
+          userAgent: req.get('user-agent')
+        };
+        
+        // Generate secure QR code with consistent token and URL
+        const qrResult = await qrCodeService.generateChallengeQRCode(challengeId, requestContext);
+        
+        res.json({
+          challengeId,
+          qrCodeDataUrl: qrResult.qrCodeDataUrl,
+          checkInUrl: qrResult.checkInUrl, // Now includes token for consistency
+          token: qrResult.token, // Expose token for debugging/validation
+          expiresIn: qrResult.expiresIn,
+          instructions: "Scan this QR code or tap the link to check in. Valid for 15 minutes."
+        });
+      } catch (error: any) {
+        console.error("QR code generation error:", error);
+        res.status(500).json({ error: error.message });
+      }
+    }
+  );
+
+  // Secure QR code check-in endpoint (POST with authentication)
+  app.post("/api/challenges/secure-check-in", 
+    rateLimiters.checkin, // Rate limiting: 10 attempts per minute
+    isAuthenticated, // Require authentication
+    async (req: Request, res: Response) => {
+      try {
+        const { token } = req.body;
+        
+        if (!token) {
+          return res.status(400).json({ error: "Check-in token required" });
+        }
+        
+        // Get authenticated user ID
+        const user = req.user as any;
+        const authenticatedUserId = user.claims?.sub || user.id;
+        
+        if (!authenticatedUserId) {
+          return res.status(401).json({ error: "Invalid authentication session" });
+        }
+        
+        // Build request context for security tracking
+        const requestContext = {
+          protocol: req.secure || req.get('x-forwarded-proto') === 'https' ? 'https' : 'http',
+          host: req.get('host') || 'localhost:5000',
+          ipAddress: req.ip || req.connection.remoteAddress,
+          userAgent: req.get('user-agent')
+        };
+        
+        const result = await qrCodeService.processSecureCheckIn(token, authenticatedUserId, requestContext);
+        
+        res.json(sanitizeResponse(result));
+      } catch (error: any) {
+        console.error("Secure check-in processing error:", error);
+        res.status(500).json({ error: error.message });
+      }
+    }
+  );
+
+  // Legacy endpoint (deprecated - for backward compatibility only)
+  app.get("/api/challenges/check-in", 
+    rateLimiters.general,
+    async (req: Request, res: Response) => {
+      // Deprecation warning
+      res.status(400).json({ 
+        error: "This endpoint is deprecated for security reasons",
+        message: "Please use POST /api/challenges/secure-check-in with authentication",
+        migration: "Update your app to use the secure check-in endpoint"
+      });
+    }
+  );
+
+  // Authenticated manual check-in endpoint 
+  app.post("/api/challenges/:challengeId/check-in", 
+    rateLimiters.checkin,
+    isAuthenticated,
+    async (req: Request, res: Response) => {
+      try {
+        const { challengeId } = req.params;
+        
+        // Get authenticated user ID (no longer accept playerId from request body)
+        const user = req.user as any;
+        const authenticatedUserId = user.claims?.sub || user.id;
+        
+        if (!authenticatedUserId) {
+          return res.status(401).json({ error: "Invalid authentication session" });
+        }
+        
+        // Get player record from authenticated user
+        const player = await storage.getPlayerByUserId(authenticatedUserId);
+        if (!player) {
+          return res.status(400).json({ error: "Player profile not found" });
+        }
+        
+        // Verify challenge exists and player is authorized
+        const challenge = await storage.getChallenge(challengeId);
+        if (!challenge) {
+          return res.status(404).json({ error: "Challenge not found" });
+        }
+        
+        if (challenge.aPlayerId !== player.id && challenge.bPlayerId !== player.id) {
+          return res.status(403).json({ error: "Not authorized for this challenge" });
+        }
+        
+        // Create secure QR data for manual check-in
+        const secureQRData = {
+          challengeId,
+          nonce: `manual-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          timestamp: Date.now(),
+          signature: "manual-checkin"
+        };
+        
+        const result = await qrCodeService.processPlayerCheckIn(secureQRData as any, player.id);
+        
+        res.json(sanitizeResponse(result));
+      } catch (error: any) {
+        console.error("Manual check-in error:", error);
+        res.status(500).json({ error: error.message });
+      }
+    }
+  );
+
+  // Get challenge check-in status (with basic rate limiting)
+  app.get("/api/challenges/:challengeId/check-in-status", 
+    rateLimiters.general,
+    async (req: Request, res: Response) => {
+      try {
+        const { challengeId } = req.params;
+        
+        const status = await qrCodeService.getChallengeCheckInStatus(challengeId);
+        
+        res.json(sanitizeResponse(status));
+      } catch (error: any) {
+        console.error("Check-in status error:", error);
+        res.status(500).json({ error: error.message });
+      }
+    }
+  );
+
+  // CORS preflight handler for Socket.IO (if needed)
+  app.options("/api/challenges/*", (req: Request, res: Response) => {
+    res.header("Access-Control-Allow-Origin", req.headers.origin || "*");
+    res.header("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS");
+    res.header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With");
+    res.header("Access-Control-Allow-Credentials", "true");
+    res.status(200).end();
   });
 
 }

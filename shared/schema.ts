@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, integer, boolean, real, timestamp, index, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, integer, boolean, real, timestamp, index, unique, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -1649,10 +1649,29 @@ export const challengeCheckIns = pgTable("challenge_check_ins", {
   challengeId: text("challenge_id").notNull(),
   playerId: text("player_id").notNull(),
   checkedInAt: timestamp("checked_in_at").notNull(),
-  checkedInBy: text("checked_in_by"), // "player" or "operator" or "qr_scan"
+  checkedInBy: text("checked_in_by"), // "player" or "operator" or "qr_scan"  
   location: text("location"), // "mobile_app", "front_desk", "qr_code"
   
   createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  // Unique constraint to prevent duplicate check-ins for the same challenge/player
+  uniqueCheckIn: unique().on(table.challengeId, table.playerId)
+}));
+
+// QR Code Security - Nonce tracking for replay protection across instances
+export const qrCodeNonces = pgTable("qr_code_nonces", {
+  nonce: text("nonce").primaryKey(),
+  challengeId: text("challenge_id").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  expiresAt: timestamp("expires_at").notNull(),
+  usedAt: timestamp("used_at"),
+  ipAddress: text("ip_address"),
+  userAgent: text("user_agent"),
+}, (table) => {
+  return {
+    expiresAtIdx: index("qr_nonces_expires_at_idx").on(table.expiresAt),
+    challengeIdx: index("qr_nonces_challenge_idx").on(table.challengeId),
+  };
 });
 
 export const challengePolicies = pgTable("challenge_policies", {
@@ -1747,6 +1766,10 @@ export const insertChallengeCheckInSchema = createInsertSchema(challengeCheckIns
   createdAt: true,
 });
 
+export const insertQrCodeNonceSchema = createInsertSchema(qrCodeNonces).omit({
+  createdAt: true,
+});
+
 export const insertChallengePolicySchema = createInsertSchema(challengePolicies).omit({
   id: true,
   updatedAt: true,
@@ -1773,3 +1796,5 @@ export type ChallengeCheckIn = typeof challengeCheckIns.$inferSelect;
 export type InsertChallengeCheckIn = z.infer<typeof insertChallengeCheckInSchema>;
 export type ChallengePolicy = typeof challengePolicies.$inferSelect;
 export type InsertChallengePolicy = z.infer<typeof insertChallengePolicySchema>;
+export type QrCodeNonce = typeof qrCodeNonces.$inferSelect;
+export type InsertQrCodeNonce = z.infer<typeof insertQrCodeNonceSchema>;

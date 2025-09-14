@@ -52,6 +52,7 @@ import {
   type ChallengeFee, type InsertChallengeFee,
   type ChallengeCheckIn, type InsertChallengeCheckIn,
   type ChallengePolicy, type InsertChallengePolicy,
+  type QrCodeNonce, type InsertQrCodeNonce,
   type GlobalRole,
   insertUserSchema,
   insertOrganizationSchema,
@@ -303,6 +304,7 @@ export interface IStorage {
   
   // Players
   getPlayer(id: string): Promise<Player | undefined>;
+  getPlayerByUserId(userId: string): Promise<Player | undefined>;
   getAllPlayers(): Promise<Player[]>;
   createPlayer(player: InsertPlayer): Promise<Player>;
   updatePlayer(id: string, updates: Partial<Player>): Promise<Player | undefined>;
@@ -617,6 +619,13 @@ export interface IStorage {
   createChallengeCheckIn(checkIn: InsertChallengeCheckIn): Promise<ChallengeCheckIn>;
   getChallengeCheckInsByChallenge(challengeId: string): Promise<ChallengeCheckIn[]>;
   
+  // QR Code Nonce Management (Replay Protection)
+  createQrCodeNonce(nonce: InsertQrCodeNonce): Promise<QrCodeNonce>;
+  markNonceAsUsed(nonce: string, ipAddress?: string, userAgent?: string): Promise<QrCodeNonce | undefined>;
+  isNonceUsed(nonce: string): Promise<boolean>;
+  isNonceValid(nonce: string): Promise<boolean>; // Checks both used status and expiration
+  cleanupExpiredNonces(): Promise<number>; // Returns count of cleaned up nonces
+  
   // Challenge Policies
   getChallengesPolicyByHall(hallId: string): Promise<ChallengePolicy | undefined>;
   createChallengePolicy(policy: InsertChallengePolicy): Promise<ChallengePolicy>;
@@ -704,6 +713,7 @@ export class MemStorage implements IStorage {
   private challengeFees = new Map<string, ChallengeFee>();
   private challengeCheckIns = new Map<string, ChallengeCheckIn>();
   private challengePolicies = new Map<string, ChallengePolicy>();
+  private qrCodeNonces = new Map<string, QrCodeNonce>();
 
   constructor() {
     // Initialize with seed data for demonstration (disabled in production)
@@ -1451,6 +1461,15 @@ export class MemStorage implements IStorage {
   // Player methods
   async getPlayer(id: string): Promise<Player | undefined> {
     return this.players.get(id);
+  }
+
+  async getPlayerByUserId(userId: string): Promise<Player | undefined> {
+    for (const player of this.players.values()) {
+      if (player.userId === userId) {
+        return player;
+      }
+    }
+    return undefined;
   }
 
   async getAllPlayers(): Promise<Player[]> {
@@ -3916,6 +3935,77 @@ export class MemStorage implements IStorage {
 
   async updateChallengePolicy(id: string, updates: Partial<ChallengePolicy>): Promise<ChallengePolicy | undefined> {
     return updateMapRecord(this.challengePolicies, id, updates, NULLABLE_FIELDS.ChallengePolicy);
+  }
+
+  // QR Code Nonce Management (Replay Protection)
+  async createQrCodeNonce(insertNonce: InsertQrCodeNonce): Promise<QrCodeNonce> {
+    const nonce: QrCodeNonce = {
+      nonce: insertNonce.nonce,
+      challengeId: insertNonce.challengeId,
+      createdAt: new Date(),
+      expiresAt: new Date(insertNonce.expiresAt),
+      usedAt: insertNonce.usedAt ? new Date(insertNonce.usedAt) : null,
+      ipAddress: nullifyUndefined(insertNonce.ipAddress),
+      userAgent: nullifyUndefined(insertNonce.userAgent),
+    };
+    this.qrCodeNonces.set(insertNonce.nonce, nonce);
+    return nonce;
+  }
+
+  async markNonceAsUsed(nonce: string, ipAddress?: string, userAgent?: string): Promise<QrCodeNonce | undefined> {
+    const existingNonce = this.qrCodeNonces.get(nonce);
+    if (!existingNonce) {
+      return undefined;
+    }
+
+    const updatedNonce: QrCodeNonce = {
+      ...existingNonce,
+      usedAt: new Date(),
+      ipAddress: ipAddress || existingNonce.ipAddress,
+      userAgent: userAgent || existingNonce.userAgent,
+    };
+    
+    this.qrCodeNonces.set(nonce, updatedNonce);
+    return updatedNonce;
+  }
+
+  async isNonceUsed(nonce: string): Promise<boolean> {
+    const existingNonce = this.qrCodeNonces.get(nonce);
+    return existingNonce?.usedAt !== null;
+  }
+
+  async isNonceValid(nonce: string): Promise<boolean> {
+    const existingNonce = this.qrCodeNonces.get(nonce);
+    if (!existingNonce) {
+      return false;
+    }
+
+    // Check if already used
+    if (existingNonce.usedAt) {
+      return false;
+    }
+
+    // Check if expired
+    const now = new Date();
+    if (existingNonce.expiresAt < now) {
+      return false;
+    }
+
+    return true;
+  }
+
+  async cleanupExpiredNonces(): Promise<number> {
+    const now = new Date();
+    let cleanedCount = 0;
+    
+    for (const [nonceKey, nonceValue] of this.qrCodeNonces.entries()) {
+      if (nonceValue.expiresAt < now) {
+        this.qrCodeNonces.delete(nonceKey);
+        cleanedCount++;
+      }
+    }
+    
+    return cleanedCount;
   }
 }
 

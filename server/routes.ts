@@ -5,6 +5,7 @@ import { storage } from "./storage";
 import { AIService } from "./ai-service";
 import { setupChallengeCalendarRoutes } from "./challengeCalendarRoutes";
 import { initializeFeeScheduler } from "./feeScheduler";
+import { initializeSocketManager } from "./challengeSocketEvents";
 import { registerAdminRoutes, registerOperatorRoutes, payStaffFromInvoice } from "./admin-routes";
 import { registerHallRoutes } from "./hall-routes";
 import { registerPlayerBillingRoutes } from "./playerBilling";
@@ -3834,5 +3835,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   initializeFeeScheduler(storage, stripe);
 
   const httpServer = createServer(app);
+  
+  // Initialize Socket.IO for real-time challenge updates
+  initializeSocketManager(httpServer, storage);
+
   return httpServer;
 }
