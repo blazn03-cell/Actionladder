@@ -48,13 +48,8 @@ export function setupChallengeCalendarRoutes(app: any, storage: IStorage, stripe
         challenges = challenges.filter(c => c.status === status);
       }
       
-      // Apply text sanitization for league-safe terminology
-      const sanitizedChallenges = challenges.map(challenge => ({
-        ...challenge,
-        description: challenge.description ? sanitizeText(challenge.description) : null
-      }));
-      
-      res.json(sanitizedChallenges);
+      // Apply response sanitization for league-safe terminology
+      res.json(challenges);
     } catch (error: any) {
       console.error("Get challenges error:", error);
       res.status(500).json({ error: error.message });
@@ -77,13 +72,8 @@ export function setupChallengeCalendarRoutes(app: any, storage: IStorage, stripe
       // Get fees for this challenge
       const fees = await storage.getChallengeFeesByChallenge(id);
       
-      const sanitizedChallenge = {
-        ...challenge,
-        description: challenge.description ? sanitizeText(challenge.description) : null
-      };
-      
       res.json({
-        challenge: sanitizedChallenge,
+        challenge,
         checkIns,
         fees
       });
@@ -194,13 +184,13 @@ export function setupChallengeCalendarRoutes(app: any, storage: IStorage, stripe
       if (policy && policy.cancellationFeeEnabled) {
         const hoursUntilChallenge = dayjs(challenge.scheduledAt).diff(dayjs(), 'hours');
         
-        if (hoursUntilChallenge < policy.cancellationThresholdHours) {
+        if (hoursUntilChallenge < (policy.cancellationThresholdHours ?? 24)) {
           // Apply cancellation fee
           const fee = await storage.createChallengeFee({
             challengeId: id,
             playerId: cancelledBy || challenge.aPlayerId,
             feeType: 'cancellation',
-            amount: policy.cancellationFeeAmount,
+            amount: policy.cancellationFeeAmount ?? 1000,
             scheduledAt: challenge.scheduledAt,
             actualAt: new Date(),
             minutesLate: 0

@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import Stripe from "stripe";
 import { storage } from "./storage";
 import { AIService } from "./ai-service";
+import { setupChallengeCalendarRoutes } from "./challengeCalendarRoutes";
 import { registerAdminRoutes, registerOperatorRoutes, payStaffFromInvoice } from "./admin-routes";
 import { registerHallRoutes } from "./hall-routes";
 import { registerPlayerBillingRoutes } from "./playerBilling";
@@ -29,7 +30,7 @@ import { OperatorSubscriptionCalculator } from "./operator-subscription-utils";
 import { emailService } from "./email-service";
 import { sanitizeBody, createStripeDescription, sanitizeForStorage } from "./sanitize";
 import { refundDeposit, refundMatchEntry, refundTournamentEntry, canRefundPayment } from "./refund-service";
-import { calculateCommission, MEMBERSHIP_TIERS, COMMISSION_CONFIG } from "./pricing-service";
+import { calculateCommission, MEMBERSHIP_TIERS, COMMISSION_CONFIG, calculateSavings } from "./pricing-service";
 
 if (!process.env.STRIPE_SECRET_KEY) {
   throw new Error('Missing required Stripe secret: STRIPE_SECRET_KEY');
@@ -1686,13 +1687,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         try {
           // Create automatic live stream entry for high-stakes match
           await storage.createLiveStream({
+            platform: "other",
+            url: "", // Will be set by operator
             title: `High Stakes Challenge - $${stakePerSideDollars} per side`,
-            description: validatedData.description || "High stakes challenge match",
-            streamUrl: "", // Will be set by operator
+            poolHallName: "Unknown Hall", // TODO: Get actual hall name
+            city: "Unknown",
+            state: "TX",
+            category: "casual",
             isLive: false,
-            autoCreated: true,
-            relatedChallengePoolId: pool.id,
-            priority: stakePerSideDollars >= 200 ? "high" : "medium",
           });
           
           console.log(`🎥 Auto-created live stream alert for high stakes challenge: $${stakePerSideDollars} per side`);
@@ -3821,6 +3823,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: error.message });
     }
   });
+
+  // ================================
+  // CHALLENGE CALENDAR INTEGRATION
+  // ================================
+  setupChallengeCalendarRoutes(app, storage, stripe);
 
   const httpServer = createServer(app);
   return httpServer;
