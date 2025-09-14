@@ -44,6 +44,7 @@ import NotFound from "@/pages/not-found";
 import Landing from "@/pages/Landing";
 import AuthSuccess from "@/pages/AuthSuccess";
 import { PlayerSubscription } from "@/pages/PlayerSubscription";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import logoBackground from "@assets/assets_task_01k3jk55jwew0tmd764vvanv2x_1756192093_img_0_1756634613619.webp";
 
 const queryClient = new QueryClient();
@@ -240,8 +241,9 @@ function App() {
   const [activeTab, setActiveTab] = useState("dashboard");
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <div className="min-h-screen bg-felt-dark text-white font-sans overflow-x-hidden">
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <div className="min-h-screen bg-felt-dark text-white font-sans overflow-x-hidden">
         {/* Professional Logo Background */}
         <div className="fixed inset-0 pointer-events-none">
           <div 
@@ -256,10 +258,13 @@ function App() {
           <div className="absolute inset-0 bg-gradient-to-br from-emerald-900/20 via-felt-dark/80 to-felt-dark/90"></div>
         </div>
         
-        <Navigation activeTab={activeTab} setActiveTab={setActiveTab} />
+        <ErrorBoundary>
+          <Navigation activeTab={activeTab} setActiveTab={setActiveTab} />
+        </ErrorBoundary>
         
         <main className="relative z-10">
-          <Switch>
+          <ErrorBoundary>
+            <Switch>
             <Route path="/">
               <Landing />
             </Route>
@@ -340,7 +345,8 @@ function App() {
               <RealTimeNotifications />
             </Route>
             <Route component={NotFound} />
-          </Switch>
+            </Switch>
+          </ErrorBoundary>
         </main>
         
         <Toaster />
@@ -360,8 +366,9 @@ function App() {
             </div>
           </div>
         </footer>
-      </div>
-    </QueryClientProvider>
+        </div>
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 }
 
