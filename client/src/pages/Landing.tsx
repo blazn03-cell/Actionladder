@@ -13,9 +13,11 @@ import {
   Star,
   ChevronRight,
   Eye,
-  EyeOff
+  EyeOff,
+  DollarSign
 } from "lucide-react";
 import logoBackground from "@assets/assets_task_01k3jk55jwew0tmd764vvanv2x_1756192093_img_0_1756634613619.webp";
+import { RevenueCalculator } from "@/components/RevenueCalculator";
 
 export default function Landing() {
   const [showAdminLogin, setShowAdminLogin] = useState(false);
@@ -51,7 +53,7 @@ export default function Landing() {
       {/* Background */}
       <div className="fixed inset-0 pointer-events-none">
         <div 
-          className="absolute inset-0 opacity-5"
+          className="absolute inset-0 opacity-15"
           style={{
             backgroundImage: `url(${logoBackground})`,
             backgroundSize: 'cover',
@@ -59,7 +61,7 @@ export default function Landing() {
             backgroundRepeat: 'no-repeat'
           }}
         ></div>
-        <div className="absolute inset-0 bg-gradient-to-br from-emerald-900/20 via-felt-dark/80 to-felt-dark/90"></div>
+        <div className="absolute inset-0 bg-gradient-to-br from-emerald-900/30 via-felt-dark/85 to-felt-dark/95"></div>
       </div>
 
       <div className="relative z-10">
@@ -142,7 +144,7 @@ export default function Landing() {
               Join as a player to compete, or as an operator to manage your pool hall
             </p>
 
-            <div className="grid md:grid-cols-2 gap-8">
+            <div className="grid lg:grid-cols-3 gap-8">
               {/* Player Sign-Up */}
               <Card className="bg-gray-900/50 border-emerald-500/30 hover:border-emerald-400/50 transition-all duration-300 hover:scale-105">
                 <CardHeader className="text-center pb-4">
@@ -224,6 +226,11 @@ export default function Landing() {
                   </div>
                 </CardContent>
               </Card>
+
+              {/* Revenue Calculator */}
+              <div className="lg:col-span-1">
+                <RevenueCalculator />
+              </div>
             </div>
 
             {/* Admin Access (Hidden by default) */}
@@ -252,6 +259,108 @@ export default function Landing() {
                 </Card>
               </div>
             )}
+          </div>
+        </section>
+
+        {/* Revenue Projections for Operators */}
+        <section className="py-16 px-6 bg-blue-900/20">
+          <div className="max-w-6xl mx-auto">
+            <h2 className="text-3xl font-bold text-center text-blue-400 mb-8">
+              Operator Revenue Projections
+            </h2>
+            <p className="text-center text-gray-300 mb-12">
+              See your potential monthly earnings based on player count and subscription tiers
+            </p>
+
+            <div className="grid md:grid-cols-3 gap-8">
+              {/* Starter Level */}
+              <Card className="bg-gray-900/60 border-blue-500/30">
+                <CardHeader className="text-center">
+                  <CardTitle className="text-xl text-blue-400">Starter Hall</CardTitle>
+                  <CardDescription className="text-gray-300">25 Active Players</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="text-center">
+                    <div className="text-3xl font-bold text-white">$2,370</div>
+                    <div className="text-sm text-gray-400">Monthly Revenue Potential</div>
+                  </div>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Subscription Revenue:</span>
+                      <span className="text-blue-300">$1,975</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Challenge Fees (30%):</span>
+                      <span className="text-blue-300">$395</span>
+                    </div>
+                  </div>
+                  <Badge className="w-full justify-center bg-blue-900/30 text-blue-300">
+                    Break-even at 15 players
+                  </Badge>
+                </CardContent>
+              </Card>
+
+              {/* Growth Level */}
+              <Card className="bg-gray-900/60 border-emerald-500/30 scale-105">
+                <CardHeader className="text-center">
+                  <CardTitle className="text-xl text-emerald-400">Growing Hall</CardTitle>
+                  <CardDescription className="text-gray-300">50 Active Players</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="text-center">
+                    <div className="text-3xl font-bold text-white">$4,740</div>
+                    <div className="text-sm text-gray-400">Monthly Revenue Potential</div>
+                  </div>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Subscription Revenue:</span>
+                      <span className="text-emerald-300">$3,950</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Challenge Fees (30%):</span>
+                      <span className="text-emerald-300">$790</span>
+                    </div>
+                  </div>
+                  <Badge className="w-full justify-center bg-emerald-900/30 text-emerald-300">
+                    Most Popular Tier
+                  </Badge>
+                </CardContent>
+              </Card>
+
+              {/* Established Level */}
+              <Card className="bg-gray-900/60 border-yellow-500/30">
+                <CardHeader className="text-center">
+                  <CardTitle className="text-xl text-yellow-400">Established Hall</CardTitle>
+                  <CardDescription className="text-gray-300">100+ Active Players</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="text-center">
+                    <div className="text-3xl font-bold text-white">$9,480+</div>
+                    <div className="text-sm text-gray-400">Monthly Revenue Potential</div>
+                  </div>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Subscription Revenue:</span>
+                      <span className="text-yellow-300">$7,900+</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Challenge Fees (30%):</span>
+                      <span className="text-yellow-300">$1,580+</span>
+                    </div>
+                  </div>
+                  <Badge className="w-full justify-center bg-yellow-900/30 text-yellow-300">
+                    Premium Earnings
+                  </Badge>
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="mt-12 text-center">
+              <p className="text-gray-400 text-sm max-w-2xl mx-auto">
+                * Revenue projections based on $79/month pro subscriptions and average challenge fee participation. 
+                Actual earnings may vary based on local market conditions and player engagement.
+              </p>
+            </div>
           </div>
         </section>
 
