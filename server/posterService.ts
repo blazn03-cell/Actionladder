@@ -80,7 +80,7 @@ CHALLENGE DETAILS:
 - Game: ${challenge.gameType} on ${challenge.tableType}
 - Location: ${challenge.hallName}
 - Date: ${scheduledDate.toLocaleDateString()}
-- Time: ${scheduledDate.toLocaleTimeString()}`
+- Time: ${scheduledDate.toLocaleTimeString()}
 
 LEAGUE IDENTITY:
 - Slogan: "In here, respect is earned in racks, not words"
