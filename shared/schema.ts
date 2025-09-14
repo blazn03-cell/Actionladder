@@ -1704,6 +1704,37 @@ export const challengePolicies = pgTable("challenge_policies", {
   updatedBy: text("updated_by").notNull(),
 });
 
+// Secure iCal feed tokens for personal calendar access
+export const icalFeedTokens = pgTable("ical_feed_tokens", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  playerId: text("player_id").notNull(),
+  token: text("token").notNull().unique(), // Cryptographically secure random token
+  name: text("name"), // Optional descriptive name (e.g., "iPhone Calendar", "Google Calendar")
+  
+  // Security features
+  isActive: boolean("is_active").default(true),
+  lastUsedAt: timestamp("last_used_at"),
+  useCount: integer("use_count").default(0),
+  
+  // Access control options
+  hallId: text("hall_id"), // Restrict to specific hall if set
+  includeCompleted: boolean("include_completed").default(false),
+  
+  // Token lifecycle
+  createdAt: timestamp("created_at").defaultNow(),
+  expiresAt: timestamp("expires_at"), // Optional expiration
+  revokedAt: timestamp("revoked_at"),
+  revokedBy: text("revoked_by"), // Who revoked the token
+  revokeReason: text("revoke_reason"),
+}, (table) => {
+  return {
+    playerIdIdx: index("ical_tokens_player_id_idx").on(table.playerId),
+    tokenIdx: index("ical_tokens_token_idx").on(table.token),
+    activeIdx: index("ical_tokens_active_idx").on(table.isActive),
+    expiresIdx: index("ical_tokens_expires_idx").on(table.expiresAt),
+  };
+});
+
 // Match division system types
 export type MatchDivision = typeof matchDivisions.$inferSelect;
 export type InsertMatchDivision = z.infer<typeof insertMatchDivisionSchema>;
@@ -1775,6 +1806,14 @@ export const insertChallengePolicySchema = createInsertSchema(challengePolicies)
   updatedAt: true,
 });
 
+export const insertIcalFeedTokenSchema = createInsertSchema(icalFeedTokens).omit({
+  id: true,
+  createdAt: true,
+  lastUsedAt: true,
+  useCount: true,
+  revokedAt: true,
+});
+
 // Fan tips and gifts types
 export type FanTip = typeof fanTips.$inferSelect;
 export type InsertFanTip = z.infer<typeof insertFanTipSchema>;
@@ -1798,3 +1837,5 @@ export type ChallengePolicy = typeof challengePolicies.$inferSelect;
 export type InsertChallengePolicy = z.infer<typeof insertChallengePolicySchema>;
 export type QrCodeNonce = typeof qrCodeNonces.$inferSelect;
 export type InsertQrCodeNonce = z.infer<typeof insertQrCodeNonceSchema>;
+export type IcalFeedToken = typeof icalFeedTokens.$inferSelect;
+export type InsertIcalFeedToken = z.infer<typeof insertIcalFeedTokenSchema>;

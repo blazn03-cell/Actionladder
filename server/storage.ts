@@ -53,6 +53,7 @@ import {
   type ChallengeCheckIn, type InsertChallengeCheckIn,
   type ChallengePolicy, type InsertChallengePolicy,
   type QrCodeNonce, type InsertQrCodeNonce,
+  type IcalFeedToken, type InsertIcalFeedToken,
   type GlobalRole,
   insertUserSchema,
   insertOrganizationSchema,
@@ -241,6 +242,7 @@ const NULLABLE_FIELDS = {
   ChallengeFee: ["actualAt", "stripeChargeId", "stripeCustomerId", "chargedAt", "waivedAt", "waivedBy", "waiverReason"] as const satisfies readonly NullableKeys<ChallengeFee>[],
   ChallengeCheckIn: ["checkedInBy", "location"] as const satisfies readonly NullableKeys<ChallengeCheckIn>[],
   ChallengePolicy: [] as const satisfies readonly NullableKeys<ChallengePolicy>[],
+  IcalFeedToken: ["name", "lastUsedAt", "hallId", "expiresAt", "revokedAt", "revokedBy", "revokeReason"] as const satisfies readonly NullableKeys<IcalFeedToken>[],
 } as const;
 
 // Centralized update helper that handles nullable fields properly
@@ -630,6 +632,16 @@ export interface IStorage {
   getChallengesPolicyByHall(hallId: string): Promise<ChallengePolicy | undefined>;
   createChallengePolicy(policy: InsertChallengePolicy): Promise<ChallengePolicy>;
   updateChallengePolicy(id: string, updates: Partial<ChallengePolicy>): Promise<ChallengePolicy | undefined>;
+  
+  // iCal Feed Tokens - Secure personal calendar feed authentication
+  getIcalFeedToken(id: string): Promise<IcalFeedToken | undefined>;
+  getIcalFeedTokenByToken(token: string): Promise<IcalFeedToken | undefined>;
+  getIcalFeedTokensByPlayer(playerId: string): Promise<IcalFeedToken[]>;
+  createIcalFeedToken(tokenData: InsertIcalFeedToken): Promise<IcalFeedToken>;
+  updateIcalFeedToken(id: string, updates: Partial<IcalFeedToken>): Promise<IcalFeedToken | undefined>;
+  revokeIcalFeedToken(id: string, revokedBy: string, reason?: string): Promise<IcalFeedToken | undefined>;
+  markTokenUsed(token: string): Promise<boolean>;
+  cleanupExpiredTokens(): Promise<number>;
 }
 
 export class MemStorage implements IStorage {
@@ -714,6 +726,7 @@ export class MemStorage implements IStorage {
   private challengeCheckIns = new Map<string, ChallengeCheckIn>();
   private challengePolicies = new Map<string, ChallengePolicy>();
   private qrCodeNonces = new Map<string, QrCodeNonce>();
+  private icalFeedTokens = new Map<string, IcalFeedToken>();
 
   constructor() {
     // Initialize with seed data for demonstration (disabled in production)
@@ -4001,6 +4014,88 @@ export class MemStorage implements IStorage {
     for (const [nonceKey, nonceValue] of this.qrCodeNonces.entries()) {
       if (nonceValue.expiresAt < now) {
         this.qrCodeNonces.delete(nonceKey);
+        cleanedCount++;
+      }
+    }
+    
+    return cleanedCount;
+  }
+
+  // === ICAL FEED TOKENS - SECURE PERSONAL CALENDAR AUTHENTICATION ===
+  async getIcalFeedToken(id: string): Promise<IcalFeedToken | undefined> {
+    return this.icalFeedTokens.get(id);
+  }
+
+  async getIcalFeedTokenByToken(token: string): Promise<IcalFeedToken | undefined> {
+    return Array.from(this.icalFeedTokens.values()).find(
+      feedToken => feedToken.token === token && feedToken.isActive && !feedToken.revokedAt
+    );
+  }
+
+  async getIcalFeedTokensByPlayer(playerId: string): Promise<IcalFeedToken[]> {
+    return Array.from(this.icalFeedTokens.values()).filter(
+      feedToken => feedToken.playerId === playerId
+    );
+  }
+
+  async createIcalFeedToken(insertToken: InsertIcalFeedToken): Promise<IcalFeedToken> {
+    const id = randomUUID();
+    const feedToken: IcalFeedToken = {
+      id,
+      playerId: insertToken.playerId,
+      token: insertToken.token,
+      name: nullifyUndefined(insertToken.name),
+      isActive: insertToken.isActive ?? true,
+      lastUsedAt: null,
+      useCount: 0,
+      hallId: nullifyUndefined(insertToken.hallId),
+      includeCompleted: insertToken.includeCompleted ?? false,
+      createdAt: new Date(),
+      expiresAt: insertToken.expiresAt ? new Date(insertToken.expiresAt) : null,
+      revokedAt: null,
+      revokedBy: nullifyUndefined(insertToken.revokedBy),
+      revokeReason: nullifyUndefined(insertToken.revokeReason),
+    };
+    this.icalFeedTokens.set(id, feedToken);
+    return feedToken;
+  }
+
+  async updateIcalFeedToken(id: string, updates: Partial<IcalFeedToken>): Promise<IcalFeedToken | undefined> {
+    return updateMapRecord(this.icalFeedTokens, id, updates, NULLABLE_FIELDS.IcalFeedToken);
+  }
+
+  async revokeIcalFeedToken(id: string, revokedBy: string, reason?: string): Promise<IcalFeedToken | undefined> {
+    const updates: Partial<IcalFeedToken> = {
+      isActive: false,
+      revokedAt: new Date(),
+      revokedBy,
+      revokeReason: reason || null,
+    };
+    return this.updateIcalFeedToken(id, updates);
+  }
+
+  async markTokenUsed(token: string): Promise<boolean> {
+    const feedToken = await this.getIcalFeedTokenByToken(token);
+    if (!feedToken) {
+      return false;
+    }
+
+    const updates: Partial<IcalFeedToken> = {
+      lastUsedAt: new Date(),
+      useCount: (feedToken.useCount || 0) + 1,
+    };
+    
+    const updated = await this.updateIcalFeedToken(feedToken.id, updates);
+    return !!updated;
+  }
+
+  async cleanupExpiredTokens(): Promise<number> {
+    const now = new Date();
+    let cleanedCount = 0;
+    
+    for (const [tokenId, tokenValue] of this.icalFeedTokens.entries()) {
+      if (tokenValue.expiresAt && tokenValue.expiresAt < now) {
+        this.icalFeedTokens.delete(tokenId);
         cleanedCount++;
       }
     }
