@@ -48,6 +48,10 @@ import {
   type MembershipEarnings, type InsertMembershipEarnings,
   type OperatorPayout, type InsertOperatorPayout,
   type MembershipSubscription, type InsertMembershipSubscription,
+  type Challenge, type InsertChallenge,
+  type ChallengeFee, type InsertChallengeFee,
+  type ChallengeCheckIn, type InsertChallengeCheckIn,
+  type ChallengePolicy, type InsertChallengePolicy,
   type GlobalRole,
   insertUserSchema,
   insertOrganizationSchema,
@@ -194,44 +198,48 @@ type NullableKeys<T> = { [K in keyof T]-?: null extends T[K] ? K : never }[keyof
 
 // Centralized nullable field registry based on schema  
 const NULLABLE_FIELDS = {
-  Player: ["city", "member", "theme", "streak", "respectPoints", "birthday", "stripeCustomerId", "userId", "rookiePassExpiresAt", "graduatedAt", "membershipTier"] as const satisfies readonly NullableKeys<Player>[],
-  Match: ["notes", "winner", "commission", "bountyAward", "weightMultiplierBps", "prizePoolAmount", "reportedAt"] as const satisfies readonly NullableKeys<Match>[],
-  Tournament: ["status", "currentPlayers", "stripeProductId"] as const satisfies readonly NullableKeys<Tournament>[],
-  SidePot: ["description", "lockCutoffAt", "winningSide", "disputeDeadline", "autoResolvedAt", "evidenceJson"] as const satisfies readonly NullableKeys<SidePot>[],
+  Player: ["city", "theme", "birthday", "stripeCustomerId", "userId", "rookiePassExpiresAt", "graduatedAt"] as const satisfies readonly NullableKeys<Player>[],
+  Match: ["notes", "winner", "commission", "reportedAt"] as const satisfies readonly NullableKeys<Match>[],
+  Tournament: ["stripeProductId"] as const satisfies readonly NullableKeys<Tournament>[],
+  SidePot: ["matchId", "creatorId", "sideALabel", "sideBLabel", "lockCutoffAt", "description", "evidenceJson", "verificationSource", "customCreatedBy", "winningSide", "resolvedAt", "disputeDeadline", "autoResolvedAt"] as const satisfies readonly NullableKeys<SidePot>[],
   Wallet: [] as const satisfies readonly NullableKeys<Wallet>[],
   SideBet: ["challengePoolId", "userId", "side", "fundedAt"] as const satisfies readonly NullableKeys<SideBet>[],
   Resolution: ["challengePoolId", "winnerSide", "decidedBy", "notes"] as const satisfies readonly NullableKeys<Resolution>[],
   User: [] as const satisfies readonly NullableKeys<User>[],
   Organization: [] as const satisfies readonly NullableKeys<Organization>[],
-  OperatorSettings: [] as const satisfies readonly NullableKeys<OperatorSettings>[],
-  KellyPool: [] as const satisfies readonly NullableKeys<KellyPool>[],
-  Bounty: [] as const satisfies readonly NullableKeys<Bounty>[],
-  CharityEvent: [] as const satisfies readonly NullableKeys<CharityEvent>[],
-  SupportRequest: [] as const satisfies readonly NullableKeys<SupportRequest>[],
-  LiveStream: ["description", "category", "quality", "language", "peakViewers", "matchId"] as const satisfies readonly NullableKeys<LiveStream>[],
-  PoolHall: [] as const satisfies readonly NullableKeys<PoolHall>[],
-  HallMatch: [] as const satisfies readonly NullableKeys<HallMatch>[],
-  HallRoster: [] as const satisfies readonly NullableKeys<HallRoster>[],
-  RookieMatch: [] as const satisfies readonly NullableKeys<RookieMatch>[],
-  RookieEvent: [] as const satisfies readonly NullableKeys<RookieEvent>[],
-  RookieSubscription: [] as const satisfies readonly NullableKeys<RookieSubscription>[],
-  Team: ["currentPlayers", "currentSubs", "consecutiveLosses", "captainForcedNext"] as const satisfies readonly NullableKeys<Team>[],
-  TeamPlayer: [] as const satisfies readonly NullableKeys<TeamPlayer>[],
-  TeamMatch: ["homeLineupRevealed", "awayLineupRevealed", "result", "winnerTeamId"] as const satisfies readonly NullableKeys<TeamMatch>[],
-  TeamSet: ["winnerTeamId"] as const satisfies readonly NullableKeys<TeamSet>[],
-  TeamChallenge: [] as const satisfies readonly NullableKeys<TeamChallenge>[],
+  OperatorSettings: ["customBranding", "freeMonthsGrantedBy", "freeMonthsGrantedAt"] as const satisfies readonly NullableKeys<OperatorSettings>[],
+  KellyPool: ["table"] as const satisfies readonly NullableKeys<KellyPool>[],
+  Bounty: ["rank", "targetId", "description"] as const satisfies readonly NullableKeys<Bounty>[],
+  CharityEvent: ["description"] as const satisfies readonly NullableKeys<CharityEvent>[],
+  SupportRequest: ["description", "amount"] as const satisfies readonly NullableKeys<SupportRequest>[],
+  LiveStream: ["title", "matchId", "hallMatchId", "tournamentId", "streamerId", "embedUrl", "thumbnailUrl", "lastLiveAt"] as const satisfies readonly NullableKeys<LiveStream>[],
+  PoolHall: ["description", "address", "phone", "unlockedBy", "unlockedAt"] as const satisfies readonly NullableKeys<PoolHall>[],
+  HallMatch: ["winnerHallId", "scheduledDate", "completedAt", "notes"] as const satisfies readonly NullableKeys<HallMatch>[],
+  HallRoster: ["position"] as const satisfies readonly NullableKeys<HallRoster>[],
+  RookieMatch: ["notes", "winner", "reportedAt"] as const satisfies readonly NullableKeys<RookieMatch>[],
+  RookieEvent: ["description"] as const satisfies readonly NullableKeys<RookieEvent>[],
+  RookieSubscription: ["expiresAt", "cancelledAt"] as const satisfies readonly NullableKeys<RookieSubscription>[],
+  Team: ["hallId"] as const satisfies readonly NullableKeys<Team>[],
+  TeamPlayer: ["position"] as const satisfies readonly NullableKeys<TeamPlayer>[],
+  TeamMatch: ["winnerTeamId", "putUpRound", "scheduledAt", "completedAt"] as const satisfies readonly NullableKeys<TeamMatch>[],
+  TeamSet: ["winnerId", "loserId", "putUpType", "completedAt", "clipUrl"] as const satisfies readonly NullableKeys<TeamSet>[],
+  TeamChallenge: ["description", "acceptingTeamId", "challengePoolId", "winnerId", "completedAt", "expiresAt"] as const satisfies readonly NullableKeys<TeamChallenge>[],
   TeamChallengeParticipant: [] as const satisfies readonly NullableKeys<TeamChallengeParticipant>[],
-  AttitudeVote: [] as const satisfies readonly NullableKeys<AttitudeVote>[],
-  OperatorSubscription: [] as const satisfies readonly NullableKeys<OperatorSubscription>[],
-  MembershipSubscription: [] as const satisfies readonly NullableKeys<MembershipSubscription>[],
-  TeamStripeAccount: [] as const satisfies readonly NullableKeys<TeamStripeAccount>[],
-  MatchEntry: [] as const satisfies readonly NullableKeys<MatchEntry>[],
-  PayoutDistribution: [] as const satisfies readonly NullableKeys<PayoutDistribution>[],
-  TeamRegistration: [] as const satisfies readonly NullableKeys<TeamRegistration>[],
-  UploadedFile: [] as const satisfies readonly NullableKeys<UploadedFile>[],
-  FileShare: [] as const satisfies readonly NullableKeys<FileShare>[],
-  WeightRule: [] as const satisfies readonly NullableKeys<WeightRule>[],
-  TutoringSession: [] as const satisfies readonly NullableKeys<TutoringSession>[],
+  AttitudeVote: ["result"] as const satisfies readonly NullableKeys<AttitudeVote>[],
+  OperatorSubscription: ["nextBillingDate"] as const satisfies readonly NullableKeys<OperatorSubscription>[],
+  MembershipSubscription: ["stripeCustomerId", "currentPeriodStart", "currentPeriodEnd"] as const satisfies readonly NullableKeys<MembershipSubscription>[],
+  TeamStripeAccount: ["businessType", "email", "lastOnboardingRefresh"] as const satisfies readonly NullableKeys<TeamStripeAccount>[],
+  MatchEntry: ["awayTeamId", "stripeCheckoutSessionId", "stripePaymentIntentId", "winnerId", "scheduledAt", "completedAt", "venueId", "streamUrl", "captainHomeId", "captainAwayId"] as const satisfies readonly NullableKeys<MatchEntry>[],
+  PayoutDistribution: ["stripeTransferId", "transferredAt", "operatorTierAtPayout", "revenueSplitAtPayout", "notes"] as const satisfies readonly NullableKeys<PayoutDistribution>[],
+  TeamRegistration: ["logoUrl", "stripePaymentIntentId", "confirmedAt", "bracketPosition", "seedRank", "venueId", "seasonId"] as const satisfies readonly NullableKeys<TeamRegistration>[],
+  UploadedFile: ["description", "lastAccessedAt"] as const satisfies readonly NullableKeys<UploadedFile>[],
+  FileShare: ["sharedWithUserId", "sharedWithRole", "sharedWithHallId", "expiresAt"] as const satisfies readonly NullableKeys<FileShare>[],
+  WeightRule: ["lastLossAt"] as const satisfies readonly NullableKeys<WeightRule>[],
+  TutoringSession: ["notes", "completedAt"] as const satisfies readonly NullableKeys<TutoringSession>[],
+  Challenge: ["checkedInAt", "completedAt", "notes", "winnerId", "winnerName", "evidence", "forfeitReason", "autoCompleteReason", "description"] as const satisfies readonly NullableKeys<Challenge>[],
+  ChallengeFee: ["actualAt", "stripeChargeId", "stripeCustomerId", "chargedAt", "waivedAt", "waivedBy", "waiverReason"] as const satisfies readonly NullableKeys<ChallengeFee>[],
+  ChallengeCheckIn: ["checkedInBy", "location"] as const satisfies readonly NullableKeys<ChallengeCheckIn>[],
+  ChallengePolicy: [] as const satisfies readonly NullableKeys<ChallengePolicy>[],
 } as const;
 
 // Centralized update helper that handles nullable fields properly
@@ -588,6 +596,30 @@ export interface IStorage {
   getOperatorPayout(id: string): Promise<OperatorPayout | undefined>;
   getOperatorPayoutsByOperator(operatorId: string): Promise<OperatorPayout[]>;
   createOperatorPayout(payout: InsertOperatorPayout): Promise<OperatorPayout>;
+  
+  // === CHALLENGE CALENDAR ===
+  getChallenge(id: string): Promise<Challenge | undefined>;
+  createChallenge(challenge: InsertChallenge): Promise<Challenge>;
+  updateChallenge(id: string, updates: Partial<Challenge>): Promise<Challenge | undefined>;
+  getChallengesByPlayer(playerId: string): Promise<Challenge[]>;
+  getChallengesByHall(hallId: string): Promise<Challenge[]>;
+  getChallengesByDateRange(startDate: Date, endDate: Date): Promise<Challenge[]>;
+  getUpcomingChallenges(limit?: number): Promise<Challenge[]>;
+  
+  // Challenge Fees
+  getChallengeFee(id: string): Promise<ChallengeFee | undefined>;
+  createChallengeFee(fee: InsertChallengeFee): Promise<ChallengeFee>;
+  updateChallengeFee(id: string, updates: Partial<ChallengeFee>): Promise<ChallengeFee | undefined>;
+  getChallengeFeesByChallenge(challengeId: string): Promise<ChallengeFee[]>;
+  
+  // Challenge Check-ins
+  createChallengeCheckIn(checkIn: InsertChallengeCheckIn): Promise<ChallengeCheckIn>;
+  getChallengeCheckInsByChallenge(challengeId: string): Promise<ChallengeCheckIn[]>;
+  
+  // Challenge Policies
+  getChallengesPolicyByHall(hallId: string): Promise<ChallengePolicy | undefined>;
+  createChallengePolicy(policy: InsertChallengePolicy): Promise<ChallengePolicy>;
+  updateChallengePolicy(id: string, updates: Partial<ChallengePolicy>): Promise<ChallengePolicy | undefined>;
 }
 
 export class MemStorage implements IStorage {
@@ -665,6 +697,12 @@ export class MemStorage implements IStorage {
 
   // === MEMBERSHIP SUBSCRIPTIONS ===
   private membershipSubscriptions = new Map<string, MembershipSubscription>();
+  
+  // === CHALLENGE CALENDAR ===
+  private challenges = new Map<string, Challenge>();
+  private challengeFees = new Map<string, ChallengeFee>();
+  private challengeCheckIns = new Map<string, ChallengeCheckIn>();
+  private challengePolicies = new Map<string, ChallengePolicy>();
 
   constructor() {
     // Initialize with seed data for demonstration (disabled in production)
@@ -2196,14 +2234,24 @@ export class MemStorage implements IStorage {
     const id = randomUUID();
     const pot: SidePot = {
       id,
-      matchId: insertPot.matchId,
-      creatorId: insertPot.creatorId,
-      sideALabel: insertPot.sideALabel,
-      sideBLabel: insertPot.sideBLabel,
+      matchId: nullifyUndefined(insertPot.matchId),
+      creatorId: nullifyUndefined(insertPot.creatorId),
+      sideALabel: nullifyUndefined(insertPot.sideALabel),
+      sideBLabel: nullifyUndefined(insertPot.sideBLabel),
       stakePerSide: insertPot.stakePerSide,
       feeBps: insertPot.feeBps || 800,
       status: insertPot.status || "open",
-      lockCutoffAt: insertPot.lockCutoffAt,
+      lockCutoffAt: nullifyUndefined(insertPot.lockCutoffAt),
+      description: nullifyUndefined(insertPot.description),
+      challengeType: insertPot.challengeType || "yes_no",
+      evidenceJson: nullifyUndefined(insertPot.evidenceJson),
+      verificationSource: nullifyUndefined(insertPot.verificationSource),
+      customCreatedBy: nullifyUndefined(insertPot.customCreatedBy),
+      winningSide: nullifyUndefined(insertPot.winningSide),
+      resolvedAt: nullifyUndefined(insertPot.resolvedAt),
+      disputeDeadline: nullifyUndefined(insertPot.disputeDeadline),
+      disputeStatus: insertPot.disputeStatus || "none",
+      autoResolvedAt: nullifyUndefined(insertPot.autoResolvedAt),
       createdAt: new Date(),
     };
     this.sidePots.set(id, pot);
@@ -2347,11 +2395,11 @@ export class MemStorage implements IStorage {
     const id = randomUUID();
     const entry: LedgerEntry = {
       id,
-      userId: insertEntry.userId,
-      type: insertEntry.type,
-      amount: insertEntry.amount,
-      refId: insertEntry.refId,
-      metaJson: insertEntry.metaJson,
+      userId: nullifyUndefined(insertEntry.userId),
+      type: nullifyUndefined(insertEntry.type),
+      amount: nullifyUndefined(insertEntry.amount),
+      refId: nullifyUndefined(insertEntry.refId),
+      metaJson: nullifyUndefined(insertEntry.metaJson),
       createdAt: new Date(),
     };
     this.ledgerEntries.set(id, entry);
@@ -2374,7 +2422,7 @@ export class MemStorage implements IStorage {
       challengePoolId: nullifyUndefined(insertResolution.challengePoolId),
       winnerSide: nullifyUndefined(insertResolution.winnerSide),
       decidedBy: nullifyUndefined(insertResolution.decidedBy),
-      decidedAt: insertResolution.decidedAt ?? new Date(),
+      decidedAt: new Date(), // decidedAt has defaultNow() in schema but we need it for the type
       notes: nullifyUndefined(insertResolution.notes),
     };
     this.resolutions.set(id, resolution);
@@ -2454,8 +2502,8 @@ export class MemStorage implements IStorage {
       rookieModuleCharge: insertSubscription.rookieModuleActive ? 5000 : 0, // $50/mo
       rookiePassesActive: insertSubscription.rookiePassesActive || 0,
       rookiePassCharge: (insertSubscription.rookiePassesActive || 0) * 1500, // $15 per pass
-      stripeSubscriptionId: insertSubscription.stripeSubscriptionId,
-      stripeCustomerId: insertSubscription.stripeCustomerId,
+      stripeSubscriptionId: nullifyUndefined(insertSubscription.stripeSubscriptionId),
+      stripeCustomerId: nullifyUndefined(insertSubscription.stripeCustomerId),
       status: insertSubscription.status || "active",
       billingCycleStart: new Date(),
       nextBillingDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
@@ -2538,11 +2586,15 @@ export class MemStorage implements IStorage {
       id: randomUUID(),
       playerId: data.playerId,
       tier: data.tier,
-      stripeSubscriptionId: data.stripeSubscriptionId,
-      stripeCustomerId: data.stripeCustomerId,
+      stripeSubscriptionId: nullifyUndefined(data.stripeSubscriptionId),
+      stripeCustomerId: nullifyUndefined(data.stripeCustomerId),
       status: data.status || "active",
-      currentPeriodStart: data.currentPeriodStart || new Date(),
-      currentPeriodEnd: data.currentPeriodEnd || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
+      monthlyPrice: data.monthlyPrice,
+      perks: data.perks || [],
+      commissionRate: data.commissionRate || 1000,
+      cancelAtPeriodEnd: data.cancelAtPeriodEnd || false,
+      currentPeriodStart: nullifyUndefined(data.currentPeriodStart),
+      currentPeriodEnd: nullifyUndefined(data.currentPeriodEnd),
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -2578,7 +2630,7 @@ export class MemStorage implements IStorage {
       id,
       name: insertTeam.name,
       operatorId: insertTeam.operatorId,
-      hallId: insertTeam.hallId,
+      hallId: nullifyUndefined(insertTeam.hallId),
       captainId: insertTeam.captainId,
       teamType: insertTeam.teamType,
       maxPlayers: insertTeam.teamType === "3man" ? 3 : 5,
@@ -2631,7 +2683,7 @@ export class MemStorage implements IStorage {
       teamId: insertTeamPlayer.teamId,
       playerId: insertTeamPlayer.playerId,
       role: insertTeamPlayer.role,
-      position: insertTeamPlayer.position,
+      position: nullifyUndefined(insertTeamPlayer.position),
       isActive: insertTeamPlayer.isActive ?? true,
       seasonWins: 0,
       seasonLosses: 0,
@@ -2681,17 +2733,17 @@ export class MemStorage implements IStorage {
       maxSets: insertTeamMatch.maxSets,
       currentSet: 1,
       status: insertTeamMatch.status || "scheduled",
-      winnerTeamId: insertTeamMatch.winnerTeamId,
+      winnerTeamId: nullifyUndefined(insertTeamMatch.winnerTeamId),
       isHillHill: false,
-      putUpRound: insertTeamMatch.putUpRound,
+      putUpRound: nullifyUndefined(insertTeamMatch.putUpRound),
       homeLineupOrder: insertTeamMatch.homeLineupOrder || [],
       awayLineupOrder: insertTeamMatch.awayLineupOrder || [],
       homeLineupRevealed: false,
       awayLineupRevealed: false,
       moneyBallActive: insertTeamMatch.moneyBallActive || false,
       moneyBallAmount: insertTeamMatch.moneyBallAmount || 2000,
-      scheduledAt: insertTeamMatch.scheduledAt,
-      completedAt: insertTeamMatch.completedAt,
+      scheduledAt: nullifyUndefined(insertTeamMatch.scheduledAt),
+      completedAt: nullifyUndefined(insertTeamMatch.completedAt),
       createdAt: new Date(),
     };
     this.teamMatches.set(id, teamMatch);
@@ -2724,14 +2776,14 @@ export class MemStorage implements IStorage {
       setNumber: insertTeamSet.setNumber,
       homePlayerId: insertTeamSet.homePlayerId,
       awayPlayerId: insertTeamSet.awayPlayerId,
-      winnerId: insertTeamSet.winnerId,
-      loserId: insertTeamSet.loserId,
+      winnerId: nullifyUndefined(insertTeamSet.winnerId),
+      loserId: nullifyUndefined(insertTeamSet.loserId),
       isPutUpSet: insertTeamSet.isPutUpSet || false,
-      putUpType: insertTeamSet.putUpType,
+      putUpType: nullifyUndefined(insertTeamSet.putUpType),
       isMoneyBallSet: insertTeamSet.isMoneyBallSet || false,
       status: insertTeamSet.status || "scheduled",
-      completedAt: insertTeamSet.completedAt,
-      clipUrl: insertTeamSet.clipUrl,
+      completedAt: nullifyUndefined(insertTeamSet.completedAt),
+      clipUrl: nullifyUndefined(insertTeamSet.clipUrl),
       createdAt: new Date(),
     };
     this.teamSets.set(id, teamSet);
@@ -2957,10 +3009,10 @@ export class MemStorage implements IStorage {
       venueId: data.venueId,
       status: data.status || "open",
       startedAt: new Date(),
-      endsAt: data.endsAt,
-      quorumRequired: data.quorumRequired,
-      thresholdRequired: data.thresholdRequired,
-      result: data.result,
+      endsAt: nullifyUndefined(data.endsAt),
+      quorumRequired: nullifyUndefined(data.quorumRequired),
+      thresholdRequired: nullifyUndefined(data.thresholdRequired),
+      result: nullifyUndefined(data.result),
       createdBy: data.createdBy,
     };
     this.attitudeVotes.set(vote.id, vote);
@@ -2998,10 +3050,10 @@ export class MemStorage implements IStorage {
       id: randomUUID(),
       voteId: data.voteId,
       voterUserId: data.voterUserId,
-      weight: data.weight,
+      weight: nullifyUndefined(data.weight),
       choice: data.choice,
-      tags: data.tags,
-      note: data.note,
+      tags: nullifyUndefined(data.tags),
+      note: nullifyUndefined(data.note),
       createdAt: new Date(),
     };
     this.attitudeBallots.set(ballot.id, ballot);
@@ -3090,7 +3142,7 @@ export class MemStorage implements IStorage {
     const recentVotes = Array.from(this.attitudeVotes.values()).filter(vote => 
       vote.targetUserId === userId && 
       vote.sessionId === sessionId &&
-      vote.startedAt > new Date(Date.now() - 15 * 60 * 1000) // 15 minutes ago
+      vote.startedAt && vote.startedAt > new Date(Date.now() - 15 * 60 * 1000) // 15 minutes ago
     );
     
     // Can't be voted on if there was a recent vote
@@ -3100,7 +3152,7 @@ export class MemStorage implements IStorage {
     const todayIncidents = Array.from(this.incidents.values()).filter(incident => 
       incident.userId === userId &&
       incident.type === "ejection" &&
-      incident.createdAt > new Date(Date.now() - 24 * 60 * 60 * 1000) // Last 24 hours
+      incident.createdAt && incident.createdAt > new Date(Date.now() - 24 * 60 * 60 * 1000) // Last 24 hours
     );
     
     return todayIncidents.length === 0;
@@ -3109,7 +3161,7 @@ export class MemStorage implements IStorage {
   async getLastVoteForUser(userId: string, sessionId: string): Promise<AttitudeVote | undefined> {
     const userVotes = Array.from(this.attitudeVotes.values())
       .filter(vote => vote.targetUserId === userId && vote.sessionId === sessionId)
-      .sort((a, b) => b.startedAt.getTime() - a.startedAt.getTime());
+      .sort((a, b) => (b.startedAt?.getTime() || 0) - (a.startedAt?.getTime() || 0));
     
     return userVotes[0];
   }
@@ -3118,7 +3170,7 @@ export class MemStorage implements IStorage {
     // Check if user is currently shooting in an active match
     // For now, implement basic logic - can be enhanced with actual match state
     const activeMatches = Array.from(this.matches.values()).filter(match => 
-      (match.player1 === userId || match.player2 === userId) && 
+      (match.challenger === userId || match.opponent === userId) && 
       match.status === "in_progress"
     );
     
@@ -3142,7 +3194,7 @@ export class MemStorage implements IStorage {
       requiresStreaming: data.requiresStreaming || false,
       requiresCaptain: data.requiresCaptain || false,
       allowsSideBets: data.allowsSideBets || false,
-      description: data.description,
+      description: nullifyUndefined(data.description),
       active: data.active ?? true,
       createdAt: new Date(),
     };
@@ -3400,9 +3452,11 @@ export class MemStorage implements IStorage {
       fileSize: data.fileSize,
       mimeType: data.mimeType,
       objectPath: data.objectPath,
-      category: data.category || "general",
-      tags: data.tags || [],
-      isPublic: data.isPublic || false,
+      category: data.category || "general_upload",
+      visibility: data.visibility || "private",
+      description: nullifyUndefined(data.description),
+      tags: nullifyUndefined(data.tags),
+      lastAccessedAt: nullifyUndefined(data.lastAccessedAt),
       uploadedAt: new Date(),
       downloadCount: 0,
       isActive: true,
@@ -3460,11 +3514,12 @@ export class MemStorage implements IStorage {
     const share: FileShare = {
       id: randomUUID(),
       fileId: data.fileId,
-      sharedWithUserId: data.sharedWithUserId,
-      sharedWithRole: data.sharedWithRole,
-      sharedWithHallId: data.sharedWithHallId,
-      permissions: data.permissions || "read",
-      expiresAt: data.expiresAt,
+      sharedWithUserId: nullifyUndefined(data.sharedWithUserId),
+      sharedWithRole: nullifyUndefined(data.sharedWithRole),
+      sharedWithHallId: nullifyUndefined(data.sharedWithHallId),
+      permission: data.permission || "read",
+      expiresAt: nullifyUndefined(data.expiresAt),
+      sharedBy: data.sharedBy,
       createdAt: new Date(),
       isActive: true,
     };
@@ -3694,6 +3749,171 @@ export class MemStorage implements IStorage {
     };
     this.operatorPayouts.set(payout.id, payout);
     return payout;
+  }
+
+  // === CHALLENGE CALENDAR METHODS ===
+  async getChallenge(id: string): Promise<Challenge | undefined> {
+    return this.challenges.get(id);
+  }
+
+  async createChallenge(insertChallenge: InsertChallenge): Promise<Challenge> {
+    const id = randomUUID();
+    const challenge: Challenge = {
+      id,
+      aPlayerId: insertChallenge.aPlayerId,
+      bPlayerId: insertChallenge.bPlayerId,
+      aPlayerName: insertChallenge.aPlayerName,
+      bPlayerName: insertChallenge.bPlayerName,
+      gameType: insertChallenge.gameType,
+      tableType: insertChallenge.tableType,
+      stakes: insertChallenge.stakes,
+      scheduledAt: new Date(insertChallenge.scheduledAt),
+      durationMinutes: insertChallenge.durationMinutes ?? 90,
+      hallId: insertChallenge.hallId,
+      hallName: insertChallenge.hallName,
+      status: insertChallenge.status ?? "scheduled",
+      checkedInAt: nullifyUndefined(insertChallenge.checkedInAt),
+      completedAt: nullifyUndefined(insertChallenge.completedAt),
+      notes: nullifyUndefined(insertChallenge.notes),
+      winnerId: nullifyUndefined(insertChallenge.winnerId),
+      winnerName: nullifyUndefined(insertChallenge.winnerName),
+      evidence: nullifyUndefined(insertChallenge.evidence),
+      forfeitReason: nullifyUndefined(insertChallenge.forfeitReason),
+      autoCompleteReason: nullifyUndefined(insertChallenge.autoCompleteReason),
+      description: nullifyUndefined(insertChallenge.description),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    this.challenges.set(id, challenge);
+    return challenge;
+  }
+
+  async updateChallenge(id: string, updates: Partial<Challenge>): Promise<Challenge | undefined> {
+    return updateMapRecord(this.challenges, id, updates, NULLABLE_FIELDS.Challenge);
+  }
+
+  async getChallengesByPlayer(playerId: string): Promise<Challenge[]> {
+    return Array.from(this.challenges.values()).filter(
+      challenge => challenge.aPlayerId === playerId || challenge.bPlayerId === playerId
+    );
+  }
+
+  async getChallengesByHall(hallId: string): Promise<Challenge[]> {
+    return Array.from(this.challenges.values()).filter(
+      challenge => challenge.hallId === hallId
+    );
+  }
+
+  async getChallengesByDateRange(startDate: Date, endDate: Date): Promise<Challenge[]> {
+    return Array.from(this.challenges.values()).filter(challenge => {
+      const scheduledAt = new Date(challenge.scheduledAt);
+      return scheduledAt >= startDate && scheduledAt <= endDate;
+    });
+  }
+
+  async getUpcomingChallenges(limit: number = 50): Promise<Challenge[]> {
+    const now = new Date();
+    return Array.from(this.challenges.values())
+      .filter(challenge => new Date(challenge.scheduledAt) > now)
+      .sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime())
+      .slice(0, limit);
+  }
+
+  // Challenge Fees
+  async getChallengeFee(id: string): Promise<ChallengeFee | undefined> {
+    return this.challengeFees.get(id);
+  }
+
+  async createChallengeFee(insertFee: InsertChallengeFee): Promise<ChallengeFee> {
+    const id = randomUUID();
+    const fee: ChallengeFee = {
+      id,
+      challengeId: insertFee.challengeId,
+      playerId: insertFee.playerId,
+      feeType: insertFee.feeType,
+      amount: insertFee.amount,
+      scheduledAt: new Date(insertFee.scheduledAt),
+      actualAt: nullifyUndefined(insertFee.actualAt),
+      minutesLate: insertFee.minutesLate ?? 0,
+      status: insertFee.status ?? "pending",
+      stripeChargeId: nullifyUndefined(insertFee.stripeChargeId),
+      stripeCustomerId: nullifyUndefined(insertFee.stripeCustomerId),
+      chargedAt: nullifyUndefined(insertFee.chargedAt),
+      waivedAt: nullifyUndefined(insertFee.waivedAt),
+      waivedBy: nullifyUndefined(insertFee.waivedBy),
+      waiverReason: nullifyUndefined(insertFee.waiverReason),
+      createdAt: new Date(),
+    };
+    this.challengeFees.set(id, fee);
+    return fee;
+  }
+
+  async updateChallengeFee(id: string, updates: Partial<ChallengeFee>): Promise<ChallengeFee | undefined> {
+    return updateMapRecord(this.challengeFees, id, updates, NULLABLE_FIELDS.ChallengeFee);
+  }
+
+  async getChallengeFeesByChallenge(challengeId: string): Promise<ChallengeFee[]> {
+    return Array.from(this.challengeFees.values()).filter(
+      fee => fee.challengeId === challengeId
+    );
+  }
+
+  // Challenge Check-ins
+  async createChallengeCheckIn(insertCheckIn: InsertChallengeCheckIn): Promise<ChallengeCheckIn> {
+    const id = randomUUID();
+    const checkIn: ChallengeCheckIn = {
+      id,
+      challengeId: insertCheckIn.challengeId,
+      playerId: insertCheckIn.playerId,
+      checkedInAt: new Date(insertCheckIn.checkedInAt),
+      checkedInBy: nullifyUndefined(insertCheckIn.checkedInBy),
+      location: nullifyUndefined(insertCheckIn.location),
+      createdAt: new Date(),
+    };
+    this.challengeCheckIns.set(id, checkIn);
+    return checkIn;
+  }
+
+  async getChallengeCheckInsByChallenge(challengeId: string): Promise<ChallengeCheckIn[]> {
+    return Array.from(this.challengeCheckIns.values()).filter(
+      checkIn => checkIn.challengeId === challengeId
+    );
+  }
+
+  // Challenge Policies
+  async getChallengesPolicyByHall(hallId: string): Promise<ChallengePolicy | undefined> {
+    return Array.from(this.challengePolicies.values()).find(
+      policy => policy.hallId === hallId
+    );
+  }
+
+  async createChallengePolicy(insertPolicy: InsertChallengePolicy): Promise<ChallengePolicy> {
+    const id = randomUUID();
+    const policy: ChallengePolicy = {
+      id,
+      hallId: insertPolicy.hallId,
+      lateFeeEnabled: insertPolicy.lateFeeEnabled ?? true,
+      lateFeeAmount: insertPolicy.lateFeeAmount ?? 500,
+      lateFeeThresholdMinutes: insertPolicy.lateFeeThresholdMinutes ?? 15,
+      noShowFeeEnabled: insertPolicy.noShowFeeEnabled ?? true,
+      noShowFeeAmount: insertPolicy.noShowFeeAmount ?? 1500,
+      noShowThresholdMinutes: insertPolicy.noShowThresholdMinutes ?? 45,
+      cancellationFeeEnabled: insertPolicy.cancellationFeeEnabled ?? true,
+      cancellationFeeAmount: insertPolicy.cancellationFeeAmount ?? 1000,
+      cancellationThresholdHours: insertPolicy.cancellationThresholdHours ?? 24,
+      gracePeriodMinutes: insertPolicy.gracePeriodMinutes ?? 5,
+      autoChargeEnabled: insertPolicy.autoChargeEnabled ?? true,
+      requireConfirmation: insertPolicy.requireConfirmation ?? false,
+      updatedBy: insertPolicy.updatedBy,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    this.challengePolicies.set(id, policy);
+    return policy;
+  }
+
+  async updateChallengePolicy(id: string, updates: Partial<ChallengePolicy>): Promise<ChallengePolicy | undefined> {
+    return updateMapRecord(this.challengePolicies, id, updates, NULLABLE_FIELDS.ChallengePolicy);
   }
 }
 
