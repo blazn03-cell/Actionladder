@@ -173,6 +173,22 @@ export type InsertPayoutTransfer = {
 
 import { randomUUID } from "crypto";
 
+// Utility function to safely merge objects without undefined values
+function assignNoUndefined<T>(base: T, updates: Partial<T>): T {
+  const out: any = { ...base };
+  for (const k in updates) {
+    if (updates[k] !== undefined) {
+      out[k] = updates[k];
+    }
+  }
+  return out as T;
+}
+
+// Helper to ensure nullable fields are properly set to null instead of undefined
+function nullifyUndefined<T>(value: T | undefined): T | null {
+  return value === undefined ? null : value;
+}
+
 export interface IStorage {
   // Users (for platform management)
   getUser(id: string): Promise<User | undefined>;
@@ -335,7 +351,7 @@ export interface IStorage {
   
   // Side Betting - Side Bets
   getSideBet(id: string): Promise<SideBet | undefined>;
-  getSideBetsByPot(sidePotId: string): Promise<SideBet[]>;
+  getSideBetsByPot(challengePoolId: string): Promise<SideBet[]>;
   getSideBetsByUser(userId: string): Promise<SideBet[]>;
   createSideBet(bet: InsertSideBet): Promise<SideBet>;
   updateSideBet(id: string, updates: Partial<SideBet>): Promise<SideBet | undefined>;
@@ -353,7 +369,7 @@ export interface IStorage {
   
   // Side Betting - Resolutions
   getResolution(id: string): Promise<Resolution | undefined>;
-  getResolutionByPot(sidePotId: string): Promise<Resolution | undefined>;
+  getResolutionByPot(challengePoolId: string): Promise<Resolution | undefined>;
   createResolution(resolution: InsertResolution): Promise<Resolution>;
   
   // Operator Subscriptions
@@ -1331,26 +1347,27 @@ export class MemStorage implements IStorage {
   async createPlayer(insertPlayer: InsertPlayer): Promise<Player> {
     const id = randomUUID();
     const player: Player = {
-      rating: 500,
-      city: null,
-      member: null,
-      theme: null,
-      points: 800,
-      streak: null,
-      respectPoints: null,
-      birthday: null,
-      stripeCustomerId: null,
-      userId: null,
-      isRookie: true,
-      rookieWins: 0,
-      rookieLosses: 0,
-      rookiePoints: 0,
-      rookieStreak: 0,
-      rookiePassActive: false,
-      rookiePassExpiresAt: null,
-      graduatedAt: null,
-      ...insertPlayer,
       id,
+      name: insertPlayer.name,
+      rating: insertPlayer.rating ?? 500,
+      city: nullifyUndefined(insertPlayer.city),
+      member: nullifyUndefined(insertPlayer.member),
+      theme: nullifyUndefined(insertPlayer.theme),
+      points: insertPlayer.points ?? 800,
+      streak: nullifyUndefined(insertPlayer.streak),
+      respectPoints: nullifyUndefined(insertPlayer.respectPoints),
+      birthday: nullifyUndefined(insertPlayer.birthday),
+      stripeCustomerId: nullifyUndefined(insertPlayer.stripeCustomerId),
+      userId: nullifyUndefined(insertPlayer.userId),
+      isRookie: insertPlayer.isRookie ?? true,
+      rookieWins: insertPlayer.rookieWins ?? 0,
+      rookieLosses: insertPlayer.rookieLosses ?? 0,
+      rookiePoints: insertPlayer.rookiePoints ?? 0,
+      rookieStreak: insertPlayer.rookieStreak ?? 0,
+      rookiePassActive: insertPlayer.rookiePassActive ?? false,
+      rookiePassExpiresAt: nullifyUndefined(insertPlayer.rookiePassExpiresAt),
+      graduatedAt: nullifyUndefined(insertPlayer.graduatedAt),
+      membershipTier: nullifyUndefined(insertPlayer.membershipTier),
       createdAt: new Date(),
     };
     this.players.set(id, player);
@@ -1361,7 +1378,21 @@ export class MemStorage implements IStorage {
     const player = this.players.get(id);
     if (!player) return undefined;
     
-    const updatedPlayer = { ...player, ...updates };
+    const updatedPlayer = assignNoUndefined(player, {
+      ...updates,
+      // Explicitly handle nullable fields
+      city: updates.city !== undefined ? nullifyUndefined(updates.city) : player.city,
+      member: updates.member !== undefined ? nullifyUndefined(updates.member) : player.member,
+      theme: updates.theme !== undefined ? nullifyUndefined(updates.theme) : player.theme,
+      streak: updates.streak !== undefined ? nullifyUndefined(updates.streak) : player.streak,
+      respectPoints: updates.respectPoints !== undefined ? nullifyUndefined(updates.respectPoints) : player.respectPoints,
+      birthday: updates.birthday !== undefined ? nullifyUndefined(updates.birthday) : player.birthday,
+      stripeCustomerId: updates.stripeCustomerId !== undefined ? nullifyUndefined(updates.stripeCustomerId) : player.stripeCustomerId,
+      userId: updates.userId !== undefined ? nullifyUndefined(updates.userId) : player.userId,
+      rookiePassExpiresAt: updates.rookiePassExpiresAt !== undefined ? nullifyUndefined(updates.rookiePassExpiresAt) : player.rookiePassExpiresAt,
+      graduatedAt: updates.graduatedAt !== undefined ? nullifyUndefined(updates.graduatedAt) : player.graduatedAt,
+      membershipTier: updates.membershipTier !== undefined ? nullifyUndefined(updates.membershipTier) : player.membershipTier,
+    });
     this.players.set(id, updatedPlayer);
     return updatedPlayer;
   }
@@ -1382,15 +1413,28 @@ export class MemStorage implements IStorage {
   async createMatch(insertMatch: InsertMatch): Promise<Match> {
     const id = randomUUID();
     const match: Match = {
-      notes: null,
-      status: "scheduled",
-      winner: null,
-      commission: null,
-      bountyAward: null,
-      ...insertMatch,
       id,
-      createdAt: new Date(),
+      division: insertMatch.division,
+      challenger: insertMatch.challenger,
+      opponent: insertMatch.opponent,
+      game: insertMatch.game,
+      table: insertMatch.table,
+      stake: insertMatch.stake,
+      time: insertMatch.time,
+      notes: nullifyUndefined(insertMatch.notes),
+      status: insertMatch.status ?? "scheduled",
+      winner: nullifyUndefined(insertMatch.winner),
+      commission: nullifyUndefined(insertMatch.commission),
+      bountyAward: nullifyUndefined(insertMatch.bountyAward),
+      weightMultiplierBps: nullifyUndefined(insertMatch.weightMultiplierBps),
+      owedWeight: insertMatch.owedWeight ?? false,
+      platformCommissionBps: insertMatch.platformCommissionBps ?? 1000,
+      operatorCommissionBps: insertMatch.operatorCommissionBps ?? 500,
+      platformEarnings: insertMatch.platformEarnings ?? 0,
+      operatorEarnings: insertMatch.operatorEarnings ?? 0,
+      prizePoolAmount: nullifyUndefined(insertMatch.prizePoolAmount),
       reportedAt: null,
+      createdAt: new Date(),
     };
     this.matches.set(id, match);
     return match;
@@ -1400,7 +1444,17 @@ export class MemStorage implements IStorage {
     const match = this.matches.get(id);
     if (!match) return undefined;
     
-    const updatedMatch = { ...match, ...updates };
+    const updatedMatch = assignNoUndefined(match, {
+      ...updates,
+      // Explicitly handle nullable fields
+      notes: updates.notes !== undefined ? nullifyUndefined(updates.notes) : match.notes,
+      winner: updates.winner !== undefined ? nullifyUndefined(updates.winner) : match.winner,
+      commission: updates.commission !== undefined ? nullifyUndefined(updates.commission) : match.commission,
+      bountyAward: updates.bountyAward !== undefined ? nullifyUndefined(updates.bountyAward) : match.bountyAward,
+      weightMultiplierBps: updates.weightMultiplierBps !== undefined ? nullifyUndefined(updates.weightMultiplierBps) : match.weightMultiplierBps,
+      prizePoolAmount: updates.prizePoolAmount !== undefined ? nullifyUndefined(updates.prizePoolAmount) : match.prizePoolAmount,
+      reportedAt: updates.reportedAt !== undefined ? nullifyUndefined(updates.reportedAt) : match.reportedAt,
+    });
     this.matches.set(id, updatedMatch);
     return updatedMatch;
   }
@@ -2036,7 +2090,11 @@ export class MemStorage implements IStorage {
     const wallet = this.wallets.get(userId);
     if (!wallet) return undefined;
     
-    const updatedWallet = { ...wallet, ...updates };
+    const updatedWallet = assignNoUndefined(wallet, {
+      ...updates,
+      balanceCredits: updates.balanceCredits !== undefined ? nullifyUndefined(updates.balanceCredits) : wallet.balanceCredits,
+      balanceLockedCredits: updates.balanceLockedCredits !== undefined ? nullifyUndefined(updates.balanceLockedCredits) : wallet.balanceLockedCredits,
+    });
     this.wallets.set(userId, updatedWallet);
     return updatedWallet;
   }
@@ -2045,9 +2103,10 @@ export class MemStorage implements IStorage {
     const wallet = this.wallets.get(userId);
     if (!wallet) return undefined;
     
+    const currentBalance = wallet.balanceCredits ?? 0;
     const updatedWallet = {
       ...wallet,
-      balanceCredits: wallet.balanceCredits + amount,
+      balanceCredits: currentBalance + amount,
     };
     this.wallets.set(userId, updatedWallet);
     return updatedWallet;
@@ -2055,12 +2114,15 @@ export class MemStorage implements IStorage {
 
   async lockCredits(userId: string, amount: number): Promise<boolean> {
     const wallet = this.wallets.get(userId);
-    if (!wallet || wallet.balanceCredits < amount) return false;
+    const currentBalance = wallet?.balanceCredits ?? 0;
+    const currentLocked = wallet?.balanceLockedCredits ?? 0;
+    
+    if (!wallet || currentBalance < amount) return false;
     
     const updatedWallet = {
       ...wallet,
-      balanceCredits: wallet.balanceCredits - amount,
-      balanceLockedCredits: wallet.balanceLockedCredits + amount,
+      balanceCredits: currentBalance - amount,
+      balanceLockedCredits: currentLocked + amount,
     };
     this.wallets.set(userId, updatedWallet);
     return true;
@@ -2068,12 +2130,15 @@ export class MemStorage implements IStorage {
 
   async unlockCredits(userId: string, amount: number): Promise<boolean> {
     const wallet = this.wallets.get(userId);
-    if (!wallet || wallet.balanceLockedCredits < amount) return false;
+    const currentBalance = wallet?.balanceCredits ?? 0;
+    const currentLocked = wallet?.balanceLockedCredits ?? 0;
+    
+    if (!wallet || currentLocked < amount) return false;
     
     const updatedWallet = {
       ...wallet,
-      balanceCredits: wallet.balanceCredits + amount,
-      balanceLockedCredits: wallet.balanceLockedCredits - amount,
+      balanceCredits: currentBalance + amount,
+      balanceLockedCredits: currentLocked - amount,
     };
     this.wallets.set(userId, updatedWallet);
     return true;
@@ -2197,8 +2262,8 @@ export class MemStorage implements IStorage {
     return this.sideBets.get(id);
   }
 
-  async getSideBetsByPot(sidePotId: string): Promise<SideBet[]> {
-    return Array.from(this.sideBets.values()).filter(bet => bet.sidePotId === sidePotId);
+  async getSideBetsByPot(challengePoolId: string): Promise<SideBet[]> {
+    return Array.from(this.sideBets.values()).filter(bet => bet.challengePoolId === challengePoolId);
   }
 
   async getSideBetsByUser(userId: string): Promise<SideBet[]> {
@@ -2209,12 +2274,12 @@ export class MemStorage implements IStorage {
     const id = randomUUID();
     const bet: SideBet = {
       id,
-      sidePotId: insertBet.sidePotId,
-      userId: insertBet.userId,
-      side: insertBet.side,
+      challengePoolId: nullifyUndefined(insertBet.challengePoolId),
+      userId: nullifyUndefined(insertBet.userId),
+      side: nullifyUndefined(insertBet.side),
       amount: insertBet.amount,
-      status: insertBet.status,
-      fundedAt: insertBet.fundedAt,
+      status: insertBet.status ?? "pending",
+      fundedAt: nullifyUndefined(insertBet.fundedAt),
       createdAt: new Date(),
     };
     this.sideBets.set(id, bet);
@@ -2225,7 +2290,13 @@ export class MemStorage implements IStorage {
     const bet = this.sideBets.get(id);
     if (!bet) return undefined;
     
-    const updatedBet = { ...bet, ...updates };
+    const updatedBet = assignNoUndefined(bet, {
+      ...updates,
+      challengePoolId: updates.challengePoolId !== undefined ? nullifyUndefined(updates.challengePoolId) : bet.challengePoolId,
+      userId: updates.userId !== undefined ? nullifyUndefined(updates.userId) : bet.userId,
+      side: updates.side !== undefined ? nullifyUndefined(updates.side) : bet.side,
+      fundedAt: updates.fundedAt !== undefined ? nullifyUndefined(updates.fundedAt) : bet.fundedAt,
+    });
     this.sideBets.set(id, updatedBet);
     return updatedBet;
   }
@@ -2261,19 +2332,19 @@ export class MemStorage implements IStorage {
     return this.resolutions.get(id);
   }
 
-  async getResolutionByPot(sidePotId: string): Promise<Resolution | undefined> {
-    return Array.from(this.resolutions.values()).find(res => res.sidePotId === sidePotId);
+  async getResolutionByPot(challengePoolId: string): Promise<Resolution | undefined> {
+    return Array.from(this.resolutions.values()).find(res => res.challengePoolId === challengePoolId);
   }
 
   async createResolution(insertResolution: InsertResolution): Promise<Resolution> {
     const id = randomUUID();
     const resolution: Resolution = {
       id,
-      sidePotId: insertResolution.sidePotId,
-      winnerSide: insertResolution.winnerSide,
-      decidedBy: insertResolution.decidedBy,
-      decidedAt: new Date(),
-      notes: insertResolution.notes,
+      challengePoolId: nullifyUndefined(insertResolution.challengePoolId),
+      winnerSide: nullifyUndefined(insertResolution.winnerSide),
+      decidedBy: nullifyUndefined(insertResolution.decidedBy),
+      decidedAt: insertResolution.decidedAt ?? new Date(),
+      notes: nullifyUndefined(insertResolution.notes),
     };
     this.resolutions.set(id, resolution);
     return resolution;
