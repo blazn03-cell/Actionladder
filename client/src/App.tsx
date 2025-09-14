@@ -61,19 +61,23 @@ function Navigation({ activeTab, setActiveTab }: { activeTab: string; setActiveT
       label: "Competition",
       icon: Trophy,
       items: [
-        { id: "dashboard", label: "Dashboard" },
-        { id: "ladder", label: "Big Dog Throne (9ft)" },
-        { id: "eightfoot-ladder", label: "Almost Big Time (8ft)" },
-        { id: "barbox-ladder", label: "Kiddie Box King (7ft)" },
-        { id: "rookie-section", label: "Rookie Section" },
-        { id: "escrow-challenges", label: "Challenge Matches" },
-        { id: "challenge-calendar", label: "Challenge Calendar" },
-        { id: "hall-battles", label: "Hall Battles" },
-        { id: "match-divisions", label: "Match Divisions" },
-        { id: "tournaments", label: "Tournaments" },
-        { id: "tournament-brackets", label: "Tournament Brackets" },
-        { id: "special-games", label: "Special Games" },
-        { id: "league-standings", label: "League Standings" },
+        { id: "dashboard", label: "📊 Dashboard" },
+        // Ladders Section
+        { id: "ladder", label: "🥇 Big Dog Throne (9ft)" },
+        { id: "eightfoot-ladder", label: "🥈 Almost Big Time (8ft)" },
+        { id: "barbox-ladder", label: "🥉 Kiddie Box King (7ft)" },
+        { id: "rookie-section", label: "🔰 Rookie Section" },
+        // Challenges Section  
+        { id: "escrow-challenges", label: "⚔️ Challenge Matches" },
+        { id: "challenge-calendar", label: "📅 Challenge Calendar" },
+        { id: "hall-battles", label: "🏟️ Hall Battles" },
+        // Tournaments Section
+        { id: "tournaments", label: "🏆 Tournaments" },
+        { id: "tournament-brackets", label: "🌲 Tournament Brackets" },
+        { id: "special-games", label: "⭐ Special Games" },
+        // Standings Section
+        { id: "league-standings", label: "📈 League Standings" },
+        { id: "match-divisions", label: "📊 Match Divisions" },
       ]
     },
     {
@@ -81,10 +85,10 @@ function Navigation({ activeTab, setActiveTab }: { activeTab: string; setActiveT
       label: "Media",
       icon: Camera,
       items: [
-        { id: "live-stream", label: "Live Stream" },
-        { id: "ai-features", label: "AI Features" },
-        { id: "poster-generator", label: "Poster Generator" },
-        { id: "file-manager", label: "File Manager" },
+        { id: "live-stream", label: "📺 Live Stream" },
+        { id: "ai-features", label: "🤖 AI Features" },
+        { id: "poster-generator", label: "🎨 Poster Generator" },
+        { id: "file-manager", label: "📁 File Manager" },
       ]
     },
     {
@@ -92,9 +96,9 @@ function Navigation({ activeTab, setActiveTab }: { activeTab: string; setActiveT
       label: "Finance",
       icon: DollarSign,
       items: [
-        { id: "player-subscription", label: "Subscription Plans" },
-        { id: "checkout", label: "Billing & Payments" },
-        { id: "monetization", label: "Revenue Dashboard", roles: ["OWNER", "OPERATOR", "TRUSTEE"] as GlobalRole[] },
+        { id: "player-subscription", label: "💳 Subscription Plans" },
+        { id: "checkout", label: "💰 Billing & Payments" },
+        { id: "monetization", label: "📊 Revenue Dashboard", roles: ["OWNER", "OPERATOR", "TRUSTEE"] as GlobalRole[] },
       ]
     },
     {
@@ -102,13 +106,13 @@ function Navigation({ activeTab, setActiveTab }: { activeTab: string; setActiveT
       label: "Community",
       icon: Users,
       items: [
-        { id: "team-management", label: "Team Management" },
-        { id: "team-matches", label: "Team Matches" },
-        { id: "team-challenges", label: "Team Challenges" },
-        { id: "players", label: "Players" },
-        { id: "sportsmanship", label: "Sportsmanship" },
-        { id: "bounties", label: "Bounties" },
-        { id: "charity", label: "Charity" },
+        { id: "team-management", label: "👥 Team Management" },
+        { id: "team-matches", label: "🤝 Team Matches" },
+        { id: "team-challenges", label: "⚡ Team Challenges" },
+        { id: "players", label: "🎯 Players" },
+        { id: "sportsmanship", label: "🤝 Sportsmanship" },
+        { id: "bounties", label: "💎 Bounties" },
+        { id: "charity", label: "❤️ Charity" },
       ]
     },
     {
@@ -117,10 +121,10 @@ function Navigation({ activeTab, setActiveTab }: { activeTab: string; setActiveT
       icon: Settings,
       roles: ["OWNER", "OPERATOR", "TRUSTEE"] as GlobalRole[], // Role-based section visibility
       items: [
-        { id: "qr-registration", label: "QR Registration" },
-        { id: "operator-settings", label: "Operator Settings" },
-        { id: "operator-subscriptions", label: "Operator Subscriptions" },
-        { id: "admin", label: "Admin Dashboard" },
+        { id: "qr-registration", label: "📱 QR Registration" },
+        { id: "operator-settings", label: "⚙️ Operator Settings" },
+        { id: "operator-subscriptions", label: "💼 Operator Subscriptions" },
+        { id: "admin", label: "🛡️ Admin Dashboard" },
       ]
     },
   ];
