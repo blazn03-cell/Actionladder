@@ -32,7 +32,7 @@ interface SidePot {
 
 interface SideBet {
   id: string;
-  sidePotId: string;
+  challengePoolId: string;
   userId: string;
   side?: string;
   amount: number;
@@ -43,7 +43,7 @@ interface SideBet {
 
 interface Resolution {
   id: string;
-  sidePotId: string;
+  challengePoolId: string;
   winnerSide?: string;
   decidedBy: string;
   decidedAt: string;
@@ -81,8 +81,8 @@ export default function SideBetOperator() {
 
   // Resolve side pot mutation
   const resolvePotMutation = useMutation({
-    mutationFn: (data: { sidePotId: string; winnerSide: string; notes: string }) => 
-      apiRequest(`/api/side-pots/${data.sidePotId}/resolve`, {
+    mutationFn: (data: { challengePoolId: string; winnerSide: string; notes: string }) => 
+      apiRequest(`/api/side-pots/${data.challengePoolId}/resolve`, {
         method: "POST",
         body: JSON.stringify({
           winnerSide: data.winnerSide,
@@ -213,7 +213,7 @@ export default function SideBetOperator() {
       };
       
       resolvePotMutation.mutate({
-        sidePotId: selectedPot,
+        challengePoolId: selectedPot,
         winnerSide: selectedWinner,
         notes: resolutionNotes,
         evidence,

@@ -40,7 +40,7 @@ interface SidePot {
 
 interface SideBet {
   id: string;
-  sidePotId: string;
+  challengePoolId: string;
   userId: string;
   side?: string;
   amount: number;
@@ -284,9 +284,9 @@ export default function ChallengePools() {
     return totalPot > 500 ? 5 : 8.5;
   };
 
-  const handlePlaceBet = (sidePotId: string, side: string, amount: number) => {
+  const handlePlaceBet = (challengePoolId: string, side: string, amount: number) => {
     placeBetMutation.mutate({
-      sidePotId,
+      challengePoolId,
       userId,
       side,
       amount: amount * 100, // Convert to cents

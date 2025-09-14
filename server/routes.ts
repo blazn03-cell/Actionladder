@@ -1708,10 +1708,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Side Bet management
   app.post("/api/side-bets", async (req, res) => {
     try {
-      const { sidePotId, userId, side, amount } = req.body;
+      const { challengePoolId, userId, side, amount } = req.body;
       
       // Check if pot is still open
-      const pool = await storage.getChallengePool(sidePotId);
+      const pool = await storage.getChallengePool(challengePoolId);
       if (!pool || pool.status !== 'open') {
         return res.status(400).json({ message: "Side pot is not accepting bets" });
       }
@@ -1723,7 +1723,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const entry = await storage.createChallengeEntry({
-        challengePoolId: sidePotId,
+        challengePoolId: challengePoolId,
         userId,
         side,
         amount,
@@ -1737,7 +1737,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         type: "pot_lock",
         amount: -amount,
         refId: entry.id,
-        metaJson: JSON.stringify({ sidePotId, side }),
+        metaJson: JSON.stringify({ challengePoolId, side }),
       });
       
       res.status(201).json(entry);
@@ -1824,7 +1824,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           type: "pot_win",
           amount: winnings,
           refId: bet.id,
-          metaJson: JSON.stringify({ sidePotId: challengePoolId, originalBet: bet.amount }),
+          metaJson: JSON.stringify({ challengePoolId: challengePoolId, originalBet: bet.amount }),
         });
         
         await storage.createLedgerEntry({
@@ -1832,7 +1832,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           type: "pot_unlock",
           amount: bet.amount,
           refId: bet.id,
-          metaJson: JSON.stringify({ sidePotId: challengePoolId }),
+          metaJson: JSON.stringify({ challengePoolId: challengePoolId }),
         });
       }
       
@@ -1845,7 +1845,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           type: "pot_loss",
           amount: -bet.amount,
           refId: bet.id,
-          metaJson: JSON.stringify({ sidePotId: challengePoolId }),
+          metaJson: JSON.stringify({ challengePoolId: challengePoolId }),
         });
       }
       
@@ -1968,7 +1968,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           type: "pot_void_refund",
           amount: bet.amount,
           refId: bet.id,
-          metaJson: JSON.stringify({ sidePotId: challengePoolId, voidReason: reason }),
+          metaJson: JSON.stringify({ challengePoolId: challengePoolId, voidReason: reason }),
         });
         
         refundCount++;
@@ -1982,7 +1982,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         voidedAt: now,
       });
       
-      console.log(`Side pot ${sidePotId} voided. Refunded ${refundCount} participants, total: ${totalRefunded} credits`);
+      console.log(`Side pot ${challengePoolId} voided. Refunded ${refundCount} participants, total: ${totalRefunded} credits`);
       
       res.json({ 
         message: "Side pot voided and all participants refunded",
