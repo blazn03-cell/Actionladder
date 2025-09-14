@@ -4,7 +4,7 @@ import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Calendar, Clock, Users, MapPin, QrCode } from 'lucide-react';
+import { Plus, Calendar, Clock, Users, MapPin, QrCode, Image } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -13,6 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
 import { ChallengeDialog } from '../components/ChallengeDialog';
 import { QRCodeModal } from '../components/QRCodeModal';
+import { PosterGenerationModal } from '../components/PosterGenerationModal';
 import { io, Socket } from 'socket.io-client';
 
 interface Challenge {
@@ -49,6 +50,7 @@ export function ChallengeCalendar() {
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [selectedChallenge, setSelectedChallenge] = useState<Challenge | null>(null);
   const [qrModalChallenge, setQrModalChallenge] = useState<Challenge | null>(null);
+  const [posterModalChallenge, setPosterModalChallenge] = useState<Challenge | null>(null);
   const [socket, setSocket] = useState<Socket | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -145,6 +147,26 @@ export function ChallengeCalendar() {
     },
   });
 
+  // Generate poster mutation
+  const generatePosterMutation = useMutation({
+    mutationFn: ({ challengeId, template = 'fight-night', theme = 'dark' }: 
+      { challengeId: string; template?: string; theme?: string }) => 
+      apiRequest(`/api/poster/challenge/${challengeId}?template=${template}&theme=${theme}`),
+    onSuccess: (data) => {
+      toast({
+        title: 'Poster Generated',
+        description: 'Challenge poster has been generated successfully.',
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Poster Generation Failed',
+        description: error.message || 'Failed to generate poster',
+        variant: 'destructive',
+      });
+    },
+  });
+
   // Handle date click for new challenge
   const handleDateClick = useCallback((info: any) => {
     setSelectedDate(info.dateStr);
@@ -171,6 +193,11 @@ export function ChallengeCalendar() {
       socket.emit('join-challenge', challenge.id);
     }
   }, [socket]);
+
+  // Handle poster generation
+  const handleGeneratePoster = useCallback((challenge: Challenge) => {
+    setPosterModalChallenge(challenge);
+  }, []);
 
   // Format challenges for FullCalendar
   const calendarEvents = challenges.map((challenge: Challenge) => ({
@@ -280,6 +307,7 @@ export function ChallengeCalendar() {
                       key={challenge.id}
                       challenge={challenge}
                       onGenerateQR={() => handleGenerateQR(challenge)}
+                      onGeneratePoster={() => handleGeneratePoster(challenge)}
                       onEdit={() => {
                         setSelectedChallenge(challenge);
                         setIsDialogOpen(true);
@@ -356,6 +384,22 @@ export function ChallengeCalendar() {
           onClose={() => setQrModalChallenge(null)}
         />
       )}
+
+      {/* Poster Generation Modal */}
+      {posterModalChallenge && (
+        <PosterGenerationModal
+          challenge={posterModalChallenge}
+          onClose={() => setPosterModalChallenge(null)}
+          onGenerate={(template, theme) => {
+            generatePosterMutation.mutate({
+              challengeId: posterModalChallenge.id,
+              template,
+              theme
+            });
+          }}
+          isGenerating={generatePosterMutation.isPending}
+        />
+      )}
     </div>
   );
 }
@@ -364,10 +408,11 @@ export function ChallengeCalendar() {
 interface UpcomingChallengeCardProps {
   challenge: Challenge;
   onGenerateQR: () => void;
+  onGeneratePoster: () => void;
   onEdit: () => void;
 }
 
-function UpcomingChallengeCard({ challenge, onGenerateQR, onEdit }: UpcomingChallengeCardProps) {
+function UpcomingChallengeCard({ challenge, onGenerateQR, onGeneratePoster, onEdit }: UpcomingChallengeCardProps) {
   const challengeDate = new Date(challenge.scheduledAt);
   const isToday = challengeDate.toDateString() === new Date().toDateString();
   
@@ -425,6 +470,19 @@ function UpcomingChallengeCard({ challenge, onGenerateQR, onEdit }: UpcomingChal
         >
           <QrCode className="h-3 w-3 mr-1" />
           QR Code
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          className="flex-1 text-xs border-green-500/30 text-green-400 hover:bg-green-500/10"
+          onClick={(e) => {
+            e.stopPropagation();
+            onGeneratePoster();
+          }}
+          data-testid={`button-poster-${challenge.id}`}
+        >
+          <Image className="h-3 w-3 mr-1" />
+          Poster
         </Button>
       </div>
     </div>

@@ -298,4 +298,15 @@ export class AIService {
     
     return await callOpenAI(messages);
   }
+
+  /**
+   * General content generation method for poster creation
+   */
+  static async generateContent(prompt: string): Promise<string> {
+    const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
+      { role: 'user', content: prompt }
+    ];
+    
+    return await callOpenAI(messages);
+  }
 }

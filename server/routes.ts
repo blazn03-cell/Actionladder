@@ -5,6 +5,7 @@ import { storage } from "./storage";
 import { AIService } from "./ai-service";
 import { setupChallengeCalendarRoutes } from "./challengeCalendarRoutes";
 import { createICalRoutes } from "./icalRoutes";
+import { createPosterRoutes } from "./posterRoutes";
 import { initializeFeeScheduler } from "./feeScheduler";
 import { initializeSocketManager } from "./challengeSocketEvents";
 import { registerAdminRoutes, registerOperatorRoutes, payStaffFromInvoice } from "./admin-routes";
@@ -3834,6 +3835,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // iCal Calendar Feed Routes
   app.use('/api/ical', createICalRoutes(storage));
+  
+  // AI Poster Generation Routes
+  app.use('/api/poster', createPosterRoutes(storage));
   
   // Initialize auto fee evaluation scheduler
   initializeFeeScheduler(storage, stripe);
