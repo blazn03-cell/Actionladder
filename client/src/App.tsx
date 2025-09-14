@@ -55,7 +55,7 @@ function Navigation({ activeTab, setActiveTab }: { activeTab: string; setActiveT
   const navigationGroups = [
     {
       id: "play",
-      label: "Play",
+      label: "Action",
       icon: Play,
       items: [
         { id: "dashboard", label: "Dashboard" },
