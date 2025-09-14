@@ -44,6 +44,7 @@ import NotFound from "@/pages/not-found";
 import Landing from "@/pages/Landing";
 import AuthSuccess from "@/pages/AuthSuccess";
 import { PlayerSubscription } from "@/pages/PlayerSubscription";
+import { ChallengeCalendar } from "@/pages/ChallengeCalendar";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { MobileNav } from "@/components/MobileNav";
 import logoBackground from "@assets/assets_task_01k3jk55jwew0tmd764vvanv2x_1756192093_img_0_1756634613619.webp";
@@ -67,6 +68,7 @@ function Navigation({ activeTab, setActiveTab }: { activeTab: string; setActiveT
         { id: "barbox-ladder", label: "Kiddie Box King (7ft)" },
         { id: "rookie-section", label: "Rookie Section" },
         { id: "escrow-challenges", label: "Challenge Matches" },
+        { id: "challenge-calendar", label: "Challenge Calendar" },
         { id: "hall-battles", label: "Hall Battles" },
         { id: "match-divisions", label: "Match Divisions" },
       ]
@@ -126,7 +128,7 @@ function Navigation({ activeTab, setActiveTab }: { activeTab: string; setActiveT
       id: "operator",
       label: "Operator",
       icon: Settings,
-      roles: ["OWNER", "OPERATOR", "TRUSTEE"], // Role-based visibility
+      roles: ["OWNER", "OPERATOR", "TRUSTEE"] as GlobalRole[], // Role-based visibility
       items: [
         { id: "operator-settings", label: "Operator Settings" },
         { id: "operator-subscriptions", label: "Operator Subs" },
@@ -305,6 +307,7 @@ function App() {
                 {activeTab === "file-manager" && <FileManager />}
                 {activeTab === "operator-subscriptions" && <OperatorSubscriptions />}
                 {activeTab === "monetization" && <MonetizationDashboard />}
+                {activeTab === "challenge-calendar" && <ChallengeCalendar />}
               </div>
               <RealTimeNotifications />
             </Route>
