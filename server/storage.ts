@@ -662,6 +662,111 @@ export interface IStorage {
   revokeIcalFeedToken(id: string, revokedBy: string, reason?: string): Promise<IcalFeedToken | undefined>;
   markTokenUsed(token: string): Promise<boolean>;
   cleanupExpiredTokens(): Promise<number>;
+
+  // === ENHANCED PAYMENT SYSTEM ===
+  
+  // Payment Methods (SetupIntent collection)
+  getPaymentMethod(id: string): Promise<PaymentMethod | undefined>;
+  getPaymentMethodsByUser(userId: string): Promise<PaymentMethod[]>;
+  getDefaultPaymentMethod(userId: string): Promise<PaymentMethod | undefined>;
+  createPaymentMethod(paymentMethod: InsertPaymentMethod): Promise<PaymentMethod>;
+  updatePaymentMethod(id: string, updates: Partial<PaymentMethod>): Promise<PaymentMethod | undefined>;
+  setDefaultPaymentMethod(userId: string, paymentMethodId: string): Promise<PaymentMethod | undefined>;
+  deactivatePaymentMethod(id: string): Promise<PaymentMethod | undefined>;
+  
+  // Stakes Holds (manual capture system)
+  getStakesHold(id: string): Promise<StakesHold | undefined>;
+  getStakesHoldsByChallenge(challengeId: string): Promise<StakesHold[]>;
+  getStakesHoldsByPlayer(playerId: string): Promise<StakesHold[]>;
+  getStakesHoldsByStatus(status: string): Promise<StakesHold[]>;
+  getExpiringStakesHolds(hours?: number): Promise<StakesHold[]>;
+  createStakesHold(hold: InsertStakesHold): Promise<StakesHold>;
+  updateStakesHold(id: string, updates: Partial<StakesHold>): Promise<StakesHold | undefined>;
+  captureStakesHold(id: string, reason: string): Promise<StakesHold | undefined>;
+  releaseStakesHold(id: string, reason: string): Promise<StakesHold | undefined>;
+  
+  // === NOTIFICATION SYSTEM ===
+  
+  // Notification Settings
+  getNotificationSettings(userId: string): Promise<NotificationSettings | undefined>;
+  createNotificationSettings(settings: InsertNotificationSettings): Promise<NotificationSettings>;
+  updateNotificationSettings(userId: string, updates: Partial<NotificationSettings>): Promise<NotificationSettings | undefined>;
+  
+  // Notification Deliveries
+  getNotificationDelivery(id: string): Promise<NotificationDelivery | undefined>;
+  getNotificationDeliveriesByUser(userId: string): Promise<NotificationDelivery[]>;
+  getNotificationDeliveriesByChallenge(challengeId: string): Promise<NotificationDelivery[]>;
+  getNotificationDeliveriesByStatus(status: string): Promise<NotificationDelivery[]>;
+  createNotificationDelivery(delivery: InsertNotificationDelivery): Promise<NotificationDelivery>;
+  updateNotificationDelivery(id: string, updates: Partial<NotificationDelivery>): Promise<NotificationDelivery | undefined>;
+  markNotificationDelivered(id: string, providerId?: string): Promise<NotificationDelivery | undefined>;
+  markNotificationFailed(id: string, errorMessage: string): Promise<NotificationDelivery | undefined>;
+  
+  // === DISPUTE MANAGEMENT ===
+  
+  // Dispute Resolutions
+  getDisputeResolution(id: string): Promise<DisputeResolution | undefined>;
+  getDisputeResolutionsByChallenge(challengeId: string): Promise<DisputeResolution[]>;
+  getDisputeResolutionsByPlayer(playerId: string): Promise<DisputeResolution[]>;
+  getDisputeResolutionsByStatus(status: string): Promise<DisputeResolution[]>;
+  createDisputeResolution(dispute: InsertDisputeResolution): Promise<DisputeResolution>;
+  updateDisputeResolution(id: string, updates: Partial<DisputeResolution>): Promise<DisputeResolution | undefined>;
+  resolveDispute(id: string, resolution: string, resolvedBy: string, action: string, refundAmount?: number): Promise<DisputeResolution | undefined>;
+  addDisputeEvidence(id: string, evidenceUrls: string[], evidenceTypes: string[], notes?: string): Promise<DisputeResolution | undefined>;
+  
+  // === ANTI-ABUSE SYSTEM ===
+  
+  // Player Cooldowns
+  getPlayerCooldown(id: string): Promise<PlayerCooldown | undefined>;
+  getPlayerCooldownsByPlayer(playerId: string): Promise<PlayerCooldown[]>;
+  getActiveCooldowns(): Promise<PlayerCooldown[]>;
+  getExpiringCooldowns(hours?: number): Promise<PlayerCooldown[]>;
+  createPlayerCooldown(cooldown: InsertPlayerCooldown): Promise<PlayerCooldown>;
+  updatePlayerCooldown(id: string, updates: Partial<PlayerCooldown>): Promise<PlayerCooldown | undefined>;
+  liftPlayerCooldown(id: string, liftedBy: string, reason: string): Promise<PlayerCooldown | undefined>;
+  checkPlayerEligibility(playerId: string): Promise<{ eligible: boolean; reason?: string; cooldownId?: string }>;
+  
+  // Device Attestations
+  getDeviceAttestation(id: string): Promise<DeviceAttestation | undefined>;
+  getDeviceAttestationsByPlayer(playerId: string): Promise<DeviceAttestation[]>;
+  getDeviceAttestationsByChallenge(challengeId: string): Promise<DeviceAttestation[]>;
+  getHighRiskAttestations(threshold?: number): Promise<DeviceAttestation[]>;
+  createDeviceAttestation(attestation: InsertDeviceAttestation): Promise<DeviceAttestation>;
+  
+  // === JOB QUEUE SYSTEM ===
+  
+  // Job Queue
+  getJob(id: string): Promise<JobQueue | undefined>;
+  getJobsByType(jobType: string): Promise<JobQueue[]>;
+  getJobsByStatus(status: string): Promise<JobQueue[]>;
+  getPendingJobs(limit?: number): Promise<JobQueue[]>;
+  getFailedJobs(limit?: number): Promise<JobQueue[]>;
+  createJob(job: InsertJobQueue): Promise<JobQueue>;
+  updateJob(id: string, updates: Partial<JobQueue>): Promise<JobQueue | undefined>;
+  markJobStarted(id: string, processedBy: string): Promise<JobQueue | undefined>;
+  markJobCompleted(id: string, result?: any): Promise<JobQueue | undefined>;
+  markJobFailed(id: string, errorMessage: string): Promise<JobQueue | undefined>;
+  requeueJob(id: string): Promise<JobQueue | undefined>;
+  cleanupCompletedJobs(olderThanDays?: number): Promise<number>;
+  
+  // === METRICS & MONITORING ===
+  
+  // System Metrics
+  getSystemMetric(id: string): Promise<SystemMetric | undefined>;
+  getSystemMetricsByType(metricType: string, hallId?: string): Promise<SystemMetric[]>;
+  getSystemMetricsByTimeWindow(windowStart: Date, windowEnd: Date, metricType?: string): Promise<SystemMetric[]>;
+  createSystemMetric(metric: InsertSystemMetric): Promise<SystemMetric>;
+  aggregateMetrics(metricType: string, timeWindow: string, startDate: Date, endDate: Date): Promise<SystemMetric[]>;
+  
+  // System Alerts
+  getSystemAlert(id: string): Promise<SystemAlert | undefined>;
+  getSystemAlertsByType(alertType: string): Promise<SystemAlert[]>;
+  getActiveAlerts(): Promise<SystemAlert[]>;
+  getFiringAlerts(): Promise<SystemAlert[]>;
+  createSystemAlert(alert: InsertSystemAlert): Promise<SystemAlert>;
+  updateSystemAlert(id: string, updates: Partial<SystemAlert>): Promise<SystemAlert | undefined>;
+  triggerAlert(id: string, currentValue: number): Promise<SystemAlert | undefined>;
+  resolveAlert(id: string): Promise<SystemAlert | undefined>;
 }
 
 export class MemStorage implements IStorage {
@@ -715,23 +820,23 @@ export class MemStorage implements IStorage {
   // === MATCH DIVISION SYSTEM ===
   private matchDivisions = new Map<string, MatchDivision>();
   private operatorTiers = new Map<string, OperatorTier>();
+
+  // === TEAM STRIPE & EARNINGS SYSTEM ===
   private teamStripeAccounts = new Map<string, TeamStripeAccount>();
   private matchEntries = new Map<string, MatchEntry>();
   private payoutDistributions = new Map<string, PayoutDistribution>();
   private teamRegistrations = new Map<string, TeamRegistration>();
-  
-  // === FILE UPLOAD SYSTEM ===
+
+  // === FILE MANAGEMENT SYSTEM ===
   private uploadedFiles = new Map<string, UploadedFile>();
   private fileShares = new Map<string, FileShare>();
 
-  // === WEIGHT RULES SYSTEM ===
+  // === WEIGHT RULES & TUTORING SYSTEM ===
   private weightRules = new Map<string, WeightRule>();
-
-  // === TUTORING SYSTEM ===
   private tutoringSessions = new Map<string, TutoringSession>();
   private tutoringCredits = new Map<string, TutoringCredits>();
 
-  // === COMMISSION AND EARNINGS TRACKING ===
+  // === COMMISSION & EARNINGS TRACKING ===
   private commissionRates = new Map<string, CommissionRate>();
   private platformEarnings = new Map<string, PlatformEarnings>();
   private membershipEarnings = new Map<string, MembershipEarnings>();
@@ -739,15 +844,37 @@ export class MemStorage implements IStorage {
 
   // === MEMBERSHIP SUBSCRIPTIONS ===
   private membershipSubscriptions = new Map<string, MembershipSubscription>();
-  
-  // === CHALLENGE CALENDAR ===
+
+  // === CHALLENGE SYSTEM ===
   private challenges = new Map<string, Challenge>();
   private challengeFees = new Map<string, ChallengeFee>();
   private challengeCheckIns = new Map<string, ChallengeCheckIn>();
   private challengePolicies = new Map<string, ChallengePolicy>();
+
+  // === QR CODE & ICAL SYSTEMS ===
   private qrCodeNonces = new Map<string, QrCodeNonce>();
   private icalFeedTokens = new Map<string, IcalFeedToken>();
 
+  // === PAYMENT METHODS & STAKES ===
+  private paymentMethods = new Map<string, PaymentMethod>();
+  private stakesHolds = new Map<string, StakesHold>();
+
+  // === NOTIFICATION SYSTEM ===
+  private notificationSettings = new Map<string, NotificationSettings>();
+  private notificationDeliveries = new Map<string, NotificationDelivery>();
+
+  // === DISPUTE MANAGEMENT ===
+  private disputeResolutions = new Map<string, DisputeResolution>();
+
+  // === ANTI-ABUSE SYSTEM ===
+  private playerCooldowns = new Map<string, PlayerCooldown>();
+  private deviceAttestations = new Map<string, DeviceAttestation>();
+
+  // === JOB QUEUE & SYSTEM METRICS ===
+  private jobQueue = new Map<string, JobQueue>();
+  private systemMetrics = new Map<string, SystemMetric>();
+  private systemAlerts = new Map<string, SystemAlert>();
+  
   constructor() {
     // Initialize with seed data for demonstration (disabled in production)
     if (process.env.NODE_ENV === "development") {
@@ -773,6 +900,124 @@ export class MemStorage implements IStorage {
   }
 
   async getStaffUsers(): Promise<User[]> {
+    return Array.from(this.users.values()).filter(user => 
+      user.globalRole === "STAFF" || user.globalRole === "OWNER"
+    );
+  }
+
+  async createUser(insertUser: InsertUser): Promise<User> {
+    const id = randomUUID();
+    const user: User = {
+      id,
+      email: insertUser.email,
+      name: insertUser.name,
+      passwordHash: insertUser.passwordHash,
+      twoFactorEnabled: insertUser.twoFactorEnabled ?? false,
+      twoFactorSecret: insertUser.twoFactorSecret,
+      phoneNumber: insertUser.phoneNumber,
+      globalRole: insertUser.globalRole,
+      role: insertUser.role,
+      profileComplete: insertUser.profileComplete ?? false,
+      onboardingComplete: insertUser.onboardingComplete ?? false,
+      accountStatus: insertUser.accountStatus ?? "active",
+      stripeCustomerId: insertUser.stripeCustomerId,
+      stripeConnectId: insertUser.stripeConnectId,
+      payoutShareBps: insertUser.payoutShareBps,
+      hallName: insertUser.hallName,
+      city: insertUser.city,
+      state: insertUser.state,
+      subscriptionTier: insertUser.subscriptionTier,
+      createdAt: new Date(),
+    };
+    this.users.set(id, user);
+    return user;
+  }
+
+  async updateUser(id: string, updates: Partial<User>): Promise<User | undefined> {
+    return updateMapRecord(this.users, id, { ...updates, updatedAt: new Date() }, NULLABLE_FIELDS.User);
+  }
+
+  async upsertUser(user: UpsertUser): Promise<User> {
+    const existing = this.users.get(user.id);
+    if (existing) {
+      const updated = await this.updateUser(user.id, user);
+      return updated!;
+    } else {
+      const insertData: InsertUser = {
+        email: user.email || "",
+        globalRole: user.globalRole || "PLAYER",
+        stripeCustomerId: user.stripeCustomerId,
+        stripeConnectId: user.stripeConnectId,
+        payoutShareBps: user.payoutShareBps,
+        onboardingComplete: user.onboardingComplete ?? false,
+      };
+      return this.createUser(insertData);
+    }
+  }
+
+  async deleteUser(id: string): Promise<boolean> {
+    return this.users.delete(id);
+  }
+
+  // Organization methods
+  async getOrganization(id: string): Promise<Organization | undefined> {
+    return this.organizations.get(id);
+  }
+
+  async getAllOrganizations(): Promise<Organization[]> {
+    return Array.from(this.organizations.values());
+  }
+
+  async createOrganization(insertOrg: InsertOrganization): Promise<Organization> {
+    const id = randomUUID();
+    const organization: Organization = {
+      id,
+      name: insertOrg.name,
+      stripeCustomerId: insertOrg.stripeCustomerId,
+      stripeSubscriptionId: insertOrg.stripeSubscriptionId,
+      seatLimit: insertOrg.seatLimit ?? 5,
+      createdAt: new Date(),
+    };
+    this.organizations.set(id, organization);
+    return organization;
+  }
+
+  async updateOrganization(id: string, updates: Partial<Organization>): Promise<Organization | undefined> {
+    return updateMapRecord(this.organizations, id, updates, NULLABLE_FIELDS.Organization);
+  }
+
+  // PayoutTransfer methods
+  async getPayoutTransfer(id: string): Promise<PayoutTransfer | undefined> {
+    return this.payoutTransfers.get(id);
+  }
+
+  async getPayoutTransfersByInvoice(invoiceId: string): Promise<PayoutTransfer[]> {
+    return Array.from(this.payoutTransfers.values()).filter(
+      transfer => transfer.invoiceId === invoiceId
+    );
+  }
+
+  async getAllPayoutTransfers(): Promise<PayoutTransfer[]> {
+    return Array.from(this.payoutTransfers.values());
+  }
+
+  async createPayoutTransfer(insertTransfer: InsertPayoutTransfer): Promise<PayoutTransfer> {
+    const id = randomUUID();
+    const transfer: PayoutTransfer = {
+      id,
+      invoiceId: insertTransfer.invoiceId,
+      stripeTransferId: insertTransfer.stripeTransferId,
+      recipientUserId: insertTransfer.recipientUserId,
+      amount: insertTransfer.amount,
+      shareType: insertTransfer.shareType,
+      createdAt: new Date(),
+    };
+    this.payoutTransfers.set(id, transfer);
+    return transfer;
+  }
+
+  // OperatorSettings methods
+  async getOperatorSettings(operatorUserId: string): Promise<OperatorSettings | undefined> {
     return Array.from(this.users.values()).filter(user => 
       user.globalRole === "STAFF" || user.globalRole === "OWNER"
     );
@@ -4122,6 +4367,601 @@ export class MemStorage implements IStorage {
     
     return cleanedCount;
   }
+
+  // === PAYMENT METHODS ===
+  async getPaymentMethod(id: string): Promise<PaymentMethod | undefined> {
+    return this.paymentMethods.get(id);
+  }
+
+  async getPaymentMethodsByUser(userId: string): Promise<PaymentMethod[]> {
+    return Array.from(this.paymentMethods.values()).filter(pm => pm.userId === userId);
+  }
+
+  async getDefaultPaymentMethod(userId: string): Promise<PaymentMethod | undefined> {
+    return Array.from(this.paymentMethods.values()).find(pm => pm.userId === userId && pm.isDefault);
+  }
+
+  async createPaymentMethod(insertPaymentMethod: InsertPaymentMethod): Promise<PaymentMethod> {
+    const id = randomUUID();
+    const paymentMethod: PaymentMethod = {
+      id,
+      userId: insertPaymentMethod.userId,
+      stripePaymentMethodId: insertPaymentMethod.stripePaymentMethodId,
+      stripeSetupIntentId: nullifyUndefined(insertPaymentMethod.stripeSetupIntentId),
+      type: insertPaymentMethod.type,
+      brand: nullifyUndefined(insertPaymentMethod.brand),
+      last4: nullifyUndefined(insertPaymentMethod.last4),
+      expiryMonth: nullifyUndefined(insertPaymentMethod.expiryMonth),
+      expiryYear: nullifyUndefined(insertPaymentMethod.expiryYear),
+      isDefault: insertPaymentMethod.isDefault ?? false,
+      isActive: insertPaymentMethod.isActive ?? true,
+      metadata: nullifyUndefined(insertPaymentMethod.metadata),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    this.paymentMethods.set(id, paymentMethod);
+    return paymentMethod;
+  }
+
+  async updatePaymentMethod(id: string, updates: Partial<PaymentMethod>): Promise<PaymentMethod | undefined> {
+    return updateMapRecord(this.paymentMethods, id, { ...updates, updatedAt: new Date() }, NULLABLE_FIELDS.PaymentMethod);
+  }
+
+  async setDefaultPaymentMethod(userId: string, paymentMethodId: string): Promise<boolean> {
+    // First, remove default from all user's payment methods
+    for (const [id, pm] of this.paymentMethods.entries()) {
+      if (pm.userId === userId) {
+        this.paymentMethods.set(id, { ...pm, isDefault: false, updatedAt: new Date() });
+      }
+    }
+    
+    // Set the specified payment method as default
+    const paymentMethod = this.paymentMethods.get(paymentMethodId);
+    if (paymentMethod && paymentMethod.userId === userId) {
+      this.paymentMethods.set(paymentMethodId, { ...paymentMethod, isDefault: true, updatedAt: new Date() });
+      return true;
+    }
+    return false;
+  }
+
+  async deactivatePaymentMethod(id: string): Promise<PaymentMethod | undefined> {
+    return this.updatePaymentMethod(id, { isActive: false });
+  }
+
+  // === STAKES HOLDS ===
+  async getStakesHold(id: string): Promise<StakesHold | undefined> {
+    return this.stakesHolds.get(id);
+  }
+
+  async getStakesHoldsByChallenge(challengeId: string): Promise<StakesHold[]> {
+    return Array.from(this.stakesHolds.values()).filter(hold => hold.challengeId === challengeId);
+  }
+
+  async getStakesHoldsByPlayer(playerId: string): Promise<StakesHold[]> {
+    return Array.from(this.stakesHolds.values()).filter(hold => hold.playerId === playerId);
+  }
+
+  async createStakesHold(insertStakesHold: InsertStakesHold): Promise<StakesHold> {
+    const id = randomUUID();
+    const stakesHold: StakesHold = {
+      id,
+      challengeId: insertStakesHold.challengeId,
+      playerId: insertStakesHold.playerId,
+      amount: insertStakesHold.amount,
+      currency: insertStakesHold.currency ?? "USD",
+      status: insertStakesHold.status ?? "held",
+      stripePaymentIntentId: insertStakesHold.stripePaymentIntentId,
+      capturedAt: nullifyUndefined(insertStakesHold.capturedAt),
+      releasedAt: nullifyUndefined(insertStakesHold.releasedAt),
+      captureReason: nullifyUndefined(insertStakesHold.captureReason),
+      releaseReason: nullifyUndefined(insertStakesHold.releaseReason),
+      metadata: nullifyUndefined(insertStakesHold.metadata),
+      createdAt: new Date(),
+    };
+    this.stakesHolds.set(id, stakesHold);
+    return stakesHold;
+  }
+
+  async updateStakesHold(id: string, updates: Partial<StakesHold>): Promise<StakesHold | undefined> {
+    return updateMapRecord(this.stakesHolds, id, updates, NULLABLE_FIELDS.StakesHold);
+  }
+
+  async releaseStakesHold(id: string, reason?: string): Promise<StakesHold | undefined> {
+    return this.updateStakesHold(id, {
+      status: "released",
+      releasedAt: new Date(),
+      releaseReason: reason || null
+    });
+  }
+
+  async captureStakesHold(id: string, reason?: string): Promise<StakesHold | undefined> {
+    return this.updateStakesHold(id, {
+      status: "captured",
+      capturedAt: new Date(),
+      captureReason: reason || null
+    });
+  }
+
+  async getStakesHoldsByStatus(status: string): Promise<StakesHold[]> {
+    return Array.from(this.stakesHolds.values()).filter(hold => hold.status === status);
+  }
+
+  async getExpiringStakesHolds(hours: number = 24): Promise<StakesHold[]> {
+    const expiryThreshold = new Date(Date.now() + hours * 60 * 60 * 1000);
+    return Array.from(this.stakesHolds.values()).filter(hold => {
+      // Check if hold will expire within the specified hours
+      const createdTime = new Date(hold.createdAt);
+      const expiryTime = new Date(createdTime.getTime() + (24 * 60 * 60 * 1000)); // 24 hour default expiry
+      return expiryTime <= expiryThreshold && hold.status === 'held';
+    });
+  }
+
+  // === NOTIFICATION SYSTEM ===
+  async getNotificationSettings(userId: string): Promise<NotificationSettings | undefined> {
+    return this.notificationSettings.get(userId);
+  }
+
+  async createNotificationSettings(insertSettings: InsertNotificationSettings): Promise<NotificationSettings> {
+    const settings: NotificationSettings = {
+      userId: insertSettings.userId,
+      emailEnabled: insertSettings.emailEnabled ?? true,
+      smsEnabled: insertSettings.smsEnabled ?? false,
+      pushEnabled: insertSettings.pushEnabled ?? true,
+      challengeReminders: insertSettings.challengeReminders ?? true,
+      resultNotifications: insertSettings.resultNotifications ?? true,
+      paymentAlerts: insertSettings.paymentAlerts ?? true,
+      systemUpdates: insertSettings.systemUpdates ?? false,
+      emailAddress: nullifyUndefined(insertSettings.emailAddress),
+      phoneNumber: nullifyUndefined(insertSettings.phoneNumber),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    this.notificationSettings.set(settings.userId, settings);
+    return settings;
+  }
+
+  async updateNotificationSettings(userId: string, updates: Partial<NotificationSettings>): Promise<NotificationSettings | undefined> {
+    return updateMapRecord(this.notificationSettings, userId, { ...updates, updatedAt: new Date() }, NULLABLE_FIELDS.NotificationSettings);
+  }
+
+  async getNotificationDelivery(id: string): Promise<NotificationDelivery | undefined> {
+    return this.notificationDeliveries.get(id);
+  }
+
+  async createNotificationDelivery(insertDelivery: InsertNotificationDelivery): Promise<NotificationDelivery> {
+    const id = randomUUID();
+    const delivery: NotificationDelivery = {
+      id,
+      userId: insertDelivery.userId,
+      challengeId: nullifyUndefined(insertDelivery.challengeId),
+      type: insertDelivery.type,
+      channel: insertDelivery.channel,
+      recipient: insertDelivery.recipient,
+      subject: insertDelivery.subject,
+      content: insertDelivery.content,
+      status: insertDelivery.status ?? "pending",
+      providerId: nullifyUndefined(insertDelivery.providerId),
+      errorMessage: nullifyUndefined(insertDelivery.errorMessage),
+      sentAt: nullifyUndefined(insertDelivery.sentAt),
+      deliveredAt: nullifyUndefined(insertDelivery.deliveredAt),
+      metadata: nullifyUndefined(insertDelivery.metadata),
+      createdAt: new Date(),
+    };
+    this.notificationDeliveries.set(id, delivery);
+    return delivery;
+  }
+
+  async updateNotificationDelivery(id: string, updates: Partial<NotificationDelivery>): Promise<NotificationDelivery | undefined> {
+    return updateMapRecord(this.notificationDeliveries, id, updates, NULLABLE_FIELDS.NotificationDelivery);
+  }
+
+  async getNotificationDeliveriesByUser(userId: string): Promise<NotificationDelivery[]> {
+    return Array.from(this.notificationDeliveries.values()).filter(delivery => delivery.userId === userId);
+  }
+
+  async getNotificationDeliveriesByChallenge(challengeId: string): Promise<NotificationDelivery[]> {
+    return Array.from(this.notificationDeliveries.values()).filter(delivery => delivery.challengeId === challengeId);
+  }
+
+  async getNotificationDeliveriesByStatus(status: string): Promise<NotificationDelivery[]> {
+    return Array.from(this.notificationDeliveries.values()).filter(delivery => delivery.status === status);
+  }
+
+  async markNotificationDelivered(id: string, providerId?: string): Promise<NotificationDelivery | undefined> {
+    return this.updateNotificationDelivery(id, {
+      status: "delivered",
+      deliveredAt: new Date(),
+      providerId: providerId || null
+    });
+  }
+
+  async markNotificationFailed(id: string, errorMessage: string): Promise<NotificationDelivery | undefined> {
+    return this.updateNotificationDelivery(id, {
+      status: "failed",
+      errorMessage
+    });
+  }
+
+  // === DISPUTE MANAGEMENT ===
+  async getDisputeResolution(id: string): Promise<DisputeResolution | undefined> {
+    return this.disputeResolutions.get(id);
+  }
+
+  async createDisputeResolution(insertDispute: InsertDisputeResolution): Promise<DisputeResolution> {
+    const id = randomUUID();
+    const dispute: DisputeResolution = {
+      id,
+      challengeId: insertDispute.challengeId,
+      challengeFeeId: nullifyUndefined(insertDispute.challengeFeeId),
+      filedBy: insertDispute.filedBy,
+      filedAgainst: nullifyUndefined(insertDispute.filedAgainst),
+      disputeType: insertDispute.disputeType,
+      evidenceNotes: nullifyUndefined(insertDispute.evidenceNotes),
+      status: insertDispute.status ?? "open",
+      resolution: nullifyUndefined(insertDispute.resolution),
+      resolvedBy: nullifyUndefined(insertDispute.resolvedBy),
+      resolutionAction: nullifyUndefined(insertDispute.resolutionAction),
+      operatorNotes: nullifyUndefined(insertDispute.operatorNotes),
+      resolvedAt: nullifyUndefined(insertDispute.resolvedAt),
+      auditLog: nullifyUndefined(insertDispute.auditLog),
+      createdAt: new Date(),
+    };
+    this.disputeResolutions.set(id, dispute);
+    return dispute;
+  }
+
+  async updateDisputeResolution(id: string, updates: Partial<DisputeResolution>): Promise<DisputeResolution | undefined> {
+    return updateMapRecord(this.disputeResolutions, id, updates, NULLABLE_FIELDS.DisputeResolution);
+  }
+
+  async resolveDispute(id: string, resolution: string, resolvedBy: string, action?: string): Promise<DisputeResolution | undefined> {
+    return this.updateDisputeResolution(id, {
+      status: "resolved",
+      resolution,
+      resolvedBy,
+      resolutionAction: action || null,
+      resolvedAt: new Date()
+    });
+  }
+
+  async getDisputesByChallenge(challengeId: string): Promise<DisputeResolution[]> {
+    return Array.from(this.disputeResolutions.values()).filter(dispute => dispute.challengeId === challengeId);
+  }
+
+  async getDisputesByPlayer(playerId: string): Promise<DisputeResolution[]> {
+    return Array.from(this.disputeResolutions.values()).filter(dispute => 
+      dispute.filedBy === playerId || dispute.filedAgainst === playerId
+    );
+  }
+
+  async getDisputeResolutionsByChallenge(challengeId: string): Promise<DisputeResolution[]> {
+    return Array.from(this.disputeResolutions.values()).filter(dispute => dispute.challengeId === challengeId);
+  }
+
+  async getDisputeResolutionsByPlayer(playerId: string): Promise<DisputeResolution[]> {
+    return Array.from(this.disputeResolutions.values()).filter(dispute => 
+      dispute.filedBy === playerId || dispute.filedAgainst === playerId
+    );
+  }
+
+  async getDisputeResolutionsByStatus(status: string): Promise<DisputeResolution[]> {
+    return Array.from(this.disputeResolutions.values()).filter(dispute => dispute.status === status);
+  }
+
+  async addDisputeEvidence(id: string, evidenceUrls: string[], evidenceTypes: string[], notes?: string): Promise<DisputeResolution | undefined> {
+    const dispute = this.disputeResolutions.get(id);
+    if (!dispute) return undefined;
+
+    const evidenceEntry = {
+      urls: evidenceUrls,
+      types: evidenceTypes,
+      notes: notes || '',
+      addedAt: new Date().toISOString()
+    };
+
+    const currentAuditLog = dispute.auditLog ? JSON.parse(dispute.auditLog) : [];
+    currentAuditLog.push({
+      action: 'evidence_added',
+      timestamp: new Date().toISOString(),
+      evidence: evidenceEntry
+    });
+
+    return this.updateDisputeResolution(id, {
+      auditLog: JSON.stringify(currentAuditLog)
+    });
+  }
+
+  // === ANTI-ABUSE SYSTEM ===
+  async getPlayerCooldown(id: string): Promise<PlayerCooldown | undefined> {
+    return this.playerCooldowns.get(id);
+  }
+
+  async createPlayerCooldown(insertCooldown: InsertPlayerCooldown): Promise<PlayerCooldown> {
+    const id = randomUUID();
+    const cooldown: PlayerCooldown = {
+      id,
+      playerId: insertCooldown.playerId,
+      cooldownType: insertCooldown.cooldownType,
+      reason: insertCooldown.reason,
+      durationMinutes: insertCooldown.durationMinutes,
+      appliedBy: insertCooldown.appliedBy,
+      endsAt: new Date(insertCooldown.endsAt),
+      liftedAt: nullifyUndefined(insertCooldown.liftedAt),
+      liftedBy: nullifyUndefined(insertCooldown.liftedBy),
+      liftReason: nullifyUndefined(insertCooldown.liftReason),
+      isActive: insertCooldown.isActive ?? true,
+      metadata: nullifyUndefined(insertCooldown.metadata),
+      createdAt: new Date(),
+    };
+    this.playerCooldowns.set(id, cooldown);
+    return cooldown;
+  }
+
+  async updatePlayerCooldown(id: string, updates: Partial<PlayerCooldown>): Promise<PlayerCooldown | undefined> {
+    return updateMapRecord(this.playerCooldowns, id, updates, NULLABLE_FIELDS.PlayerCooldown);
+  }
+
+  async checkPlayerEligibility(playerId: string): Promise<{ eligible: boolean; reason?: string; cooldownId?: string }> {
+    const now = new Date();
+    const activeCooldowns = Array.from(this.playerCooldowns.values()).filter(cooldown => 
+      cooldown.playerId === playerId && 
+      cooldown.isActive && 
+      cooldown.endsAt > now &&
+      !cooldown.liftedAt
+    );
+    
+    if (activeCooldowns.length > 0) {
+      const cooldown = activeCooldowns[0];
+      return {
+        eligible: false,
+        reason: cooldown.reason,
+        cooldownId: cooldown.id
+      };
+    }
+    
+    return { eligible: true };
+  }
+
+  async getPlayerCooldownsByPlayer(playerId: string): Promise<PlayerCooldown[]> {
+    return Array.from(this.playerCooldowns.values()).filter(cooldown => cooldown.playerId === playerId);
+  }
+
+  async getActiveCooldowns(): Promise<PlayerCooldown[]> {
+    const now = new Date();
+    return Array.from(this.playerCooldowns.values()).filter(cooldown => 
+      cooldown.isActive && 
+      cooldown.endsAt > now &&
+      !cooldown.liftedAt
+    );
+  }
+
+  async getExpiringCooldowns(hours: number = 24): Promise<PlayerCooldown[]> {
+    const now = new Date();
+    const expiryThreshold = new Date(now.getTime() + hours * 60 * 60 * 1000);
+    return Array.from(this.playerCooldowns.values()).filter(cooldown => 
+      cooldown.isActive && 
+      cooldown.endsAt <= expiryThreshold &&
+      cooldown.endsAt > now &&
+      !cooldown.liftedAt
+    );
+  }
+
+  async liftPlayerCooldown(id: string, liftedBy: string, reason: string): Promise<PlayerCooldown | undefined> {
+    return this.updatePlayerCooldown(id, {
+      isActive: false,
+      liftedAt: new Date(),
+      liftedBy,
+      liftReason: reason
+    });
+  }
+
+  async getDeviceAttestation(id: string): Promise<DeviceAttestation | undefined> {
+    return this.deviceAttestations.get(id);
+  }
+
+  async createDeviceAttestation(insertAttestation: InsertDeviceAttestation): Promise<DeviceAttestation> {
+    const id = randomUUID();
+    const attestation: DeviceAttestation = {
+      id,
+      challengeId: insertAttestation.challengeId,
+      playerId: insertAttestation.playerId,
+      deviceFingerprint: insertAttestation.deviceFingerprint,
+      attestationType: insertAttestation.attestationType,
+      geolocation: nullifyUndefined(insertAttestation.geolocation),
+      distanceFromHall: nullifyUndefined(insertAttestation.distanceFromHall),
+      ipAddress: nullifyUndefined(insertAttestation.ipAddress),
+      userAgent: nullifyUndefined(insertAttestation.userAgent),
+      scannerStaffId: nullifyUndefined(insertAttestation.scannerStaffId),
+      verificationStatus: insertAttestation.verificationStatus ?? "pending",
+      createdAt: new Date(),
+    };
+    this.deviceAttestations.set(id, attestation);
+    return attestation;
+  }
+
+  // === JOB QUEUE & SYSTEM METRICS ===
+  async getJob(id: string): Promise<JobQueue | undefined> {
+    return this.jobQueue.get(id);
+  }
+
+  async createJob(insertJob: InsertJobQueue): Promise<JobQueue> {
+    const id = randomUUID();
+    const job: JobQueue = {
+      id,
+      jobType: insertJob.jobType,
+      status: insertJob.status ?? "pending",
+      priority: insertJob.priority ?? 5,
+      payload: insertJob.payload,
+      maxAttempts: insertJob.maxAttempts ?? 3,
+      attempts: insertJob.attempts ?? 0,
+      processedBy: nullifyUndefined(insertJob.processedBy),
+      scheduledFor: new Date(insertJob.scheduledFor),
+      startedAt: nullifyUndefined(insertJob.startedAt),
+      completedAt: nullifyUndefined(insertJob.completedAt),
+      errorMessage: nullifyUndefined(insertJob.errorMessage),
+      result: nullifyUndefined(insertJob.result),
+      metadata: nullifyUndefined(insertJob.metadata),
+      createdAt: new Date(),
+    };
+    this.jobQueue.set(id, job);
+    return job;
+  }
+
+  async updateJob(id: string, updates: Partial<JobQueue>): Promise<JobQueue | undefined> {
+    return updateMapRecord(this.jobQueue, id, updates, NULLABLE_FIELDS.JobQueue);
+  }
+
+  async markJobCompleted(id: string, result?: any): Promise<JobQueue | undefined> {
+    return this.updateJob(id, {
+      status: "completed",
+      completedAt: new Date(),
+      result: result || null
+    });
+  }
+
+  async getJobsByType(jobType: string): Promise<JobQueue[]> {
+    return Array.from(this.jobQueue.values()).filter(job => job.jobType === jobType);
+  }
+
+  async getJobsByStatus(status: string): Promise<JobQueue[]> {
+    return Array.from(this.jobQueue.values()).filter(job => job.status === status);
+  }
+
+  async getPendingJobs(limit: number = 50): Promise<JobQueue[]> {
+    return Array.from(this.jobQueue.values())
+      .filter(job => job.status === "pending")
+      .sort((a, b) => {
+        // Sort by priority (lower number = higher priority), then by scheduled time
+        if (a.priority !== b.priority) {
+          return a.priority - b.priority;
+        }
+        return new Date(a.scheduledFor).getTime() - new Date(b.scheduledFor).getTime();
+      })
+      .slice(0, limit);
+  }
+
+  async getFailedJobs(limit: number = 50): Promise<JobQueue[]> {
+    return Array.from(this.jobQueue.values())
+      .filter(job => job.status === "failed")
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .slice(0, limit);
+  }
+
+  async updateJob(id: string, updates: Partial<JobQueue>): Promise<JobQueue | undefined> {
+    return updateMapRecord(this.jobQueue, id, updates, NULLABLE_FIELDS.JobQueue);
+  }
+
+  async markJobStarted(id: string, processedBy: string): Promise<JobQueue | undefined> {
+    const job = this.jobQueue.get(id);
+    if (!job) return undefined;
+    
+    return this.updateJob(id, {
+      status: "running",
+      startedAt: new Date(),
+      processedBy,
+      attempts: (job.attempts || 0) + 1
+    });
+  }
+
+  async markJobFailed(id: string, errorMessage: string): Promise<JobQueue | undefined> {
+    const job = this.jobQueue.get(id);
+    if (!job) return undefined;
+    
+    const currentAttempts = (job.attempts || 0);
+    const shouldRetry = currentAttempts < (job.maxAttempts || 3);
+    
+    return this.updateJob(id, {
+      status: shouldRetry ? "pending" : "failed",
+      errorMessage,
+      completedAt: shouldRetry ? null : new Date()
+    });
+  }
+
+  async requeueJob(id: string): Promise<JobQueue | undefined> {
+    return this.updateJob(id, {
+      status: "pending",
+      startedAt: null,
+      completedAt: null,
+      errorMessage: null,
+      result: null,
+      processedBy: null
+    });
+  }
+
+  async cleanupCompletedJobs(olderThanDays: number = 7): Promise<number> {
+    const cutoffDate = new Date(Date.now() - olderThanDays * 24 * 60 * 60 * 1000);
+    let deletedCount = 0;
+    
+    for (const [jobId, job] of Array.from(this.jobQueue.entries())) {
+      if ((job.status === "completed" || job.status === "failed") && 
+          job.completedAt && 
+          new Date(job.completedAt) < cutoffDate) {
+        this.jobQueue.delete(jobId);
+        deletedCount++;
+      }
+    }
+    
+    return deletedCount;
+  }
+
+  async getSystemMetric(id: string): Promise<SystemMetric | undefined> {
+    return this.systemMetrics.get(id);
+  }
+
+  async createSystemMetric(insertMetric: InsertSystemMetric): Promise<SystemMetric> {
+    const id = randomUUID();
+    const metric: SystemMetric = {
+      id,
+      metricName: insertMetric.metricName,
+      metricType: insertMetric.metricType,
+      value: insertMetric.value,
+      unit: insertMetric.unit ?? null,
+      hallId: nullifyUndefined(insertMetric.hallId),
+      tags: insertMetric.tags || [],
+      metadata: nullifyUndefined(insertMetric.metadata),
+      timestamp: new Date(insertMetric.timestamp),
+    };
+    this.systemMetrics.set(id, metric);
+    return metric;
+  }
+
+  async getSystemAlert(id: string): Promise<SystemAlert | undefined> {
+    return this.systemAlerts.get(id);
+  }
+
+  async createSystemAlert(insertAlert: InsertSystemAlert): Promise<SystemAlert> {
+    const id = randomUUID();
+    const alert: SystemAlert = {
+      id,
+      alertName: insertAlert.alertName,
+      severity: insertAlert.severity,
+      status: insertAlert.status ?? "active",
+      message: insertAlert.message,
+      threshold: insertAlert.threshold,
+      currentValue: nullifyUndefined(insertAlert.currentValue),
+      isAcknowledged: insertAlert.isAcknowledged ?? false,
+      acknowledgedBy: insertAlert.acknowledgedBy ?? null,
+      acknowledgedAt: insertAlert.acknowledgedAt ? new Date(insertAlert.acknowledgedAt) : null,
+      lastTriggered: nullifyUndefined(insertAlert.lastTriggered),
+      metadata: nullifyUndefined(insertAlert.metadata),
+      createdAt: new Date(),
+    };
+    this.systemAlerts.set(id, alert);
+    return alert;
+  }
+
+  async updateSystemAlert(id: string, updates: Partial<SystemAlert>): Promise<SystemAlert | undefined> {
+    return updateMapRecord(this.systemAlerts, id, updates, NULLABLE_FIELDS.SystemAlert);
+  }
+
+  async acknowledgeAlert(id: string, acknowledgedBy: string): Promise<SystemAlert | undefined> {
+    return this.updateSystemAlert(id, {
+      isAcknowledged: true,
+      acknowledgedBy,
+      acknowledgedAt: new Date()
+    });
+  }
+
 }
 
 export const storage = new MemStorage();

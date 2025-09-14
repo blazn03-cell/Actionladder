@@ -6,6 +6,7 @@ import { AIService } from "./ai-service";
 import { setupChallengeCalendarRoutes } from "./challengeCalendarRoutes";
 import { createICalRoutes } from "./icalRoutes";
 import { createPosterRoutes } from "./posterRoutes";
+import { setupPaymentOnboardingRoutes } from "./paymentOnboardingRoutes";
 import { initializeFeeScheduler } from "./feeScheduler";
 import { initializeSocketManager } from "./challengeSocketEvents";
 import { registerAdminRoutes, registerOperatorRoutes, payStaffFromInvoice } from "./admin-routes";
@@ -3838,6 +3839,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // AI Poster Generation Routes
   app.use('/api/poster', createPosterRoutes(storage));
+  
+  // Payment Onboarding Routes (SetupIntent collection)
+  setupPaymentOnboardingRoutes(app, storage);
   
   // Initialize auto fee evaluation scheduler
   initializeFeeScheduler(storage, stripe);
