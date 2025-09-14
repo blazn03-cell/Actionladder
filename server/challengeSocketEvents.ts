@@ -6,6 +6,8 @@ export interface ChallengeSocketEvents {
   // Events emitted by client
   'join-challenge': (challengeId: string) => void;
   'leave-challenge': (challengeId: string) => void;
+  'join-calendar': () => void;
+  'leave-calendar': () => void;
   'player-ready': (data: { challengeId: string; playerId: string }) => void;
   
   // Events emitted by server
@@ -32,6 +34,7 @@ export interface ChallengeSocketEvents {
     feeType: string;
     amount: number;
     reason: string;
+    message: string;
   }) => void;
   'error': (data: { message: string }) => void;
 }
@@ -69,6 +72,18 @@ export class ChallengeSocketManager {
         console.log(`Client ${socket.id} left challenge room: ${challengeId}`);
       });
 
+      // Join global calendar room for calendar-wide updates
+      socket.on('join-calendar', () => {
+        socket.join('calendar');
+        console.log(`Client ${socket.id} joined calendar room`);
+      });
+
+      // Leave global calendar room
+      socket.on('leave-calendar', () => {
+        socket.leave('calendar');
+        console.log(`Client ${socket.id} left calendar room`);
+      });
+
       // Handle player ready status
       socket.on('player-ready', async (data: { challengeId: string; playerId: string }) => {
         try {
@@ -102,6 +117,14 @@ export class ChallengeSocketManager {
 
       // Also emit general challenge update
       await this.emitChallengeUpdate(challengeId);
+      
+      // Emit to calendar room for global updates
+      this.emitCalendarUpdate('player-checked-in', {
+        challengeId,
+        playerId,
+        checkedInAt,
+        message
+      });
     } catch (error) {
       console.error('Error emitting player check-in:', error);
     }
@@ -128,12 +151,25 @@ export class ChallengeSocketManager {
 
       // If challenge just started, emit special event
       if (challenge.status === 'in_progress' && bothPlayersReady) {
-        this.io.to(`challenge:${challengeId}`).emit('challenge-started', {
+        const startedData = {
           challengeId,
           startedAt: challenge.checkedInAt || new Date(),
           message: 'Challenge has begun! Both players are ready.'
-        });
+        };
+        
+        this.io.to(`challenge:${challengeId}`).emit('challenge-started', startedData);
+        
+        // Also emit to calendar room
+        this.emitCalendarUpdate('challenge-started', startedData);
       }
+      
+      // Always emit calendar update for any challenge status change
+      this.emitCalendarUpdate('challenge-updated', {
+        challengeId,
+        status: challenge.status,
+        checkedInPlayers,
+        bothPlayersReady
+      });
     } catch (error) {
       console.error('Error emitting challenge update:', error);
     }
@@ -144,24 +180,24 @@ export class ChallengeSocketManager {
    */
   emitFeeApplied(challengeId: string, playerId: string, feeType: string, amount: number, reason: string) {
     try {
-      this.io.to(`challenge:${challengeId}`).emit('fee-applied', {
-        challengeId,
-        playerId,
-        feeType,
-        amount,
-        reason
-      });
-
-      // Also emit to general admin/operator rooms if needed
-      this.io.emit('admin-notification', {
-        type: 'fee-applied',
+      const message = `${feeType.replace('_', ' ').toUpperCase()} fee of $${(amount / 100).toFixed(2)} applied: ${reason}`;
+      
+      const feeData = {
         challengeId,
         playerId,
         feeType,
         amount,
         reason,
-        timestamp: new Date()
-      });
+        message
+      };
+      
+      this.io.to(`challenge:${challengeId}`).emit('fee-applied', feeData);
+      
+      // Emit to calendar room for global updates  
+      this.emitCalendarUpdate('fee-applied', feeData);
+      
+      // SECURITY FIX: Removed unsafe global admin-notification broadcast
+      // Admin notifications should be handled through proper role-based rooms
     } catch (error) {
       console.error('Error emitting fee notification:', error);
     }
@@ -217,15 +253,43 @@ export class ChallengeSocketManager {
    */
   emitChallengeCancellation(challengeId: string, reason: string, cancelledBy: string) {
     try {
-      this.io.to(`challenge:${challengeId}`).emit('challenge-cancelled', {
+      const cancellationData = {
         challengeId,
         reason,
         cancelledBy,
         timestamp: new Date()
-      });
+      };
+      
+      this.io.to(`challenge:${challengeId}`).emit('challenge-cancelled', cancellationData);
+      
+      // Also emit to calendar room
+      this.emitCalendarUpdate('challenge-cancelled', cancellationData);
     } catch (error) {
       console.error('Error emitting challenge cancellation:', error);
     }
+  }
+
+  /**
+   * Emit updates to the global calendar room
+   */
+  emitCalendarUpdate(eventType: string, data: any) {
+    try {
+      this.io.to('calendar').emit('calendar-update', {
+        eventType,
+        data,
+        timestamp: new Date()
+      });
+    } catch (error) {
+      console.error('Error emitting calendar update:', error);
+    }
+  }
+
+  /**
+   * Get connected clients count for calendar room
+   */
+  getCalendarRoomSize(): number {
+    const room = this.io.sockets.adapter.rooms.get('calendar');
+    return room ? room.size : 0;
   }
 }
 

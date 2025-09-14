@@ -63,6 +63,8 @@ export function ChallengeCalendar() {
 
     socketConnection.on('connect', () => {
       console.log('Connected to Challenge Calendar socket');
+      // Join global calendar room for real-time updates
+      socketConnection.emit('join-calendar');
     });
 
     socketConnection.on('challenge-updated', (data) => {
@@ -93,9 +95,64 @@ export function ChallengeCalendar() {
       });
     });
 
+    socketConnection.on('fee-applied', (data) => {
+      console.log('Fee applied:', data);
+      queryClient.invalidateQueries({ queryKey: ['/api/challenges'] });
+      toast({
+        title: 'Fee Applied',
+        description: data.message || `${data.feeType.replace('_', ' ').toUpperCase()} fee of $${(data.amount / 100).toFixed(2)} applied`,
+        variant: 'destructive',
+      });
+    });
+
+    // Handle global calendar updates
+    socketConnection.on('calendar-update', (update) => {
+      console.log('Calendar update received:', update);
+      queryClient.invalidateQueries({ queryKey: ['/api/challenges'] });
+      
+      // Handle different event types
+      switch (update.eventType) {
+        case 'challenge-updated':
+          toast({
+            title: 'Challenge Updated',
+            description: `Challenge status changed to ${update.data.status}`,
+          });
+          break;
+        case 'player-checked-in':
+          toast({
+            title: 'Player Checked In',
+            description: update.data.message,
+          });
+          break;
+        case 'challenge-started':
+          toast({
+            title: 'Challenge Started!',
+            description: update.data.message,
+            variant: 'default',
+          });
+          break;
+        case 'fee-applied':
+          toast({
+            title: 'Fee Applied',
+            description: update.data.message,
+            variant: 'destructive',
+          });
+          break;
+        case 'challenge-cancelled':
+          toast({
+            title: 'Challenge Cancelled',
+            description: update.data.reason,
+            variant: 'destructive',
+          });
+          break;
+      }
+    });
+
     setSocket(socketConnection);
 
     return () => {
+      // Leave calendar room before disconnect
+      socketConnection.emit('leave-calendar');
       socketConnection.disconnect();
     };
   }, [queryClient, toast]);
@@ -188,7 +245,7 @@ export function ChallengeCalendar() {
   const handleGenerateQR = useCallback((challenge: Challenge) => {
     setQrModalChallenge(challenge);
     
-    // Join challenge room for real-time updates
+    // Join specific challenge room for detailed updates (optional)
     if (socket) {
       socket.emit('join-challenge', challenge.id);
     }
