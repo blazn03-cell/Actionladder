@@ -3,7 +3,7 @@ import { Route, Switch } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
-import { ChevronDown, Play, Users, Trophy, BarChart3, Camera, Megaphone, Settings } from "lucide-react";
+import { ChevronDown, Trophy, Camera, DollarSign, Users, Settings } from "lucide-react";
 import type { GlobalRole } from "@shared/schema";
 import { useAuth } from "@/hooks/useAuth";
 import Dashboard from "@/components/dashboard";
@@ -54,15 +54,14 @@ const queryClient = new QueryClient();
 function Navigation({ activeTab, setActiveTab }: { activeTab: string; setActiveTab: (tab: string) => void }) {
   const { user, isLoading, isAuthenticated } = useAuth();
   
-  // Grouped navigation structure based on user designs
+  // Business-focused navigation structure (5 sections)
   const navigationGroups = [
     {
-      id: "play",
-      label: "Action",
-      icon: Play,
+      id: "competition",
+      label: "Competition",
+      icon: Trophy,
       items: [
         { id: "dashboard", label: "Dashboard" },
-        { id: "player-subscription", label: "Subscription Plans" },
         { id: "ladder", label: "Big Dog Throne (9ft)" },
         { id: "eightfoot-ladder", label: "Almost Big Time (8ft)" },
         { id: "barbox-ladder", label: "Kiddie Box King (7ft)" },
@@ -71,43 +70,15 @@ function Navigation({ activeTab, setActiveTab }: { activeTab: string; setActiveT
         { id: "challenge-calendar", label: "Challenge Calendar" },
         { id: "hall-battles", label: "Hall Battles" },
         { id: "match-divisions", label: "Match Divisions" },
-      ]
-    },
-    {
-      id: "teams",
-      label: "Teams",
-      icon: Users,
-      items: [
-        { id: "team-management", label: "Team Management" },
-        { id: "team-matches", label: "Team Matches" },
-        { id: "team-challenges", label: "Team Challenges" },
-        { id: "players", label: "Players" },
-        { id: "sportsmanship", label: "Sportsmanship" },
-      ]
-    },
-    {
-      id: "tournaments",
-      label: "Tournaments",
-      icon: Trophy,
-      items: [
         { id: "tournaments", label: "Tournaments" },
         { id: "tournament-brackets", label: "Tournament Brackets" },
         { id: "special-games", label: "Special Games" },
-        { id: "bounties", label: "Bounties" },
-        { id: "charity", label: "Charity" },
-      ]
-    },
-    {
-      id: "rankings",
-      label: "Rankings",
-      icon: BarChart3,
-      items: [
         { id: "league-standings", label: "League Standings" },
       ]
     },
     {
       id: "media",
-      label: "Media & AI",
+      label: "Media",
       icon: Camera,
       items: [
         { id: "live-stream", label: "Live Stream" },
@@ -117,23 +88,39 @@ function Navigation({ activeTab, setActiveTab }: { activeTab: string; setActiveT
       ]
     },
     {
-      id: "promote",
-      label: "Promote",
-      icon: Megaphone,
+      id: "finance",
+      label: "Finance",
+      icon: DollarSign,
       items: [
-        { id: "qr-registration", label: "QR Registration" },
+        { id: "player-subscription", label: "Subscription Plans" },
+        { id: "checkout", label: "Billing & Payments" },
+        { id: "monetization", label: "Revenue Dashboard", roles: ["OWNER", "OPERATOR", "TRUSTEE"] as GlobalRole[] },
       ]
     },
     {
-      id: "operator",
-      label: "Operator",
-      icon: Settings,
-      roles: ["OWNER", "OPERATOR", "TRUSTEE"] as GlobalRole[], // Role-based visibility
+      id: "community",
+      label: "Community",
+      icon: Users,
       items: [
+        { id: "team-management", label: "Team Management" },
+        { id: "team-matches", label: "Team Matches" },
+        { id: "team-challenges", label: "Team Challenges" },
+        { id: "players", label: "Players" },
+        { id: "sportsmanship", label: "Sportsmanship" },
+        { id: "bounties", label: "Bounties" },
+        { id: "charity", label: "Charity" },
+      ]
+    },
+    {
+      id: "operations",
+      label: "Operations",
+      icon: Settings,
+      roles: ["OWNER", "OPERATOR", "TRUSTEE"] as GlobalRole[], // Role-based section visibility
+      items: [
+        { id: "qr-registration", label: "QR Registration" },
         { id: "operator-settings", label: "Operator Settings" },
-        { id: "operator-subscriptions", label: "Operator Subs" },
-        { id: "monetization", label: "Revenue Dashboard" },
-        { id: "admin", label: "Admin" },
+        { id: "operator-subscriptions", label: "Operator Subscriptions" },
+        { id: "admin", label: "Admin Dashboard" },
       ]
     },
   ];

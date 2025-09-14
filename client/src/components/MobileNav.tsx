@@ -10,7 +10,7 @@ interface NavigationGroup {
   label: string;
   icon: any;
   roles?: GlobalRole[];
-  items: { id: string; label: string }[];
+  items: { id: string; label: string; roles?: GlobalRole[] }[];
 }
 
 interface MobileNavProps {
@@ -111,22 +111,24 @@ export function MobileNav({ navigationGroups, activeTab, setActiveTab, userRole 
                   </CollapsibleTrigger>
                   
                   <CollapsibleContent className="space-y-1 mt-1">
-                    {group.items.map((item) => {
-                      const isActive = activeTab === item.id;
-                      return (
-                        <Button
-                          key={item.id}
-                          variant="ghost"
-                          onClick={() => handleItemClick(item.id)}
-                          className={`w-full justify-start pl-12 py-2 h-auto text-sm hover:bg-emerald-500/10 ${
-                            isActive ? "bg-emerald-500/30 text-white font-medium" : "text-emerald-100/80"
-                          }`}
-                          data-testid={`mobile-nav-item-${item.id}`}
-                        >
-                          {item.label}
-                        </Button>
-                      );
-                    })}
+                    {group.items
+                      .filter(item => !item.roles || userRole === "OWNER" || item.roles.includes(userRole))
+                      .map((item) => {
+                        const isActive = activeTab === item.id;
+                        return (
+                          <Button
+                            key={item.id}
+                            variant="ghost"
+                            onClick={() => handleItemClick(item.id)}
+                            className={`w-full justify-start pl-12 py-2 h-auto text-sm hover:bg-emerald-500/10 ${
+                              isActive ? "bg-emerald-500/30 text-white font-medium" : "text-emerald-100/80"
+                            }`}
+                            data-testid={`mobile-nav-item-${item.id}`}
+                          >
+                            {item.label}
+                          </Button>
+                        );
+                      })}
                   </CollapsibleContent>
                 </Collapsible>
               );
