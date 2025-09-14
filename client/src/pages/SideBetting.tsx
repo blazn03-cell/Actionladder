@@ -117,14 +117,17 @@ export default function ChallengePools() {
   // Wallet top-up mutation
   const topUpMutation = useMutation({
     mutationFn: async (amount: number) => {
-      const response = await apiRequest("POST", `/api/wallet/${userId}/topup`, { amount });
+      const response = await apiRequest(`/api/wallet/${userId}/topup`, { method: "POST", body: JSON.stringify({ amount }) });
 
       // Simulate Stripe payment completion for demo
       await new Promise(resolve => setTimeout(resolve, 2000));
 
-      return apiRequest("POST", `/api/wallet/${userId}/topup/complete`, { 
-        paymentIntentId: `pi_demo_${Date.now()}`, 
-        amount 
+      return apiRequest(`/api/wallet/${userId}/topup/complete`, {
+        method: "POST",
+        body: JSON.stringify({ 
+          paymentIntentId: `pi_demo_${Date.now()}`, 
+          amount 
+        })
       });
     },
     onSuccess: () => {
@@ -146,7 +149,7 @@ export default function ChallengePools() {
 
   // Create side pot mutation
   const createPotMutation = useMutation({
-    mutationFn: (data: any) => apiRequest("POST", "/api/side-pots", data),
+    mutationFn: (data: any) => apiRequest("/api/side-pots", { method: "POST", body: data }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/side-pots"] });
       toast({
@@ -169,7 +172,7 @@ export default function ChallengePools() {
 
   // Place entry mutation
   const placeBetMutation = useMutation({
-    mutationFn: (data: any) => apiRequest("POST", "/api/challenge-entries", data),
+    mutationFn: (data: any) => apiRequest("/api/side-bets", { method: "POST", body: data }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/wallet", userId] });
       queryClient.invalidateQueries({ queryKey: ["/api/challenge-entries/user", userId] });

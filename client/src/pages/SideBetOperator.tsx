@@ -216,7 +216,6 @@ export default function SideBetOperator() {
         challengePoolId: selectedPot,
         winnerSide: selectedWinner,
         notes: resolutionNotes,
-        evidence,
       });
     }
   };

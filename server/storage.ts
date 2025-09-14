@@ -189,6 +189,80 @@ function nullifyUndefined<T>(value: T | undefined): T | null {
   return value === undefined ? null : value;
 }
 
+// Type-safe utility for nullable fields
+type NullableKeys<T> = { [K in keyof T]-?: null extends T[K] ? K : never }[keyof T];
+
+// Centralized nullable field registry based on schema  
+const NULLABLE_FIELDS = {
+  Player: ["city", "member", "theme", "streak", "respectPoints", "birthday", "stripeCustomerId", "userId", "rookiePassExpiresAt", "graduatedAt", "membershipTier"] as const satisfies readonly NullableKeys<Player>[],
+  Match: ["notes", "winner", "commission", "bountyAward", "weightMultiplierBps", "prizePoolAmount", "reportedAt"] as const satisfies readonly NullableKeys<Match>[],
+  Tournament: ["status", "currentPlayers", "stripeProductId"] as const satisfies readonly NullableKeys<Tournament>[],
+  SidePot: ["description", "lockCutoffAt", "winningSide", "disputeDeadline", "autoResolvedAt", "evidenceJson"] as const satisfies readonly NullableKeys<SidePot>[],
+  Wallet: [] as const satisfies readonly NullableKeys<Wallet>[],
+  SideBet: ["challengePoolId", "userId", "side", "fundedAt"] as const satisfies readonly NullableKeys<SideBet>[],
+  Resolution: ["challengePoolId", "winnerSide", "decidedBy", "notes"] as const satisfies readonly NullableKeys<Resolution>[],
+  User: [] as const satisfies readonly NullableKeys<User>[],
+  Organization: [] as const satisfies readonly NullableKeys<Organization>[],
+  OperatorSettings: [] as const satisfies readonly NullableKeys<OperatorSettings>[],
+  KellyPool: [] as const satisfies readonly NullableKeys<KellyPool>[],
+  Bounty: [] as const satisfies readonly NullableKeys<Bounty>[],
+  CharityEvent: [] as const satisfies readonly NullableKeys<CharityEvent>[],
+  SupportRequest: [] as const satisfies readonly NullableKeys<SupportRequest>[],
+  LiveStream: ["description", "category", "quality", "language", "peakViewers", "matchId"] as const satisfies readonly NullableKeys<LiveStream>[],
+  PoolHall: [] as const satisfies readonly NullableKeys<PoolHall>[],
+  HallMatch: [] as const satisfies readonly NullableKeys<HallMatch>[],
+  HallRoster: [] as const satisfies readonly NullableKeys<HallRoster>[],
+  RookieMatch: [] as const satisfies readonly NullableKeys<RookieMatch>[],
+  RookieEvent: [] as const satisfies readonly NullableKeys<RookieEvent>[],
+  RookieSubscription: [] as const satisfies readonly NullableKeys<RookieSubscription>[],
+  Team: ["currentPlayers", "currentSubs", "consecutiveLosses", "captainForcedNext"] as const satisfies readonly NullableKeys<Team>[],
+  TeamPlayer: [] as const satisfies readonly NullableKeys<TeamPlayer>[],
+  TeamMatch: ["homeLineupRevealed", "awayLineupRevealed", "result", "winnerTeamId"] as const satisfies readonly NullableKeys<TeamMatch>[],
+  TeamSet: ["winnerTeamId"] as const satisfies readonly NullableKeys<TeamSet>[],
+  TeamChallenge: [] as const satisfies readonly NullableKeys<TeamChallenge>[],
+  TeamChallengeParticipant: [] as const satisfies readonly NullableKeys<TeamChallengeParticipant>[],
+  AttitudeVote: [] as const satisfies readonly NullableKeys<AttitudeVote>[],
+  OperatorSubscription: [] as const satisfies readonly NullableKeys<OperatorSubscription>[],
+  MembershipSubscription: [] as const satisfies readonly NullableKeys<MembershipSubscription>[],
+  TeamStripeAccount: [] as const satisfies readonly NullableKeys<TeamStripeAccount>[],
+  MatchEntry: [] as const satisfies readonly NullableKeys<MatchEntry>[],
+  PayoutDistribution: [] as const satisfies readonly NullableKeys<PayoutDistribution>[],
+  TeamRegistration: [] as const satisfies readonly NullableKeys<TeamRegistration>[],
+  UploadedFile: [] as const satisfies readonly NullableKeys<UploadedFile>[],
+  FileShare: [] as const satisfies readonly NullableKeys<FileShare>[],
+  WeightRule: [] as const satisfies readonly NullableKeys<WeightRule>[],
+  TutoringSession: [] as const satisfies readonly NullableKeys<TutoringSession>[],
+} as const;
+
+// Centralized update helper that handles nullable fields properly
+function applyUpdate<T, K extends keyof T>(
+  base: T, 
+  updates: Partial<T>, 
+  nullableKeys: readonly K[]
+): T {
+  const normalized = Object.fromEntries(
+    Object.entries(updates).map(([k, v]) => [
+      k, 
+      (nullableKeys as readonly string[]).includes(k) ? (v === undefined ? null : v) : v
+    ])
+  ) as Partial<T>;
+  return assignNoUndefined(base, normalized);
+}
+
+// Generic update helper for Map-based storage
+function updateMapRecord<T>(
+  map: Map<string, T>, 
+  id: string, 
+  updates: Partial<T>, 
+  nullable: readonly (keyof T)[]
+): T | undefined {
+  const cur = map.get(id);
+  if (!cur) return undefined;
+  const next = applyUpdate(cur, updates, nullable);
+  map.set(id, next);
+  return next;
+}
+
 export interface IStorage {
   // Users (for platform management)
   getUser(id: string): Promise<User | undefined>;
@@ -1375,26 +1449,7 @@ export class MemStorage implements IStorage {
   }
 
   async updatePlayer(id: string, updates: Partial<Player>): Promise<Player | undefined> {
-    const player = this.players.get(id);
-    if (!player) return undefined;
-    
-    const updatedPlayer = assignNoUndefined(player, {
-      ...updates,
-      // Explicitly handle nullable fields
-      city: updates.city !== undefined ? nullifyUndefined(updates.city) : player.city,
-      member: updates.member !== undefined ? nullifyUndefined(updates.member) : player.member,
-      theme: updates.theme !== undefined ? nullifyUndefined(updates.theme) : player.theme,
-      streak: updates.streak !== undefined ? nullifyUndefined(updates.streak) : player.streak,
-      respectPoints: updates.respectPoints !== undefined ? nullifyUndefined(updates.respectPoints) : player.respectPoints,
-      birthday: updates.birthday !== undefined ? nullifyUndefined(updates.birthday) : player.birthday,
-      stripeCustomerId: updates.stripeCustomerId !== undefined ? nullifyUndefined(updates.stripeCustomerId) : player.stripeCustomerId,
-      userId: updates.userId !== undefined ? nullifyUndefined(updates.userId) : player.userId,
-      rookiePassExpiresAt: updates.rookiePassExpiresAt !== undefined ? nullifyUndefined(updates.rookiePassExpiresAt) : player.rookiePassExpiresAt,
-      graduatedAt: updates.graduatedAt !== undefined ? nullifyUndefined(updates.graduatedAt) : player.graduatedAt,
-      membershipTier: updates.membershipTier !== undefined ? nullifyUndefined(updates.membershipTier) : player.membershipTier,
-    });
-    this.players.set(id, updatedPlayer);
-    return updatedPlayer;
+    return updateMapRecord(this.players, id, updates, NULLABLE_FIELDS.Player);
   }
 
   async deletePlayer(id: string): Promise<boolean> {
@@ -1441,22 +1496,7 @@ export class MemStorage implements IStorage {
   }
 
   async updateMatch(id: string, updates: Partial<Match>): Promise<Match | undefined> {
-    const match = this.matches.get(id);
-    if (!match) return undefined;
-    
-    const updatedMatch = assignNoUndefined(match, {
-      ...updates,
-      // Explicitly handle nullable fields
-      notes: updates.notes !== undefined ? nullifyUndefined(updates.notes) : match.notes,
-      winner: updates.winner !== undefined ? nullifyUndefined(updates.winner) : match.winner,
-      commission: updates.commission !== undefined ? nullifyUndefined(updates.commission) : match.commission,
-      bountyAward: updates.bountyAward !== undefined ? nullifyUndefined(updates.bountyAward) : match.bountyAward,
-      weightMultiplierBps: updates.weightMultiplierBps !== undefined ? nullifyUndefined(updates.weightMultiplierBps) : match.weightMultiplierBps,
-      prizePoolAmount: updates.prizePoolAmount !== undefined ? nullifyUndefined(updates.prizePoolAmount) : match.prizePoolAmount,
-      reportedAt: updates.reportedAt !== undefined ? nullifyUndefined(updates.reportedAt) : match.reportedAt,
-    });
-    this.matches.set(id, updatedMatch);
-    return updatedMatch;
+    return updateMapRecord(this.matches, id, updates, NULLABLE_FIELDS.Match);
   }
 
   // Tournament methods
@@ -2087,16 +2127,7 @@ export class MemStorage implements IStorage {
   }
 
   async updateWallet(userId: string, updates: Partial<Wallet>): Promise<Wallet | undefined> {
-    const wallet = this.wallets.get(userId);
-    if (!wallet) return undefined;
-    
-    const updatedWallet = assignNoUndefined(wallet, {
-      ...updates,
-      balanceCredits: updates.balanceCredits !== undefined ? nullifyUndefined(updates.balanceCredits) : wallet.balanceCredits,
-      balanceLockedCredits: updates.balanceLockedCredits !== undefined ? nullifyUndefined(updates.balanceLockedCredits) : wallet.balanceLockedCredits,
-    });
-    this.wallets.set(userId, updatedWallet);
-    return updatedWallet;
+    return updateMapRecord(this.wallets, userId, updates, NULLABLE_FIELDS.Wallet);
   }
 
   async creditWallet(userId: string, amount: number): Promise<Wallet | undefined> {

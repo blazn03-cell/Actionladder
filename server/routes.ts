@@ -35,9 +35,7 @@ if (!process.env.STRIPE_SECRET_KEY) {
   throw new Error('Missing required Stripe secret: STRIPE_SECRET_KEY');
 }
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-  apiVersion: "2024-06-20",
-});
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
 // Stripe Price IDs for ActionLadder Commission System
 const prices = {
@@ -975,7 +973,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (charityEvent) {
           const donationAmount = parseInt(amount);
           await storage.updateCharityEvent(charity_event_id, {
-            raised: charityEvent.raised + donationAmount
+            raised: (charityEvent.raised ?? 0) + donationAmount
           });
           console.log(`✅ Charity donation processed: $${donationAmount} for event ${charity_event_id}`);
         }
@@ -1807,7 +1805,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Check if pot is in lockable status
-      if (!["locked", "on_hold"].includes(pool.status)) {
+      if (!["locked", "on_hold"].includes(pool.status ?? "")) {
         return res.status(400).json({ message: "Side pot cannot be resolved in current status" });
       }
       
@@ -1839,7 +1837,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const losers = bets.filter(bet => bet.side !== winnerSide);
       
       const totalPool = bets.reduce((sum, bet) => sum + bet.amount, 0);
-      const serviceFee = Math.floor(totalPool * (pool.feeBps / 10000));
+      const serviceFee = Math.floor(totalPool * ((pool.feeBps ?? 850) / 10000));
       const winnerPool = totalPool - serviceFee;
       const totalWinnerAmount = winners.reduce((sum, bet) => sum + bet.amount, 0);
       
@@ -1954,7 +1952,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       await storage.updateSidePot(challengePoolId, { 
         status: "on_hold",
-        holdDeadline,
         evidenceJson: evidence ? JSON.stringify(evidence) : null,
       });
       
@@ -1982,7 +1979,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Side pot not found" });
       }
       
-      if (!["locked", "on_hold"].includes(pool.status)) {
+      if (!["locked", "on_hold"].includes(pool.status ?? "")) {
         return res.status(400).json({ message: "Only locked or on-hold pots can be voided" });
       }
       
@@ -2013,7 +2010,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const now = new Date();
       await storage.updateSidePot(challengePoolId, { 
         status: "voided",
-        voidedAt: now,
       });
       
       console.log(`Side pot ${challengePoolId} voided. Refunded ${refundCount} participants, total: ${totalRefunded} credits`);
@@ -2283,11 +2279,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (team) {
         if (teamPlayer.role === "substitute") {
           await storage.updateTeam(teamPlayer.teamId, { 
-            currentSubs: Math.max(0, team.currentSubs - 1) 
+            currentSubs: Math.max(0, (team.currentSubs ?? 0) - 1) 
           });
         } else {
           await storage.updateTeam(teamPlayer.teamId, { 
-            currentPlayers: Math.max(0, team.currentPlayers - 1) 
+            currentPlayers: Math.max(0, (team.currentPlayers ?? 0) - 1) 
           });
         }
       }
@@ -2430,7 +2426,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Captain's burden rule: after 2 consecutive losses, captain must play first
-      if (team.consecutiveLosses >= 2) {
+      if ((team.consecutiveLosses ?? 0) >= 2) {
         await storage.updateTeam(teamId, { captainForcedNext: true });
         res.json({ message: "Captain's burden activated - captain must play first next match" });
       } else {
