@@ -53,15 +53,16 @@ export default function Landing() {
       {/* Background */}
       <div className="fixed inset-0 pointer-events-none">
         <div 
-          className="absolute inset-0 opacity-15"
+          className="absolute inset-0 opacity-25"
           style={{
             backgroundImage: `url(${logoBackground})`,
             backgroundSize: 'cover',
             backgroundPosition: 'center',
-            backgroundRepeat: 'no-repeat'
+            backgroundRepeat: 'no-repeat',
+            filter: 'brightness(1.2) contrast(1.1)'
           }}
         ></div>
-        <div className="absolute inset-0 bg-gradient-to-br from-emerald-900/30 via-felt-dark/85 to-felt-dark/95"></div>
+        <div className="absolute inset-0 bg-gradient-to-br from-emerald-900/25 via-felt-dark/80 to-felt-dark/90"></div>
       </div>
 
       <div className="relative z-10">
