@@ -258,3 +258,140 @@ body {
     background-position: calc(200px + 100%) 0;
   }
 }
+
+/* Mobile optimizations */
+@media (max-width: 768px) {
+  body {
+    background: radial-gradient(600px 300px at 50% 0%, hsl(123, 100%, 63%, 0.08), transparent),
+                var(--background);
+  }
+  
+  /* Reduce padding on mobile */
+  .container {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+  
+  /* Stack navigation items vertically on mobile */
+  .nav-mobile-stack {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  
+  /* Smaller font sizes for mobile */
+  h1, .text-4xl, .text-5xl {
+    font-size: 1.875rem !important; /* text-3xl equivalent */
+    line-height: 2.25rem;
+  }
+  
+  h2, .text-3xl {
+    font-size: 1.5rem !important; /* text-2xl equivalent */
+    line-height: 2rem;
+  }
+  
+  /* Reduce spacing on mobile */
+  .py-12 {
+    padding-top: 2rem !important;
+    padding-bottom: 2rem !important;
+  }
+  
+  .py-8 {
+    padding-top: 1.5rem !important;
+    padding-bottom: 1.5rem !important;
+  }
+  
+  /* Make cards full width on mobile */
+  .card-mobile-full {
+    width: 100% !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+  }
+  
+  /* Stack grid items on mobile */
+  .grid-mobile-stack {
+    grid-template-columns: 1fr !important;
+  }
+  
+  /* Smaller shadows on mobile for performance */
+  .shadow-neon {
+    box-shadow: 0 0 10px hsla(123, 100%, 63%, 0.3) !important;
+  }
+  
+  .shadow-neon-lg {
+    box-shadow: 0 0 15px hsla(123, 100%, 63%, 0.4) !important;
+  }
+  
+  /* Touch-friendly button sizes */
+  .btn-mobile {
+    min-height: 44px !important; /* iOS touch target recommendation */
+    padding: 0.75rem 1rem !important;
+  }
+  
+  /* Optimize dropdown menus for mobile */
+  .dropdown-mobile {
+    max-width: calc(100vw - 2rem) !important;
+    left: 1rem !important;
+    right: 1rem !important;
+  }
+  
+  /* Reduce animation complexity on mobile for performance */
+  .animate-pulse-neon {
+    animation: none !important;
+  }
+  
+  .card-hover:hover {
+    transform: none !important; /* Disable transform on mobile for performance */
+  }
+  
+  /* Mobile-specific loading states */
+  .loading-mobile {
+    padding: 1rem !important;
+  }
+}
+
+/* Tablet optimizations */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .grid-tablet-2-col {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+  
+  /* Slightly smaller text on tablets */
+  h1, .text-4xl, .text-5xl {
+    font-size: 2.25rem !important; /* between mobile and desktop */
+  }
+}
+
+/* Touch device optimizations */
+@media (pointer: coarse) {
+  /* Larger touch targets */
+  button, .button, [role="button"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  /* Disable hover effects on touch devices */
+  .card-hover:hover,
+  .btn-neon:hover {
+    transform: none !important;
+    box-shadow: initial !important;
+  }
+}
+
+/* Dark mode specific mobile adjustments */
+@media (max-width: 768px) and (prefers-color-scheme: dark) {
+  .border {
+    border-color: hsl(0, 0%, 20%) !important; /* Lighter borders for better visibility on mobile */
+  }
+  
+  .text-muted-foreground {
+    color: hsl(0, 0%, 75%) !important; /* Better contrast on small screens */
+  }
+}
+
+/* High DPI screen optimizations */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  /* Crisper borders on high DPI screens */
+  .border {
+    border-width: 0.5px;
+  }
+}

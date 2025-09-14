@@ -45,6 +45,7 @@ import Landing from "@/pages/Landing";
 import AuthSuccess from "@/pages/AuthSuccess";
 import { PlayerSubscription } from "@/pages/PlayerSubscription";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { MobileNav } from "@/components/MobileNav";
 import logoBackground from "@assets/assets_task_01k3jk55jwew0tmd764vvanv2x_1756192093_img_0_1756634613619.webp";
 
 const queryClient = new QueryClient();
@@ -157,82 +158,45 @@ function Navigation({ activeTab, setActiveTab }: { activeTab: string; setActiveT
   return (
     <header className="sticky top-0 z-50 bg-[#0d1f12]/90 backdrop-blur border-b border-white/10">
       {/* Row 1: Brand (left) + Live + Join via QR (right) */}
-      <div className="mx-auto max-w-7xl px-4 py-3 flex items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
+      <div className="mx-auto max-w-7xl px-4 py-3 flex items-center justify-between gap-2 md:gap-4">
+        <div className="flex items-center gap-2 md:gap-3">
           <img 
             src="/attached_assets/assets_task_01k3jk55jwew0tmd764vvanv2x_1756192093_img_0_1756632787662.webp"
             alt="Action Ladder Billiards Logo"
-            className="h-12 w-12 rounded-xl object-cover border border-emerald-400/30"
+            className="h-10 w-10 md:h-12 md:w-12 rounded-xl object-cover border border-emerald-400/30"
           />
-          <div className="flex flex-col leading-5">
-            <span className="font-extrabold tracking-wide text-emerald-300 text-lg">
+          <div className="flex flex-col leading-tight">
+            <span className="font-extrabold tracking-wide text-emerald-300 text-sm md:text-lg">
               ACTIONLADDER
             </span>
-            <span className="text-xs text-emerald-200/70">
+            <span className="hidden sm:block text-xs text-emerald-200/70">
               In here, respect is earned in racks, not words
             </span>
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
-          <span className="rounded-full px-3 py-1 text-xs font-bold bg-red-900/40 text-red-300 ring-1 ring-red-500/40">
+        <div className="flex items-center gap-2 md:gap-3">
+          <span className="hidden sm:inline rounded-full px-3 py-1 text-xs font-bold bg-red-900/40 text-red-300 ring-1 ring-red-500/40">
             ● LIVE NOW
           </span>
           <button
             onClick={() => setActiveTab("qr-registration")}
-            className="whitespace-nowrap rounded-xl px-4 py-2 text-sm font-semibold
+            className="hidden sm:inline-flex btn-mobile whitespace-nowrap rounded-xl px-3 md:px-4 py-2 text-xs md:text-sm font-semibold
                        ring-1 ring-emerald-400/50 bg-emerald-500/15 text-emerald-200
-                       hover:bg-emerald-500/25 transition"
+                       hover:bg-emerald-500/25 transition items-center"
+            data-testid="button-join-qr"
           >
             Join via QR
           </button>
+          <MobileNav 
+            navigationGroups={navigationGroups}
+            activeTab={activeTab}
+            setActiveTab={setActiveTab}
+            userRole={userRole}
+          />
         </div>
       </div>
 
-      {/* Row 2: Grouped Navigation Dropdowns */}
-      <nav className="mx-auto max-w-7xl px-4 pb-3">
-        <div className="flex items-center gap-6 text-[15px] text-emerald-100/90">
-          {visibleGroups.map((group) => {
-            const Icon = group.icon;
-            const hasActiveItem = group.items.some(item => item.id === activeTab);
-            
-            return (
-              <DropdownMenu key={group.id}>
-                <DropdownMenuTrigger 
-                  className={`flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-emerald-500/10 transition-colors ${
-                    hasActiveItem ? "bg-emerald-500/20 text-white font-semibold" : "text-emerald-100/90"
-                  }`}
-                  data-testid={`dropdown-${group.id}`}
-                >
-                  <Icon className="w-4 h-4" />
-                  <span>{group.label}</span>
-                  <ChevronDown className="w-4 h-4" />
-                </DropdownMenuTrigger>
-                <DropdownMenuContent 
-                  className="bg-[#0d1f12]/95 backdrop-blur border border-emerald-400/20 min-w-[200px]"
-                  align="start"
-                >
-                  {group.items.map((item, index) => {
-                    const isActive = activeTab === item.id;
-                    return (
-                      <DropdownMenuItem 
-                        key={item.id}
-                        onClick={() => setActiveTab(item.id)}
-                        className={`cursor-pointer px-4 py-2 text-sm hover:bg-emerald-500/20 focus:bg-emerald-500/20 ${
-                          isActive ? "bg-emerald-500/30 text-white font-semibold" : "text-emerald-100/90"
-                        }`}
-                        data-testid={`nav-item-${item.id}`}
-                      >
-                        {item.label}
-                      </DropdownMenuItem>
-                    );
-                  })}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            );
-          })}
-        </div>
-      </nav>
     </header>
   );
 }
