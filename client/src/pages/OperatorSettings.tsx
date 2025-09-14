@@ -241,7 +241,7 @@ export default function OperatorSettings() {
               Preview
             </CardTitle>
             <CardDescription className="text-gray-300">
-              See how your customization will appear
+              See how your customization will appear - try the interactive demo!
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -253,10 +253,65 @@ export default function OperatorSettings() {
                 In here, respect is earned in racks, not words
               </p>
               {customBranding && (
-                <p className="text-green-400 text-sm italic">
+                <p className="text-green-400 text-sm italic mb-3">
                   {customBranding}
                 </p>
               )}
+              
+              {/* Interactive Demo Actions */}
+              <div className="space-y-2 mt-4">
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    className="bg-green-600 hover:bg-green-700 text-black font-semibold"
+                    onClick={() => toast({
+                      title: "Challenge Created!",
+                      description: `Demo: Challenge in ${cityName || "Your City"} ${areaName || "Your Area"}`,
+                    })}
+                  >
+                    Create Challenge
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="border-green-500/50 text-green-400 hover:bg-green-500/10"
+                    onClick={() => toast({
+                      title: "Live Stream Started!",
+                      description: `Demo: Broadcasting from ${cityName || "Your City"} ${areaName || "Your Area"}`,
+                    })}
+                  >
+                    Start Stream
+                  </Button>
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="border-blue-500/50 text-blue-400 hover:bg-blue-500/10"
+                    onClick={() => toast({
+                      title: "Tournament Joined!",
+                      description: `Demo: Entered ${cityName || "Your City"} tournament`,
+                    })}
+                  >
+                    Join Tournament
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="border-purple-500/50 text-purple-400 hover:bg-purple-500/10"
+                    onClick={() => toast({
+                      title: "Ladder Updated!",
+                      description: `Demo: Climbed the ${areaName || "Your Area"} ladder`,
+                    })}
+                  >
+                    View Ladder
+                  </Button>
+                </div>
+              </div>
+              
+              <div className="mt-4 p-2 bg-green-900/20 rounded text-xs text-green-300">
+                💡 This preview shows how your branding will appear throughout the ActionLadder platform
+              </div>
             </div>
           </CardContent>
         </Card>
