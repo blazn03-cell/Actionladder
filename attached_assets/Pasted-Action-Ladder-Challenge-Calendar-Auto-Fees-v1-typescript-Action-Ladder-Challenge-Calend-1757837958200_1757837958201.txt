@@ -1,0 +1,97 @@
+Action Ladder — Challenge Calendar & Auto Fees (v1)
+· typescript
+// Action Ladder — Challenge Calendar & Auto Fees (v1)
+          initialView="timeGridWeek"
+          events={events.map(c => ({
+            id: c.id,
+            title: `${c.a_name} vs ${c.b_name} — ${c.game_type}`,
+            start: c.scheduled_at,
+            end: dayjs(c.scheduled_at).add(c.duration_minutes,'minute').toISOString(),
+            classNames: [c.status]
+          }))}
+        />
+      </div>
+      <aside className="space-y-4">
+        <h3 className="text-xl font-semibold">Upcoming Challenges</h3>
+        {events.sort((a,b)=>a.scheduled_at.localeCompare(b.scheduled_at)).map(e => (
+          <div key={e.id} className="p-3 rounded-2xl border bg-white/5">
+            <div className="text-sm text-gray-400">{dayjs(e.scheduled_at).format('ddd, MMM D • h:mm A')}</div>
+            <div className="text-base font-medium">{e.a_name} vs {e.b_name}</div>
+            <div className="text-xs">{e.game_type} • {e.table_type} • {e.hall_name}</div>
+            {e.poster_image_url && <img src={e.poster_image_url} alt="match poster" className="mt-2 rounded-xl"/>}
+          </div>
+        ))}
+      </aside>
+    </div>
+  )
+}
+*/
+
+
+// ================================
+// 6) LATE/NO-SHOW UX FLOW
+// ================================
+// - Each challenge has a check-in QR at the front desk and on the player app card.
+// - Check-in = exact timestamp; evaluator job applies fees based on the diff from scheduled_at.
+// - Fees auto-charge using saved card (SetupIntent collected during onboarding) OR pre-auth capture.
+// - All actions broadcast to calendar & feed in near-real-time.
+
+
+// ================================
+// 7) ICAL FEEDS (shareable calendar to iPhone/Google)
+// ================================
+// Endpoint: GET /api/halls/:id/ical  → returns text/calendar with all scheduled challenges.
+// Players can also get /api/players/:id/ical for their personal feed.
+
+
+// ================================
+// 8) SECURITY & COMPLIANCE NOTES
+// ================================
+// - Get explicit consent in Terms: “Late/No-show fees may be charged automatically when you miss your window.”
+// - Use SetupIntents to store a default payment method and notify users on charge.
+// - Respect card network rules (time limits on manual capture; provide receipts and dispute flow).
+// - Allow one-time courtesy waivers for operators via admin.
+
+
+// ================================
+// 9) ENV VARS (example)
+// ================================
+/*
+STRIPE_SECRET_KEY=
+STRIPE_WEBHOOK_SECRET=
+DATABASE_URL=
+APP_PUBLIC_URL=https://app.actionladder.net
+*/
+
+
+// ================================
+// 10) CRON (e.g., every 5 minutes)
+// ================================
+// schedule: */5 * * * *  → run evaluateLateNoShow()
+
+
+// That’s the end of v1 scaffold. Plug this into your repo and we can tailor to your exact Stripe setup & UI styling.
+
+
+
+🔥 Got you. I dropped a full v1 scaffold in the canvas with:
+
+Postgres schema for challenges, fees, payments, and policies
+
+Express APIs (create challenge, check-in, Stripe webhook)
+
+A scheduled evaluator that auto-applies late (15–45 min) and no-show (>45 min) fees
+
+Real-time calendar/feed wiring (Socket.IO)
+
+iCal feed notes (so players can add to Google/Apple Calendar)
+
+A pluggable AI “VS” poster generator that runs when a challenge is created
+
+A React calendar/side-feed UI example (FullCalendar)
+
+Stripe strategy for automatic deductions (saved payment method or pre-auth + capture)
+
+Compliance notes & env vars
+
+If you want, I can tailor the fee amounts and capture strategy to exactly match your Stripe products and hall rules next.

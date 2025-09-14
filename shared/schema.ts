@@ -1580,6 +1580,111 @@ export const playerIncentives = pgTable("player_incentives", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// ================================
+// CHALLENGE CALENDAR & AUTO FEES SYSTEM
+// ================================
+
+export const challenges = pgTable("challenges", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  aPlayerId: text("a_player_id").notNull(), // Challenger
+  bPlayerId: text("b_player_id").notNull(), // Opponent
+  aPlayerName: text("a_player_name").notNull(),
+  bPlayerName: text("b_player_name").notNull(),
+  
+  // Match details
+  gameType: text("game_type").notNull(), // "8-ball", "9-ball", "10-ball", etc
+  tableType: text("table_type").notNull(), // "7ft", "8ft", "9ft"
+  stakes: integer("stakes").notNull(), // in cents
+  
+  // Scheduling
+  scheduledAt: timestamp("scheduled_at").notNull(),
+  durationMinutes: integer("duration_minutes").notNull().default(90),
+  hallId: text("hall_id").notNull(),
+  hallName: text("hall_name").notNull(),
+  
+  // Status tracking
+  status: text("status").notNull().default("scheduled"), // "scheduled", "checked_in", "in_progress", "completed", "cancelled"
+  checkedInAt: timestamp("checked_in_at"),
+  completedAt: timestamp("completed_at"),
+  winnerId: text("winner_id"),
+  
+  // Auto-generated content
+  posterImageUrl: text("poster_image_url"), // AI-generated match poster
+  description: text("description"),
+  
+  // Fee tracking
+  lateFeesApplied: boolean("late_fees_applied").default(false),
+  noShowFeesApplied: boolean("no_show_fees_applied").default(false),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const challengeFees = pgTable("challenge_fees", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  challengeId: text("challenge_id").notNull(),
+  playerId: text("player_id").notNull(),
+  feeType: text("fee_type").notNull(), // "late", "no_show", "cancellation"
+  amount: integer("amount").notNull(), // in cents
+  
+  // Timing details
+  scheduledAt: timestamp("scheduled_at").notNull(),
+  actualAt: timestamp("actual_at"), // When they actually arrived/cancelled
+  minutesLate: integer("minutes_late").default(0),
+  
+  // Payment processing
+  status: text("status").notNull().default("pending"), // "pending", "charged", "waived", "failed"
+  stripeChargeId: text("stripe_charge_id"),
+  stripeCustomerId: text("stripe_customer_id"),
+  chargedAt: timestamp("charged_at"),
+  waivedAt: timestamp("waived_at"),
+  waivedBy: text("waived_by"), // operator ID who waived the fee
+  waiverReason: text("waiver_reason"),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const challengeCheckIns = pgTable("challenge_check_ins", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  challengeId: text("challenge_id").notNull(),
+  playerId: text("player_id").notNull(),
+  checkedInAt: timestamp("checked_in_at").notNull(),
+  checkedInBy: text("checked_in_by"), // "player" or "operator" or "qr_scan"
+  location: text("location"), // "mobile_app", "front_desk", "qr_code"
+  
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const challengePolicies = pgTable("challenge_policies", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  hallId: text("hall_id").notNull(),
+  
+  // Late fees (15-45 minutes)
+  lateFeeEnabled: boolean("late_fee_enabled").default(true),
+  lateFeeAmount: integer("late_fee_amount").default(500), // $5 in cents
+  lateFeeThresholdMinutes: integer("late_fee_threshold_minutes").default(15),
+  
+  // No-show fees (>45 minutes)
+  noShowFeeEnabled: boolean("no_show_fee_enabled").default(true),
+  noShowFeeAmount: integer("no_show_fee_amount").default(1500), // $15 in cents
+  noShowThresholdMinutes: integer("no_show_threshold_minutes").default(45),
+  
+  // Cancellation fees
+  cancellationFeeEnabled: boolean("cancellation_fee_enabled").default(true),
+  cancellationFeeAmount: integer("cancellation_fee_amount").default(1000), // $10 in cents
+  cancellationThresholdHours: integer("cancellation_threshold_hours").default(24),
+  
+  // Grace periods
+  gracePeriodMinutes: integer("grace_period_minutes").default(5),
+  
+  // Auto-charge settings
+  autoChargeEnabled: boolean("auto_charge_enabled").default(true),
+  requireConfirmation: boolean("require_confirmation").default(false),
+  
+  updatedAt: timestamp("updated_at").defaultNow(),
+  updatedBy: text("updated_by").notNull(),
+});
+
 // Match division system types
 export type MatchDivision = typeof matchDivisions.$inferSelect;
 export type InsertMatchDivision = z.infer<typeof insertMatchDivisionSchema>;
@@ -1625,6 +1730,28 @@ export const insertPlayerIncentiveSchema = createInsertSchema(playerIncentives).
   updatedAt: true,
 });
 
+// Insert schemas for Challenge Calendar system
+export const insertChallengeSchema = createInsertSchema(challenges).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertChallengeFeeSchema = createInsertSchema(challengeFees).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertChallengeCheckInSchema = createInsertSchema(challengeCheckIns).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertChallengePolicySchema = createInsertSchema(challengePolicies).omit({
+  id: true,
+  updatedAt: true,
+});
+
 // Fan tips and gifts types
 export type FanTip = typeof fanTips.$inferSelect;
 export type InsertFanTip = z.infer<typeof insertFanTipSchema>;
@@ -1636,3 +1763,13 @@ export type GiftRedemption = typeof giftRedemptions.$inferSelect;
 export type InsertGiftRedemption = z.infer<typeof insertGiftRedemptionSchema>;
 export type PlayerIncentive = typeof playerIncentives.$inferSelect;
 export type InsertPlayerIncentive = z.infer<typeof insertPlayerIncentiveSchema>;
+
+// Challenge Calendar types
+export type Challenge = typeof challenges.$inferSelect;
+export type InsertChallenge = z.infer<typeof insertChallengeSchema>;
+export type ChallengeFee = typeof challengeFees.$inferSelect;
+export type InsertChallengeFee = z.infer<typeof insertChallengeFeeSchema>;
+export type ChallengeCheckIn = typeof challengeCheckIns.$inferSelect;
+export type InsertChallengeCheckIn = z.infer<typeof insertChallengeCheckInSchema>;
+export type ChallengePolicy = typeof challengePolicies.$inferSelect;
+export type InsertChallengePolicy = z.infer<typeof insertChallengePolicySchema>;
