@@ -1655,8 +1655,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (stakePerSideDollars < 5) {
         return res.status(400).json({ message: "Minimum stake per side is $5" });
       }
-      if (stakePerSideDollars > 100000) {
-        return res.status(400).json({ message: "Maximum stake per side is $100,000" });
+      if (stakePerSideDollars > 30000) {
+        return res.status(400).json({ message: "Maximum stake per side is $30,000" });
+      }
+      
+      // Check premium subscription requirement for stakes over $300
+      if (stakePerSideDollars > 300) {
+        // TODO: Check user's actual premium subscription status
+        // For now, block all stakes over $300 until premium system is fully integrated
+        return res.status(400).json({ 
+          message: "Stakes over $300 require Premium subscription ($45/month). Please upgrade to unlock higher stakes.",
+          requiresPremium: true,
+          currentLimit: 300,
+          requestedAmount: stakePerSideDollars
+        });
       }
       
       // Calculate tiered service fee
@@ -1670,6 +1682,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
       
       const pool = await storage.createSidePot(potData);
+      
+      // Auto-alert for live streaming when stakes are high (over $100 per side)
+      if (stakePerSideDollars >= 100) {
+        try {
+          // Create automatic live stream entry for high-stakes match
+          await storage.createLiveStream({
+            title: `High Stakes Challenge - $${stakePerSideDollars} per side`,
+            description: validatedData.description || "High stakes challenge match",
+            streamUrl: "", // Will be set by operator
+            isLive: false,
+            autoCreated: true,
+            relatedChallengePoolId: pool.id,
+            priority: stakePerSideDollars >= 200 ? "high" : "medium",
+          });
+          
+          console.log(`🎥 Auto-created live stream alert for high stakes challenge: $${stakePerSideDollars} per side`);
+        } catch (error) {
+          console.error("Failed to create auto live stream alert:", error);
+          // Don't fail the main request for this
+        }
+      }
+      
       res.status(201).json(pool);
     } catch (error: any) {
       res.status(400).json({ message: error.message });

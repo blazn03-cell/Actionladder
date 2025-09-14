@@ -227,6 +227,16 @@ export default function ChallengePools() {
       return;
     }
 
+    // Check premium subscription requirement for stakes over $300
+    if (stake > 300) {
+      toast({ 
+        title: "Premium Subscription Required", 
+        description: "Stakes over $300 require Premium subscription ($45/month). Upgrade to unlock higher stakes.",
+        variant: "destructive" 
+      });
+      return;
+    }
+
     if (stake >= 5 && stake <= 100000 && sideALabel && sideBLabel && validateDescription(trimmedDesc)) {
       // Show warning for high stakes to prevent mistakes
       if (stake >= 1000 && !showHighStakeWarning) {
@@ -485,26 +495,49 @@ export default function ChallengePools() {
                 </div>
               </div>
               <div>
-                <Label htmlFor="stake-amount">Challenge Credits Per Side (500 - 10,000,000)</Label>
+                <Label htmlFor="stake-amount">
+                  Challenge Credits Per Side (500 - 30,000)
+                  <span className="text-amber-400 text-xs ml-2">
+                    Stakes over $300 require Premium subscription
+                  </span>
+                </Label>
 
                 {/* Preset Amount Buttons */}
                 <div className="flex gap-2 mt-2 mb-3 flex-wrap">
-                  {[25, 50, 100, 250, 500].map(amount => (
+                  {[25, 50, 100, 250, 300].map(amount => (
                     <Button 
                       key={amount}
                       variant="outline" 
                       size="sm"
                       onClick={() => setNewPotStake(amount.toString())}
                       data-testid={`preset-${amount}`}
+                      className={amount > 300 ? "border-amber-500 text-amber-400" : ""}
                     >
                       ${amount}
+                      {amount > 300 && <span className="ml-1 text-xs">*</span>}
                     </Button>
                   ))}
                 </div>
 
                 {newPotStake && parseFloat(newPotStake) >= 5 && (
-                  <div className="text-sm p-3 bg-muted/30 rounded border mb-3">
-                    <div className="font-medium text-green-600 mb-1">Side Pot Summary:</div>
+                  <div className={`text-sm p-3 rounded border mb-3 ${parseFloat(newPotStake) > 300 ? 'bg-amber-900/30 border-amber-600' : 'bg-muted/30'}`}>
+                    <div className={`font-medium mb-1 ${parseFloat(newPotStake) > 300 ? 'text-amber-400' : 'text-green-600'}`}>
+                      {parseFloat(newPotStake) > 300 ? 'Premium Required - Side Pot Summary:' : 'Side Pot Summary:'}
+                    </div>
+                    {parseFloat(newPotStake) > 300 && (
+                      <div className="text-amber-300 text-xs mb-2 p-2 bg-amber-900/50 rounded">
+                        ⚡ Stakes over $300 require Premium subscription ($45/month)
+                        <button 
+                          className="ml-2 text-amber-400 underline hover:text-amber-300"
+                          onClick={() => {
+                            // TODO: Navigate to premium subscription page
+                            toast({ title: "Premium Upgrade", description: "Redirecting to Premium subscription..." });
+                          }}
+                        >
+                          Upgrade Now
+                        </button>
+                      </div>
+                    )}
                     <div className="grid grid-cols-2 gap-2 text-sm">
                       <div>Each side puts up: <span className="font-mono">${parseFloat(newPotStake).toLocaleString()}</span></div>
                       <div>Total pot: <span className="font-mono">${(parseFloat(newPotStake) * 2).toLocaleString()}</span></div>
@@ -520,15 +553,16 @@ export default function ChallengePools() {
                     data-testid="input-stake-amount"
                     type="number"
                     min="5"
-                    max="100000"
+                    max="30000"
                     step="1"
-                    placeholder="Custom amount"
+                    placeholder="Custom amount (max $300 without Premium)"
                     value={newPotStake}
                     onChange={(e) => setNewPotStake(e.target.value)}
+                    className={parseFloat(newPotStake || "0") > 300 ? "border-amber-500" : ""}
                   />
                   <Button 
                     onClick={handleCreatePot}
-                    disabled={createPotMutation.isPending || !sideALabel || !sideBLabel || !newPotStake || parseFloat(newPotStake) < 5 || parseFloat(newPotStake) > 100000 || !validateDescription(description.trim())}
+                    disabled={createPotMutation.isPending || !sideALabel || !sideBLabel || !newPotStake || parseFloat(newPotStake) < 5 || parseFloat(newPotStake) > 30000 || !validateDescription(description.trim())}
                     data-testid="button-create-pot"
                   >
                     {createPotMutation.isPending ? "Creating..." : "Lock Into Side Pot"}
