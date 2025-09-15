@@ -8,9 +8,25 @@ import { generateQRCodeUrl, generateJoinUrl } from "@/lib/qr-generator";
 import { generateFightNightPoster } from "@/lib/poster-generator";
 import { useToast } from "@/hooks/use-toast";
 import { Brain, TrendingUp, Zap, Settings, Users, Shield } from "lucide-react";
-import type { Player, Match, Tournament, CharityEvent, KellyPool } from "@shared/schema";
+import type {
+  Player,
+  Match,
+  Tournament,
+  CharityEvent,
+  KellyPool,
+} from "@shared/schema";
 
-function StatsCard({ title, value, subtitle, icon }: { title: string; value: string | number; subtitle: string; icon: string }) {
+function StatsCard({
+  title,
+  value,
+  subtitle,
+  icon,
+}: {
+  title: string;
+  value: string | number;
+  subtitle: string;
+  icon: string;
+}) {
   return (
     <div className="bg-black/60 backdrop-blur-sm border border-neon-green/20 rounded-xl p-6 shadow-felt">
       <div className="text-sm text-gray-400">{title}</div>
@@ -20,57 +36,67 @@ function StatsCard({ title, value, subtitle, icon }: { title: string; value: str
   );
 }
 
-function AIInsightsSection({ players, matches }: { players: Player[]; matches: Match[] }) {
+function AIInsightsSection({
+  players,
+  matches,
+}: {
+  players: Player[];
+  matches: Match[];
+}) {
   const [aiInsights, setAiInsights] = useState<string | null>(null);
   const [ladderAdvice, setLadderAdvice] = useState<string | null>(null);
   const { toast } = useToast();
 
   const getAIInsightsMutation = useMutation({
-    mutationFn: () => fetch('/api/ai/community-chat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        question: "Analyze the current ladder trends, player activity, and provide insights about the overall state of competition in the ActionLadder billiards community."
-      })
-    }).then(res => res.json()),
+    mutationFn: () =>
+      fetch("/api/ai/community-chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          question:
+            "Analyze the current ladder trends, player activity, and provide insights about the overall state of competition in the ActionLadder billiards community.",
+        }),
+      }).then((res) => res.json()),
     onSuccess: (data) => {
       setAiInsights(data.answer);
       toast({
         title: "AI Insights Generated!",
-        description: "Current ladder analysis is ready."
+        description: "Current ladder analysis is ready.",
       });
     },
     onError: () => {
       toast({
         title: "Analysis Failed",
         description: "Unable to generate insights at this time.",
-        variant: "destructive"
+        variant: "destructive",
       });
-    }
+    },
   });
 
   const getLadderAdviceMutation = useMutation({
-    mutationFn: () => fetch('/api/ai/community-chat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        question: "What strategies should players use to climb the ladder effectively? Consider rating differences, match selection, and tournament participation."
-      })
-    }).then(res => res.json()),
+    mutationFn: () =>
+      fetch("/api/ai/community-chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          question:
+            "What strategies should players use to climb the ladder effectively? Consider rating differences, match selection, and tournament participation.",
+        }),
+      }).then((res) => res.json()),
     onSuccess: (data) => {
       setLadderAdvice(data.answer);
       toast({
         title: "Strategy Guide Ready!",
-        description: "AI ladder climbing advice generated."
+        description: "AI ladder climbing advice generated.",
       });
     },
     onError: () => {
       toast({
         title: "Strategy Failed",
         description: "Unable to generate strategy at this time.",
-        variant: "destructive"
+        variant: "destructive",
       });
-    }
+    },
   });
 
   return (
@@ -89,7 +115,11 @@ function AIInsightsSection({ players, matches }: { players: Player[]; matches: M
             className="bg-green-600 hover:bg-green-700 text-white"
             data-testid="button-ai-insights"
           >
-            {getAIInsightsMutation.isPending ? <LoadingSpinner /> : <TrendingUp className="mr-2 h-4 w-4" />}
+            {getAIInsightsMutation.isPending ? (
+              <LoadingSpinner />
+            ) : (
+              <TrendingUp className="mr-2 h-4 w-4" />
+            )}
             Analyze Current Trends
           </Button>
           <Button
@@ -98,21 +128,29 @@ function AIInsightsSection({ players, matches }: { players: Player[]; matches: M
             className="bg-green-600 hover:bg-green-700 text-white"
             data-testid="button-ladder-advice"
           >
-            {getLadderAdviceMutation.isPending ? <LoadingSpinner /> : <Zap className="mr-2 h-4 w-4" />}
+            {getLadderAdviceMutation.isPending ? (
+              <LoadingSpinner />
+            ) : (
+              <Zap className="mr-2 h-4 w-4" />
+            )}
             Get Climbing Strategy
           </Button>
         </div>
 
         {aiInsights && (
           <div className="bg-green-900/20 border border-green-600/30 rounded p-4">
-            <h4 className="font-semibold text-green-300 mb-2">📊 Community Analysis</h4>
+            <h4 className="font-semibold text-green-300 mb-2">
+              📊 Community Analysis
+            </h4>
             <p className="text-sm text-green-200">{aiInsights}</p>
           </div>
         )}
 
         {ladderAdvice && (
           <div className="bg-green-900/20 border border-green-600/30 rounded p-4">
-            <h4 className="font-semibold text-green-300 mb-2">🎯 Strategy Guide</h4>
+            <h4 className="font-semibold text-green-300 mb-2">
+              🎯 Strategy Guide
+            </h4>
             <p className="text-sm text-green-200">{ladderAdvice}</p>
           </div>
         )}
@@ -123,8 +161,8 @@ function AIInsightsSection({ players, matches }: { players: Player[]; matches: M
 
 function KingsOfTheHill({ players }: { players: Player[] }) {
   const sortedPlayers = [...players].sort((a, b) => b.points - a.points);
-  const hiDivision = sortedPlayers.filter(p => p.rating >= 600);
-  const loDivision = sortedPlayers.filter(p => p.rating < 600);
+  const hiDivision = sortedPlayers.filter((p) => p.rating >= 600);
+  const loDivision = sortedPlayers.filter((p) => p.rating < 600);
   const kingHI = hiDivision[0];
   const kingLO = loDivision[0];
 
@@ -141,21 +179,32 @@ function KingsOfTheHill({ players }: { players: Player[] }) {
           {/* 600+ Division King */}
           <div className="bg-gradient-to-br from-yellow-600/20 to-yellow-800/20 border border-yellow-500/30 rounded-lg p-4">
             <div className="flex items-center justify-between mb-3">
-              <span className="text-sm font-semibold text-yellow-400">600+ KILLERS</span>
-              <Badge className="bg-yellow-500/20 text-yellow-300">DIVISION 1</Badge>
+              <span className="text-sm font-semibold text-yellow-400">
+                600+ KILLERS
+              </span>
+              <Badge className="bg-yellow-500/20 text-yellow-300">
+                DIVISION 1
+              </Badge>
             </div>
             {kingHI ? (
               <>
                 <div className="flex items-center space-x-3">
                   <div className="w-12 h-12 bg-gradient-to-br from-yellow-400 to-yellow-600 rounded-full flex items-center justify-center">
                     <span className="text-lg font-bold text-yellow-900">
-                      {kingHI.name.split(' ').map(n => n[0]).join('')}
+                      {kingHI.name
+                        .split(" ")
+                        .map((n) => n[0])
+                        .join("")}
                     </span>
                   </div>
                   <div>
                     <div className="font-bold text-white">{kingHI.name}</div>
-                    <div className="text-sm text-gray-400">{kingHI.city} • {kingHI.points} pts</div>
-                    <div className="text-xs text-yellow-400">🔥 {kingHI.streak}-game streak</div>
+                    <div className="text-sm text-gray-400">
+                      {kingHI.city} • {kingHI.points} pts
+                    </div>
+                    <div className="text-xs text-yellow-400">
+                      🔥 {kingHI.streak}-game streak
+                    </div>
                   </div>
                 </div>
                 <div className="mt-3 flex space-x-2">
@@ -167,7 +216,9 @@ function KingsOfTheHill({ players }: { players: Player[] }) {
                   >
                     Challenge King
                   </Button>
-                  <span className="text-xs text-yellow-400">Auto-bounty: $50</span>
+                  <span className="text-xs text-yellow-400">
+                    Auto-bounty: $50
+                  </span>
                 </div>
               </>
             ) : (
@@ -178,7 +229,9 @@ function KingsOfTheHill({ players }: { players: Player[] }) {
           {/* 599 & Under Division King */}
           <div className="bg-gradient-to-br from-accent/20 to-accent/40 border border-accent/30 rounded-lg p-4">
             <div className="flex items-center justify-between mb-3">
-              <span className="text-sm font-semibold text-accent">599 & UNDER</span>
+              <span className="text-sm font-semibold text-accent">
+                599 & UNDER
+              </span>
               <Badge className="bg-accent/20 text-accent">DIVISION 2</Badge>
             </div>
             {kingLO ? (
@@ -186,13 +239,20 @@ function KingsOfTheHill({ players }: { players: Player[] }) {
                 <div className="flex items-center space-x-3">
                   <div className="w-12 h-12 bg-gradient-to-br from-accent to-orange-500 rounded-full flex items-center justify-center">
                     <span className="text-lg font-bold text-gray-900">
-                      {kingLO.name.split(' ').map(n => n[0]).join('')}
+                      {kingLO.name
+                        .split(" ")
+                        .map((n) => n[0])
+                        .join("")}
                     </span>
                   </div>
                   <div>
                     <div className="font-bold text-white">{kingLO.name}</div>
-                    <div className="text-sm text-gray-400">{kingLO.city} • {kingLO.points} pts</div>
-                    <div className="text-xs text-accent">🔥 {kingLO.streak}-game streak</div>
+                    <div className="text-sm text-gray-400">
+                      {kingLO.city} • {kingLO.points} pts
+                    </div>
+                    <div className="text-xs text-accent">
+                      🔥 {kingLO.streak}-game streak
+                    </div>
                   </div>
                 </div>
                 <div className="mt-3 flex space-x-2">
@@ -237,16 +297,16 @@ function QRCodeSection() {
           title: "Friday Night Fights",
           date: "This Friday 8PM",
           location: "ActionLadder",
-          entryFee: "$150"
-        }
+          stakes: "$150",
+        },
       };
 
       const posterUrl = await generateFightNightPoster(posterData);
 
       // Create download link
-      const link = document.createElement('a');
+      const link = document.createElement("a");
       link.href = posterUrl;
-      link.download = 'fight-night-poster.png';
+      link.download = "fight-night-poster.png";
       link.click();
 
       toast({
@@ -265,7 +325,9 @@ function QRCodeSection() {
   return (
     <Card className="bg-black/60 backdrop-blur-sm border border-neon-green/20 shadow-felt">
       <CardHeader>
-        <CardTitle className="text-xl font-bold text-white">📱 Quick Join</CardTitle>
+        <CardTitle className="text-xl font-bold text-white">
+          📱 Quick Join
+        </CardTitle>
       </CardHeader>
       <CardContent>
         {/* QR Code */}
@@ -283,8 +345,12 @@ function QRCodeSection() {
 
         {/* Fight Night Poster Generator */}
         <div className="bg-gradient-to-r from-red-600/20 to-transparent border border-red-500/30 rounded-lg p-4">
-          <div className="font-semibold text-white mb-2">🥊 Fight Night Poster</div>
-          <div className="text-sm text-gray-400 mb-3">Auto-generate with top 2 players</div>
+          <div className="font-semibold text-white mb-2">
+            🥊 Fight Night Poster
+          </div>
+          <div className="text-sm text-gray-400 mb-3">
+            Auto-generate with top 2 players
+          </div>
           <Button
             onClick={handleGeneratePoster}
             className="w-full bg-red-500/20 hover:bg-red-500/40 text-red-400"
@@ -298,21 +364,33 @@ function QRCodeSection() {
   );
 }
 
-function RecentMatches({ matches, players }: { matches: Match[]; players: Player[] }) {
+function RecentMatches({
+  matches,
+  players,
+}: {
+  matches: Match[];
+  players: Player[];
+}) {
   const recentMatches = matches
-    .filter(m => m.status === "reported")
-    .sort((a, b) => new Date(b.reportedAt || 0).getTime() - new Date(a.reportedAt || 0).getTime())
+    .filter((m) => m.status === "reported")
+    .sort(
+      (a, b) =>
+        new Date(b.reportedAt || 0).getTime() -
+        new Date(a.reportedAt || 0).getTime(),
+    )
     .slice(0, 5);
 
   const getPlayerName = (id: string) => {
-    return players.find(p => p.id === id)?.name || "Unknown Player";
+    return players.find((p) => p.id === id)?.name || "Unknown Player";
   };
 
   if (recentMatches.length === 0) {
     return (
       <Card className="lg:col-span-2 bg-black/60 backdrop-blur-sm border border-neon-green/20 shadow-felt">
         <CardHeader>
-          <CardTitle className="text-xl font-bold text-white">🔥 Recent Results</CardTitle>
+          <CardTitle className="text-xl font-bold text-white">
+            🔥 Recent Results
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="text-gray-400">No matches reported yet</div>
@@ -324,14 +402,18 @@ function RecentMatches({ matches, players }: { matches: Match[]; players: Player
   return (
     <Card className="lg:col-span-2 bg-black/60 backdrop-blur-sm border border-neon-green/20 shadow-felt">
       <CardHeader>
-        <CardTitle className="text-xl font-bold text-white">🔥 Recent Results</CardTitle>
+        <CardTitle className="text-xl font-bold text-white">
+          🔥 Recent Results
+        </CardTitle>
       </CardHeader>
       <CardContent>
         <div className="space-y-3">
           {recentMatches.map((match) => {
             const winner = getPlayerName(match.winner || "");
             const loser = getPlayerName(
-              match.winner === match.challenger ? match.opponent : match.challenger
+              match.winner === match.challenger
+                ? match.opponent
+                : match.challenger,
             );
 
             return (
@@ -344,16 +426,22 @@ function RecentMatches({ matches, players }: { matches: Match[]; players: Player
                     <span className="text-sm font-bold text-felt-dark">W</span>
                   </div>
                   <div>
-                    <div className="font-semibold text-white">{winner} defeated {loser}</div>
+                    <div className="font-semibold text-white">
+                      {winner} defeated {loser}
+                    </div>
                     <div className="text-sm text-gray-400">
                       {match.game} • ${match.stake} entry fee • {match.table}
                     </div>
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className="text-neon-green font-semibold">+{match.stake} pts</div>
+                  <div className="text-neon-green font-semibold">
+                    +{match.stake} pts
+                  </div>
                   <div className="text-xs text-gray-400">
-                    {match.reportedAt ? new Date(match.reportedAt).toLocaleTimeString() : "Recently"}
+                    {match.reportedAt
+                      ? new Date(match.reportedAt).toLocaleTimeString()
+                      : "Recently"}
                   </div>
                 </div>
               </div>
@@ -374,19 +462,31 @@ export default function Dashboard() {
     queryKey: ["/api/matches"],
   });
 
-  const { data: tournaments = [], isLoading: tournamentsLoading } = useQuery<Tournament[]>({
+  const { data: tournaments = [], isLoading: tournamentsLoading } = useQuery<
+    Tournament[]
+  >({
     queryKey: ["/api/tournaments"],
   });
 
-  const { data: kellyPools = [], isLoading: kellyPoolsLoading } = useQuery<KellyPool[]>({
+  const { data: kellyPools = [], isLoading: kellyPoolsLoading } = useQuery<
+    KellyPool[]
+  >({
     queryKey: ["/api/kelly-pools"],
   });
 
-  const { data: jackpotData, isLoading: jackpotLoading } = useQuery<{ jackpot: number }>({
+  const { data: jackpotData, isLoading: jackpotLoading } = useQuery<{
+    jackpot: number;
+  }>({
     queryKey: ["/api/jackpot"],
   });
 
-  if (playersLoading || matchesLoading || tournamentsLoading || kellyPoolsLoading || jackpotLoading) {
+  if (
+    playersLoading ||
+    matchesLoading ||
+    tournamentsLoading ||
+    kellyPoolsLoading ||
+    jackpotLoading
+  ) {
     return (
       <div className="flex justify-center items-center h-64">
         <LoadingSpinner size="lg" color="neon" />
@@ -394,10 +494,14 @@ export default function Dashboard() {
     );
   }
 
-  const completedMatches = matches.filter(m => m.status === "reported").length;
-  const upcomingMatches = matches.filter(m => m.status === "scheduled").length;
+  const completedMatches = matches.filter(
+    (m) => m.status === "reported",
+  ).length;
+  const upcomingMatches = matches.filter(
+    (m) => m.status === "scheduled",
+  ).length;
   const totalStakes = matches
-    .filter(m => m.status === "reported")
+    .filter((m) => m.status === "reported")
     .reduce((sum, match) => sum + match.stake, 0);
   const activePlayers = players.length;
   const liveMatches = 3; // This would come from live streaming data
@@ -451,15 +555,21 @@ export default function Dashboard() {
         <CardContent className="p-6">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
             <div>
-              <div className="text-2xl font-bold text-neon-green">{completedMatches}</div>
+              <div className="text-2xl font-bold text-neon-green">
+                {completedMatches}
+              </div>
               <div className="text-sm text-gray-400">Total Matches</div>
             </div>
             <div>
-              <div className="text-2xl font-bold text-dollar-green">${totalStakes.toLocaleString()}</div>
+              <div className="text-2xl font-bold text-dollar-green">
+                ${totalStakes.toLocaleString()}
+              </div>
               <div className="text-sm text-gray-400">Total Stakes</div>
             </div>
             <div>
-              <div className="text-2xl font-bold text-yellow-400">{activePlayers}</div>
+              <div className="text-2xl font-bold text-yellow-400">
+                {activePlayers}
+              </div>
               <div className="text-sm text-gray-400">Active Players</div>
             </div>
             <div>
@@ -468,8 +578,12 @@ export default function Dashboard() {
             </div>
           </div>
           <div className="mt-6 text-center">
-            <div className="text-sm text-gray-400 mb-2">Pool. Points. Pride.</div>
-            <div className="text-xs text-gray-500">In here, respect is earned in racks, not words</div>
+            <div className="text-sm text-gray-400 mb-2">
+              Pool. Points. Pride.
+            </div>
+            <div className="text-xs text-gray-500">
+              In here, respect is earned in racks, not words
+            </div>
           </div>
         </CardContent>
       </Card>
