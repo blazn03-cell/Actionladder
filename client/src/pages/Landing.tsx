@@ -195,9 +195,10 @@ export default function Landing() {
                     {group.label}
                   </DropdownMenuTrigger>
 
-                  <DropdownMenuContent className="max-h-none">
+                  <DropdownMenuContent className="max-h-none bg-gray-900 text-white border border-gray-700">
                     {group.items.map(item => (
                       <DropdownMenuItem
+                        className="hover:bg-emerald-700 hover:text-white cursor-pointer"
                         key={item.id}
                         onClick={() => {
                           // Navigate to app and set the specific tab
