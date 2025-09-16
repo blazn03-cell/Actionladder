@@ -2,6 +2,8 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import type { GlobalRole } from "@shared/schema";
+
 import { 
   Users, 
   Settings, 
@@ -12,12 +14,99 @@ import {
   Shield,
   Star,
   ChevronRight,
+  ChevronDown,
   Eye,
   EyeOff,
-  DollarSign
+  DollarSign,
+  Camera
 } from "lucide-react";
 import logoBackground from "@assets/assets_task_01k3jk55jwew0tmd764vvanv2x_1756192093_img_0_1756634613619.webp";
 import { RevenueCalculator } from "@/components/RevenueCalculator";
+import { useAuth } from "@/hooks/useAuth"; // if you have an auth provider
+
+// and add this import (place near other imports)
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
+
+const navigationGroups = [
+  {
+    id: "competition",
+    label: "Competition",
+    icon: Trophy,
+    items: [
+      { id: "dashboard", label: "📊 Dashboard" },
+      // Ladders Section
+      { id: "ladder", label: "🥇 Big Dog Throne (9ft)" },
+      { id: "eightfoot-ladder", label: "🥈 Almost Big Time (8ft)" },
+      { id: "barbox-ladder", label: "🥉 Kiddie Box King (7ft)" },
+      { id: "rookie-section", label: "🔰 Rookie Section" },
+      // Challenges Section  
+      { id: "escrow-challenges", label: "⚔️ Challenge Matches" },
+      { id: "challenge-calendar", label: "📅 Challenge Calendar" },
+      { id: "hall-battles", label: "🏟️ Hall Battles" },
+      // Tournaments Section
+      { id: "tournaments", label: "🏆 Tournaments" },
+      { id: "tournament-brackets", label: "🌲 Tournament Brackets" },
+      { id: "special-games", label: "⭐ Special Games" },
+      // Standings Section
+      { id: "league-standings", label: "📈 League Standings" },
+      { id: "match-divisions", label: "📊 Match Divisions" },
+    ]
+  },
+  {
+    id: "media",
+    label: "Media",
+    icon: Camera,
+    items: [
+      { id: "live-stream", label: "📺 Live Stream" },
+      { id: "ai-features", label: "🤖 AI Features" },
+      { id: "poster-generator", label: "🎨 Poster Generator" },
+      { id: "file-manager", label: "📁 File Manager" },
+    ]
+  },
+  {
+    id: "finance",
+    label: "Finance",
+    icon: DollarSign,
+    items: [
+      { id: "player-subscription", label: "💳 Subscription Plans" },
+      { id: "checkout", label: "💰 Billing & Payments" },
+      { id: "monetization", label: "📊 Revenue Dashboard", roles: ["OWNER", "OPERATOR", "TRUSTEE"] as GlobalRole[] },
+    ]
+  },
+  {
+    id: "community",
+    label: "Community",
+    icon: Users,
+    items: [
+      { id: "team-management", label: "👥 Team Management" },
+      { id: "team-matches", label: "🤝 Team Matches" },
+      { id: "team-challenges", label: "⚡ Team Challenges" },
+      { id: "players", label: "🎯 Players" },
+      { id: "sportsmanship", label: "🤝 Sportsmanship" },
+      { id: "bounties", label: "💎 Bounties" },
+      { id: "charity", label: "❤️ Charity" },
+    ]
+  },
+  {
+    id: "operations",
+    label: "Operations",
+    icon: Settings,
+    roles: ["OWNER", "OPERATOR", "TRUSTEE"] as GlobalRole[], // Role-based section visibility
+    items: [
+      { id: "qr-registration", label: "📱 QR Registration" },
+      { id: "operator-settings", label: "⚙️ Operator Settings" },
+      { id: "operator-subscriptions", label: "💼 Operator Subscriptions" },
+      { id: "admin", label: "🛡️ Admin Dashboard" },
+    ]
+  },
+];
+
+
 
 export default function Landing() {
   const [showAdminLogin, setShowAdminLogin] = useState(false);
@@ -33,6 +122,15 @@ export default function Landing() {
       return newCount;
     });
   };
+
+   const { user } = useAuth(); // comes from global provider
+  // Get user role from authentication - default to PLAYER if not authenticated
+  const userRole: GlobalRole = user?.globalRole || "PLAYER";
+
+  const visibleGroups = navigationGroups.filter(
+    group => !group.roles || group.roles.includes(userRole)
+  );
+
 
   const playerFeatures = [
     { icon: Target, title: "Ladder Rankings", desc: "Climb the Big Dog Throne" },
@@ -71,11 +169,11 @@ export default function Landing() {
           <div className="flex items-center justify-between max-w-6xl mx-auto">
             <div 
               className="flex items-center gap-3 cursor-pointer" 
-              onClick={handleLogoClick}
+              onClick={() => window.location.href = "/"}
               data-testid="logo-header"
             >
               <img 
-                src="/attached_assets/assets_task_01k3jk55jwew0tmd764vvanv2x_1756632787662.webp"
+                src="/billiards-logo.svg"
                 alt="Action Ladder Billiards Logo"
                 className="h-16 w-16 rounded-xl object-cover border border-emerald-400/30"
               />
@@ -89,19 +187,31 @@ export default function Landing() {
               </div>
             </div>
 
-            <nav className="flex items-center gap-6">
-              <button className="flex items-center gap-2 px-4 py-2 bg-emerald-600/20 border border-emerald-500/30 rounded-lg text-emerald-300 hover:bg-emerald-600/30 transition-colors">
-                <span>▶</span>
-                Action
-                <span>▼</span>
-              </button>
-              <button className="flex items-center gap-2 px-4 py-2 text-gray-300 hover:text-emerald-300 transition-colors">
-                Teams
-                <span>▼</span>
-              </button>
-              <button className="flex items-center gap-2 px-4 py-2 text-gray-300 hover:text-emerald-300 transition-colors">
-                Tournaments
-              </button>
+            <nav className="hidden md:flex items-center gap-6">
+              {visibleGroups.map(group => (
+                <DropdownMenu key={group.id}>
+                  <DropdownMenuTrigger className="flex items-center gap-2">
+                    <group.icon className="w-4 h-4" />
+                    {group.label}
+                  </DropdownMenuTrigger>
+
+                  <DropdownMenuContent className="max-h-none">
+                    {group.items.map(item => (
+                      <DropdownMenuItem
+                        key={item.id}
+                        onClick={() => {
+                          // Navigate to app and set the specific tab
+                          window.location.href = `/app?tab=${item.id}`;
+                        }}
+                      >
+                        {item.label}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ))}
+
+
             </nav>
 
             {showAdminLogin && (
@@ -171,7 +281,7 @@ export default function Landing() {
                   </div>
 
                   <Button 
-                    onClick={() => window.location.href = "/api/login?role=player"}
+                    onClick={() => window.location.href = "/app?tab=player-subscription"}
                     className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3 text-lg font-semibold"
                     data-testid="button-signup-player"
                   >
@@ -212,7 +322,7 @@ export default function Landing() {
                   </div>
 
                   <Button 
-                    onClick={() => window.location.href = "/api/login?role=operator"}
+                    onClick={() => window.location.href = "/app?tab=operator-settings"}
                     className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 text-lg font-semibold"
                     data-testid="button-signup-operator"
                   >

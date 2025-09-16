@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { Route, Switch } from "wouter";
+import React, { useState, useEffect } from "react";
+import { Route, Switch, useLocation } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
@@ -53,7 +53,7 @@ const queryClient = new QueryClient();
 
 function Navigation({ activeTab, setActiveTab }: { activeTab: string; setActiveTab: (tab: string) => void }) {
   const { user, isLoading, isAuthenticated } = useAuth();
-  
+
   // Business-focused navigation structure (5 sections)
   const navigationGroups = [
     {
@@ -131,12 +131,12 @@ function Navigation({ activeTab, setActiveTab }: { activeTab: string; setActiveT
 
   // Get user role from authentication - default to PLAYER if not authenticated
   const userRole: GlobalRole = user?.globalRole || "PLAYER";
-  
+
   // Filter groups based on user role (OWNER sees all, others see role-specific)
   const visibleGroups = navigationGroups.filter(group => 
     !group.roles || userRole === "OWNER" || group.roles.includes(userRole)
   );
-  
+
   // Show loading state while fetching user data
   if (isLoading) {
     return (
@@ -152,9 +152,12 @@ function Navigation({ activeTab, setActiveTab }: { activeTab: string; setActiveT
     <header className="sticky top-0 z-50 bg-[#0d1f12]/90 backdrop-blur border-b border-white/10">
       {/* Row 1: Brand (left) + Live + Join via QR (right) */}
       <div className="mx-auto max-w-7xl px-4 py-3 flex items-center justify-between gap-2 md:gap-4">
-        <div className="flex items-center gap-2 md:gap-3">
+        <div 
+          className="flex items-center gap-2 md:gap-3 cursor-pointer"
+          onClick={() => window.location.href = "/"}
+        >
           <img 
-            src="/attached_assets/assets_task_01k3jk55jwew0tmd764vvanv2x_1756192093_img_0_1756632787662.webp"
+            src="/billiards-logo.svg"
             alt="Action Ladder Billiards Logo"
             className="h-10 w-10 md:h-12 md:w-12 rounded-xl object-cover border border-emerald-400/30"
           />
@@ -173,7 +176,7 @@ function Navigation({ activeTab, setActiveTab }: { activeTab: string; setActiveT
             ● LIVE NOW
           </span>
           <button
-            onClick={() => setActiveTab("qr-registration")}
+            onClick={() => { window.location.href = "/app?tab=qr-registration"; }}
             className="hidden sm:inline-flex btn-mobile whitespace-nowrap rounded-xl px-3 md:px-4 py-2 text-xs md:text-sm font-semibold
                        ring-1 ring-emerald-400/50 bg-emerald-500/15 text-emerald-200
                        hover:bg-emerald-500/25 transition items-center"
@@ -196,6 +199,16 @@ function Navigation({ activeTab, setActiveTab }: { activeTab: string; setActiveT
 
 function App() {
   const [activeTab, setActiveTab] = useState("dashboard");
+  const [location] = useLocation();
+
+  // Handle URL parameters to set active tab
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const tabParam = urlParams.get('tab');
+    if (tabParam) {
+      setActiveTab(tabParam);
+    }
+  }, [location]);
 
   return (
     <ErrorBoundary>
@@ -214,11 +227,11 @@ function App() {
           ></div>
           <div className="absolute inset-0 bg-gradient-to-br from-emerald-900/20 via-felt-dark/80 to-felt-dark/90"></div>
         </div>
-        
+
         <ErrorBoundary>
           <Navigation activeTab={activeTab} setActiveTab={setActiveTab} />
         </ErrorBoundary>
-        
+
         <main className="relative z-10">
           <ErrorBoundary>
             <Switch>
@@ -306,9 +319,9 @@ function App() {
             </Switch>
           </ErrorBoundary>
         </main>
-        
+
         <Toaster />
-        
+
         {/* Footer with Policy Links */}
         <footer className="relative z-10 bg-black/80 border-t border-neon-green/20 py-8 mt-16">
           <div className="container mx-auto px-4">

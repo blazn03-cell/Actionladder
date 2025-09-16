@@ -211,7 +211,7 @@ export default function SideBetOperator() {
         timestamp: evidenceTimestamp.trim() || null,
         notes: evidenceNotes.trim() || null,
       };
-      
+
       resolvePotMutation.mutate({
         challengePoolId: selectedPot,
         winnerSide: selectedWinner,
@@ -226,7 +226,7 @@ export default function SideBetOperator() {
       timestamp: evidenceTimestamp.trim() || null,
       notes: evidenceNotes.trim() || null,
     };
-    
+
     holdPotMutation.mutate({
       potId,
       reason,
@@ -410,7 +410,7 @@ export default function SideBetOperator() {
                           <DialogHeader>
                             <DialogTitle>Resolve Match Pool</DialogTitle>
                           </DialogHeader>
-                          
+
                           {potDetails && (
                             <div className="space-y-4">
                               <div>
@@ -468,7 +468,7 @@ export default function SideBetOperator() {
                                       onChange={(e) => setEvidenceUrl(e.target.value)}
                                     />
                                   </div>
-                                  
+
                                   <div>
                                     <Label htmlFor="evidence-timestamp">Evidence Timestamp</Label>
                                     <Input
@@ -479,7 +479,7 @@ export default function SideBetOperator() {
                                       onChange={(e) => setEvidenceTimestamp(e.target.value)}
                                     />
                                   </div>
-                                  
+
                                   <div>
                                     <Label htmlFor="evidence-notes">Evidence Notes</Label>
                                     <Textarea
@@ -514,7 +514,7 @@ export default function SideBetOperator() {
                                 >
                                   {resolvePotMutation.isPending ? "Resolving..." : "Resolve & Pay Out"}
                                 </Button>
-                                
+
                                 <Button 
                                   variant="outline"
                                   onClick={() => handleHoldPot(selectedPot!, "Evidence requested for verification")}
@@ -524,7 +524,7 @@ export default function SideBetOperator() {
                                   <Pause className="mr-2 h-4 w-4" />
                                   Hold for Evidence
                                 </Button>
-                                
+
                                 <Button 
                                   variant="destructive"
                                   onClick={() => handleVoidPot(selectedPot!, "Cannot be verified objectively")}
@@ -598,7 +598,7 @@ export default function SideBetOperator() {
                           <DialogHeader>
                             <DialogTitle>Resolve Pool on Hold</DialogTitle>
                           </DialogHeader>
-                          
+
                           {potDetails && (
                             <div className="space-y-4">
                               <div>
@@ -635,7 +635,7 @@ export default function SideBetOperator() {
                                       onChange={(e) => setEvidenceUrl(e.target.value)}
                                     />
                                   </div>
-                                  
+
                                   <div>
                                     <Label htmlFor="evidence-timestamp-hold">Evidence Timestamp (Required)</Label>
                                     <Input
@@ -646,7 +646,7 @@ export default function SideBetOperator() {
                                       onChange={(e) => setEvidenceTimestamp(e.target.value)}
                                     />
                                   </div>
-                                  
+
                                   <div>
                                     <Label htmlFor="evidence-notes-hold">Evidence Notes (Required)</Label>
                                     <Textarea
@@ -670,7 +670,7 @@ export default function SideBetOperator() {
                                 >
                                   {resolvePotMutation.isPending ? "Resolving..." : "Resolve & Pay Out"}
                                 </Button>
-                                
+
                                 <Button 
                                   variant="destructive"
                                   onClick={() => handleVoidPot(selectedPot!, "Insufficient evidence to verify objectively")}

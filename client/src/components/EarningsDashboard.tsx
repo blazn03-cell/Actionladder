@@ -323,7 +323,7 @@ export default function EarningsDashboard() {
         <TabsContent value="overview" className="space-y-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <CommissionBreakdown breakdown={mockBreakdown} />
-            
+
             <Card className="bg-black/60 backdrop-blur-sm border border-neon-green/20 shadow-felt">
               <CardHeader>
                 <CardTitle className="text-white">Revenue Split</CardTitle>
@@ -344,7 +344,7 @@ export default function EarningsDashboard() {
                       </div>
                     </div>
                   </div>
-                  
+
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-2">
                       <div className="w-4 h-4 bg-blue-400 rounded"></div>

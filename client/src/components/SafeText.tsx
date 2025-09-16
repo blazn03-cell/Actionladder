@@ -39,9 +39,9 @@ function sanitizeText(input: string): string {
   return input.replace(pattern, (match) => {
     const lowerMatch = match.toLowerCase();
     const replacement = WORD_MAP[lowerMatch];
-    
+
     if (!replacement) return match;
-    
+
     // Preserve original casing
     if (match === match.toUpperCase()) {
       return replacement.toUpperCase();
@@ -65,7 +65,7 @@ interface SafeTextProps {
  */
 export function SafeText({ children, className, as: Component = 'span' }: SafeTextProps) {
   const sanitizedText = useMemo(() => sanitizeText(children), [children]);
-  
+
   return (
     <Component className={className} data-testid="safe-text">
       {sanitizedText}

@@ -38,8 +38,8 @@ export function MobileNav({ navigationGroups, activeTab, setActiveTab, userRole 
   };
 
   const handleItemClick = (itemId: string) => {
-    setActiveTab(itemId);
     setIsOpen(false);
+    window.location.href = `/app?tab=${itemId}`;
   };
 
   return (
@@ -55,7 +55,7 @@ export function MobileNav({ navigationGroups, activeTab, setActiveTab, userRole 
           <span className="sr-only">Open navigation menu</span>
         </Button>
       </SheetTrigger>
-      
+
       <SheetContent 
         side="left" 
         className="w-80 bg-[#0d1f12]/95 backdrop-blur border-r border-emerald-400/20 p-0"
@@ -63,9 +63,15 @@ export function MobileNav({ navigationGroups, activeTab, setActiveTab, userRole 
         <div className="flex flex-col h-full">
           {/* Header */}
           <div className="flex items-center justify-between p-4 border-b border-emerald-400/20">
-            <div className="flex items-center gap-3">
+            <div 
+              className="flex items-center gap-3 cursor-pointer"
+              onClick={() => {
+                setIsOpen(false);
+                window.location.href = "/";
+              }}
+            >
               <img 
-                src="/attached_assets/assets_task_01k3jk55jwew0tmd764vvanv2x_1756192093_img_0_1756632787662.webp"
+                src="/billiards-logo.svg"
                 alt="Action Ladder Billiards Logo"
                 className="h-8 w-8 rounded-lg object-cover border border-emerald-400/30"
               />
@@ -87,7 +93,7 @@ export function MobileNav({ navigationGroups, activeTab, setActiveTab, userRole 
               const Icon = group.icon;
               const isOpen = openGroups.includes(group.id);
               const hasActiveItem = group.items.some(item => item.id === activeTab);
-              
+
               return (
                 <Collapsible
                   key={group.id}
@@ -109,7 +115,7 @@ export function MobileNav({ navigationGroups, activeTab, setActiveTab, userRole 
                       <ChevronDown className={`h-4 w-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
                     </Button>
                   </CollapsibleTrigger>
-                  
+
                   <CollapsibleContent className="space-y-1 mt-1">
                     {group.items
                       .filter(item => !item.roles || userRole === "OWNER" || item.roles.includes(userRole))
