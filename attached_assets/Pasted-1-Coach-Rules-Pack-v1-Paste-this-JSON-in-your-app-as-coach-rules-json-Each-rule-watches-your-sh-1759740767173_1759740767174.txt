@@ -1,0 +1,281 @@
+1) Coach Rules Pack (v1)
+
+Paste this JSON in your app as coach_rules.json. Each rule watches your shot logs and emits a targeted tip with a link to learn more.
+
+{
+  "version": "1.0.0",
+  "signals": {
+    "miss_cluster_long_left_english": {
+      "detect": "miss_rate(distance_in>=60 && spin='L' && cut_angle between 15..45) > baseline + 12%",
+      "coach_tip": "Your long shots with left english are missing more than usual. Reduce side or add a small Back-Hand English (BHE) compensation and slow the speed to let swerve settle.",
+      "why_it_works": "Net cue-ball deflection = squirt (shaft/endmass) minus swerve (speed, distance, elevation). More side + faster speed increases squirt; slower speed increases swerve to cancel.",
+      "learn_more": ["doc:squirt_swerve_throw"],
+      "tags": ["aiming","sidespin","physics"]
+    },
+    "overdraw_long": {
+      "detect": "avg(positional_error_in on draw shots, distance_in>=48) > 8",
+      "coach_tip": "You’re over-drawing on long shots. Raise tip slightly (from ~50% below center toward ~40%), hit cleaner, and accept a hair less spin.",
+      "learn_more": ["doc:tip_height_draw","doc:cue_tip_height"],
+      "tags": ["spin","cueball_control"]
+    },
+    "follow_speed_inconsistency": {
+      "detect": "stdev(leave_distance after center/near-center follow on 30–70 in shots) > 14",
+      "coach_tip": "Speed control on follow is swinging. Try striking ~20% of ball radius above center and smooth tempo to stabilize distance.",
+      "learn_more": ["doc:optimal_tip_height","doc:speed_control"],
+      "tags": ["speed","follow"]
+    },
+    "tangent_line_violations": {
+      "detect": "on stun shots (|spin|<small && pre-impact roll≈0) the CB post-impact angle deviates >10° from 90° frequently",
+      "coach_tip": "Your ‘stun’ isn’t pure—CB is rolling or drawing at contact. Re-establish stun to ride the true 90° tangent line.",
+      "learn_more": ["doc:90_rule","doc:30_90_overview"],
+      "tags": ["position","stun"]
+    },
+    "rolling_cb_positioning": {
+      "detect": "on rolling-CB cuts (1/4–3/4) you’re under-running shape vs the natural angle by >8 in (median)",
+      "coach_tip": "Lean on the **30° Rule**: for rolling CB between ~¼–¾-ball hits, the CB leaves ~30° off the OB line. Plan routes with that natural angle before adding spin.",
+      "learn_more": ["doc:30_rule","doc:30_peace_sign"],
+      "tags": ["position","planning"]
+    },
+    "break_accuracy": {
+      "detect": "breaks with head-ball impact error > 0.5 in OR cue-ball deflection > 6 in occur in >35% attempts",
+      "coach_tip": "Back off power until you can square the head ball consistently. Longer bridge, stable plant, straight follow-through; accuracy first, power second.",
+      "learn_more": ["doc:break_advice"],
+      "tags": ["break","fundamentals"]
+    },
+    "safety_conversion_gap": {
+      "detect": "success_rate(events.safety_attempt) < 45% AND miss_cluster_short_safeties",
+      "coach_tip": "Your safeties are leaving makeable returns. Favor fuller contact and use the rail-first ‘two-way’ options; prioritize cue-ball to the long rail with blockers.",
+      "learn_more": [],
+      "tags": ["strategy","safety"]
+    },
+    "left_vs_right_bias": {
+      "detect": "make_pct(spin='L') - make_pct(spin='R') <= -7%",
+      "coach_tip": "Noticeable left/right spin asymmetry. Drill mirrored patterns; ensure visual alignment (vision center) and keep cue plane level to reduce unintended masse.",
+      "learn_more": ["doc:fundamentals_alignment","doc:squirt_confusion"],
+      "tags": ["fundamentals","alignment"]
+    }
+  },
+  "docs": {
+    "doc:squirt_swerve_throw": "https://drdavepoolinfo.com/faq/sidespin/aim/effects/",
+    "doc:squirt_confusion": "https://drdavepoolinfo.com/faq/squirt/confusion/",
+    "doc:optimal_tip_height": "https://drdavepoolinfo.com/faq/speed/optimal-tip-height/",
+    "doc:cue_tip_height": "https://drdavepoolinfo.com/faq/cue-tip/height/",
+    "doc:speed_control": "https://www.youtube.com/watch?v=5yR2OpCCchc",
+    "doc:90_rule": "https://drdavepoolinfo.com/faq/stun/90-degree-rule/",
+    "doc:30_rule": "https://drdavepoolinfo.com/faq/30-90-rules/30-degree-rule/",
+    "doc:30_90_overview": "https://drdavepoolinfo.com/faq/30-90-rules/",
+    "doc:30_peace_sign": "https://www.facebook.com/DrDaveBilliards/videos/dr-dave-demonstrates-how-to-use-the-30-rule-peace-sign-to-play-position-detect-a/1217823729556517/",
+    "doc:break_advice": "https://drdavepoolinfo.com/faq/break/advice/",
+    "doc:fundamentals_alignment": "https://drdavepoolinfo.com/tutorial/fundamentals/"
+  }
+}
+
+
+Sources (Dr. Dave): 30° rule, 90° rule, overview and proofs, squirt/swerve/throw, optimal tip heights and speed control, break advice, fundamentals/alignment. 
+Dr. Dave Pool Info
++9
+Dr. Dave Pool Info
++9
+Dr. Dave Pool Info
++9
+
+2) Backend: Coach Insights Service (Node + Express + TypeScript)
+
+Drop these files into /services/coach/ in your backend. They assume you already log shots with fields like result, distance_in, spin, cut_angle_deg, positional_error_in, plus session events (e.g., break, safety_attempt).
+
+types.ts
+export type Spin = 'N'|'L'|'R'|'DRAW'|'FOLLOW';
+export interface Shot {
+  ts: number;
+  result: 'MAKE' | 'MISS';
+  distance_in: number;          // cue-ball travel to OB at impact
+  cut_angle_deg: number;        // 0 = straight, 90 = thin
+  spin: Spin;                   // simplified spin tag
+  is_stun: boolean;             // true if pre-impact roll≈0
+  is_draw: boolean;
+  is_follow: boolean;
+  positional_error_in?: number; // |planned leave - actual|
+  tags?: string[];              // 'break','safety','bank','kick', ...
+}
+export interface SessionAnalytics {
+  shots: Shot[];
+  events: { kind: string; meta?: any }[];
+  baselines?: Record<string, number>; // rolling player baselines (e.g., long-shot miss rate)
+}
+export interface CoachTip {
+  id: string;
+  title: string;
+  body: string;
+  severity: 'info'|'focus'|'fix';
+  links?: { label: string; url: string }[];
+  tags?: string[];
+}
+
+stats.ts (helpers)
+export const pct = (num: number, den: number) => den ? (100*num/den) : 0;
+export const avg = (arr: number[]) => arr.length ? arr.reduce((a,b)=>a+b,0)/arr.length : 0;
+export const stdev = (arr: number[]) => {
+  if (!arr.length) return 0;
+  const m = avg(arr); const v = avg(arr.map(x => (x-m)**2));
+  return Math.sqrt(v);
+};
+
+detectors.ts
+import { Shot, SessionAnalytics } from './types';
+import { pct, avg, stdev } from './stats';
+
+const long = (s: Shot) => s.distance_in >= 60; // 5 ft+
+const inRange = (x:number,a:number,b:number)=> x>=a && x<=b;
+
+export function missRateLeftEnglish(shots: Shot[]) {
+  const cand = shots.filter(s => long(s) && s.spin==='L' && inRange(s.cut_angle_deg,15,45));
+  const miss = cand.filter(s => s.result==='MISS').length;
+  return { rate: pct(miss, cand.length), sample: cand.length };
+}
+
+export function overdrawLong(shots: Shot[]) {
+  const cand = shots.filter(s => s.is_draw && long(s) && s.positional_error_in!=null);
+  return avg(cand.map(s => s.positional_error_in!));
+}
+
+export function followSpeedVar(shots: Shot[]) {
+  const cand = shots.filter(s => s.is_follow && s.spin!=='L' && s.spin!=='R' && s.distance_in>=30 && s.distance_in<=70);
+  // use positional_error_in as proxy for distance control
+  return stdev(cand.map(s => s.positional_error_in ?? 0));
+}
+
+export function stunTangentViolations(shots: Shot[]) {
+  // assume precomputed delta_from_90 on stun shots is stored in positional_error_in as degrees (or add another field)
+  const cand = shots.filter(s => s.is_stun && (s.tags?.includes('contact_angle_delta') ?? false));
+  // if not available, skip (your CV pipeline can add it)
+  return { count: cand.length, severe: cand.filter(s => (s as any).contact_angle_delta_deg>10).length };
+}
+
+export function breakAccuracy(events: SessionAnalytics['events']) {
+  const br = events.filter(e => e.kind==='break_eval');
+  const off = br.filter(e => (e.meta?.headball_offset_in ?? 0) > 0.5 || (e.meta?.cb_deflection_in ?? 0) > 6);
+  return { offRate: pct(off.length, br.length), sample: br.length };
+}
+
+coach.ts (rules → tips)
+import { CoachTip, SessionAnalytics } from './types';
+import { missRateLeftEnglish, overdrawLong, followSpeedVar, breakAccuracy } from './detectors';
+
+const LINKS = {
+  squirt: {label:'Squirt/Swerve/Throw – Dr. Dave', url:'https://drdavepoolinfo.com/faq/sidespin/aim/effects/'},
+  tipHeight: {label:'Optimal Tip Height – Dr. Dave', url:'https://drdavepoolinfo.com/faq/speed/optimal-tip-height/'},
+  drawHeights: {label:'Cue Tip Height – Draw/Follow', url:'https://drdavepoolinfo.com/faq/cue-tip/height/'},
+  rule90: {label:'90° Rule (Stun)', url:'https://drdavepoolinfo.com/faq/stun/90-degree-rule/'},
+  rule30: {label:'30° Rule (Rolling CB)', url:'https://drdavepoolinfo.com/faq/30-90-rules/30-degree-rule/'},
+  breakAdvice: {label:'Break Technique Advice', url:'https://drdavepoolinfo.com/faq/break/advice/'}
+};
+
+export function generateCoachTips(sa: SessionAnalytics): CoachTip[] {
+  const tips: CoachTip[] = [];
+  const base = sa.baselines ?? {};
+
+  // 1) Left-english long-shot misses
+  const mr = missRateLeftEnglish(sa.shots);
+  if (mr.sample >= 10 && mr.rate > (base['miss_long_L'] ?? 40) + 12) {
+    tips.push({
+      id: 'miss_long_left',
+      title: 'Dial back left-english on long cuts',
+      body: 'Your long left-english cuts are missing more than usual. Use less side, aim a hair fuller, or add BHE compensation. Slowing speed lets swerve reduce net deflection.',
+      severity: 'fix',
+      links: [LINKS.squirt],
+      tags: ['aiming','sidespin']
+    });
+  }
+
+  // 2) Over-draw on long shots
+  const od = overdrawLong(sa.shots);
+  if (od > 8) {
+    tips.push({
+      id: 'overdraw_long',
+      title: 'Over-drawing on long shots',
+      body: 'Your draw is overshooting shape. Raise the tip slightly (≈40% below center), stay level, and smooth the hit.',
+      severity: 'focus',
+      links: [LINKS.drawHeights],
+      tags: ['spin','cueball_control']
+    });
+  }
+
+  // 3) Follow speed inconsistency
+  const fv = followSpeedVar(sa.shots);
+  if (fv > 14) {
+    tips.push({
+      id: 'follow_speed',
+      title: 'Follow speed control is inconsistent',
+      body: 'Strike ~20% above center with a smooth tempo to stabilize distance on follow shots.',
+      severity: 'focus',
+      links: [LINKS.tipHeight],
+      tags: ['speed','follow']
+    });
+  }
+
+  // 4) Break accuracy first
+  const br = breakAccuracy(sa.events);
+  if (br.sample >= 3 && br.offRate > 35) {
+    tips.push({
+      id: 'break_accuracy',
+      title: 'Break: accuracy before power',
+      body: 'Head-ball contact is inconsistent. Shorten power until you can square the hit, keep a longer bridge and a straight follow-through.',
+      severity: 'fix',
+      links: [LINKS.breakAdvice],
+      tags: ['break']
+    });
+  }
+
+  return tips;
+}
+
+routes.ts (Express endpoint)
+import { Router } from 'express';
+import { generateCoachTips } from './coach';
+import { SessionAnalytics } from './types';
+
+const r = Router();
+
+r.post('/coach/insights', async (req, res) => {
+  const sa = req.body as SessionAnalytics;
+  const tips = generateCoachTips(sa);
+  return res.json({ tips, count: tips.length });
+});
+
+export default r;
+
+
+Wire it up in your API server:
+
+import coachRoutes from './services/coach/routes';
+app.use('/v1', coachRoutes);
+
+3) Example: What your users will see
+
+Input (summary from a processed session):
+
+126 shots, 34 misses
+
+Long left-english cuts miss rate 58% (baseline 40%)
+
+Draw positional error avg 9.6" on long draws
+
+Follow leave variance stdev 17"
+
+6 breaks → 3 with >0.6" head-ball offset
+
+Coach output:
+
+Dial back left-english on long cuts – “Use less side or BHE; slow speed to let swerve reduce net deflection.” (Learn: Squirt/Swerve/Throw) 
+Dr. Dave Pool Info
++1
+
+Over-drawing on long shots – “Raise tip to ~40% below center; clean hit.” (Cue Tip Height) 
+Dr. Dave Pool Info
+
+Follow speed control inconsistent – “Strike ~20% above center with smooth tempo.” (Optimal Tip Height & Speed Control) 
+Dr. Dave Pool Info
++1
+
+Break: accuracy before power – “Square the head ball; accuracy first.” (Break Advice) 
+Dr. Dave Pool Info

@@ -1,10 +1,14 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Target, Trophy, Users, DollarSign, Star, Zap, Calendar, TrendingUp } from "lucide-react";
 import SafeText from "@/components/SafeText";
+import { QuickChallengeDialog } from "@/components/QuickChallengeDialog";
 
 export default function PlayerDashboard() {
+  const [isQuickChallengeOpen, setIsQuickChallengeOpen] = useState(false);
+
   const { data: playerStats } = useQuery({
     queryKey: ["/api/player/stats"],
     retry: false,
@@ -92,6 +96,14 @@ export default function PlayerDashboard() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-3">
+              <Button 
+                onClick={() => setIsQuickChallengeOpen(true)}
+                className="w-full bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-bold shadow-lg transform hover:scale-105 transition-all duration-200"
+                data-testid="button-quick-challenge"
+              >
+                <Zap className="mr-2 h-4 w-4" />
+                Quick Challenge
+              </Button>
               <Button 
                 className="w-full bg-neon-green hover:bg-green-400 text-black font-bold"
                 data-testid="button-send-challenge"
@@ -294,6 +306,12 @@ export default function PlayerDashboard() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Quick Challenge Dialog */}
+      <QuickChallengeDialog 
+        isOpen={isQuickChallengeOpen}
+        onClose={() => setIsQuickChallengeOpen(false)}
+      />
     </div>
   );
 }

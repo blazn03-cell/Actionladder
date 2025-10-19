@@ -390,17 +390,17 @@ export default function EarningsDashboard() {
         <TabsContent value="payouts">
           <Card className="bg-black/60 backdrop-blur-sm border border-neon-green/20 shadow-felt">
             <CardHeader>
-              <CardTitle className="text-white">Operator Payout Schedule</CardTitle>
+              <CardTitle className="text-white">Operator Rewards Schedule</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-center py-8">
                 <Calendar className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-semibold text-white mb-2">Automated Monthly Payouts</h3>
+                <h3 className="text-lg font-semibold text-white mb-2">Automated Monthly Rewards</h3>
                 <p className="text-gray-400 max-w-md mx-auto">
-                  Operator earnings are automatically calculated and paid out on the 1st of each month via Stripe transfers.
+                  Operator earnings are automatically calculated and distributed on the 1st of each month via Stripe transfers.
                 </p>
-                <Button className="mt-4" variant="outline" data-testid="button-payout-history">
-                  View Payout History
+                <Button className="mt-4" variant="outline" data-testid="button-rewards-history">
+                  View Rewards History
                 </Button>
               </div>
             </CardContent>

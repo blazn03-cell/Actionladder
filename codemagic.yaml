@@ -1,0 +1,87 @@
+workflows:
+web_and_server:
+  name: Web + Server build
+  max_build_duration: 60
+  triggering:
+    events:
+      - push
+      - pull_request
+    branch_patterns:
+      - pattern: main
+        include: true
+        source: true
+  environment:
+    node: 20.16.0
+    vars:
+      NODE_ENV: production
+  cache:
+    cache_paths:
+      - $CM_BUILD_DIR/node_modules
+      - ~/.npm
+  scripts:
+    - name: Show environment
+      script: |
+        node -v
+        npm -v
+    - name: Install dependencies
+      script: npm ci
+    - name: Type-check
+      script: npm run check
+    - name: Build client and server
+      script: npm run build
+    - name: List build outputs
+      script: |
+        echo "Root contents:" && ls -la
+        echo "Dist contents:" && ls -la dist || true
+        echo "Public bundle:" && ls -la dist/public || true
+  artifacts:
+    - dist/**
+  publishing:
+    scripts:
+      - name: Print artifact path hint
+        script: echo "Artifacts available under dist/. Upload/deploy in a following step or integrate with your provider."
+
+mobile_expo:
+  name: Mobile (Expo EAS)
+  max_build_duration: 120
+  triggering:
+    events:
+      - tag
+    include_tags:
+      - v*
+    cancel_previous_builds: true
+  environment:
+    node: 20.16.0
+    groups:
+      - expo_credentials
+    vars:
+      EXPO_TOKEN: $EXPO_TOKEN
+  cache:
+    cache_paths:
+      - $CM_BUILD_DIR/mobile-app/node_modules
+      - ~/.cache/eas
+      - ~/.npm
+  scripts:
+    - name: Install EAS CLI
+      script: npm i -g eas-cli@latest
+    - name: Install mobile dependencies
+      script: |
+        cd mobile-app
+        npm ci
+    - name: Verify Expo auth (optional)
+      script: |
+        if [ -n "$EXPO_TOKEN" ]; then
+          eas whoami || true
+        else
+          echo "EXPO_TOKEN not set. Set it in Codemagic group 'expo_credentials' to enable authenticated builds."
+        fi
+    - name: Build Android (EAS)
+      script: |
+        cd mobile-app
+        eas build --platform android --non-interactive --auto-submit=false
+    - name: Build iOS (EAS)
+      script: |
+        cd mobile-app
+        eas build --platform ios --non-interactive --auto-submit=false
+  artifacts:
+    - mobile-app/**/build/**

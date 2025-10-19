@@ -21,6 +21,11 @@ export function PlayerSubscription() {
     retry: false,
   });
 
+  // Check URL parameters for direct tier selection
+  const urlParams = new URLSearchParams(window.location.search);
+  const selectedTier = urlParams.get('tier');
+  const selectedBilling = urlParams.get('billing') || 'monthly';
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-black text-white flex items-center justify-center">
@@ -36,16 +41,9 @@ export function PlayerSubscription() {
   }
 
   if (!user) {
-    return (
-      <div className="min-h-screen bg-black text-white flex items-center justify-center">
-        <div className="text-center space-y-4">
-          <h1 className="text-2xl font-bold">Please Sign In</h1>
-          <p className="text-gray-400">
-            You need to be signed in to manage your subscription.
-          </p>
-        </div>
-      </div>
-    );
+    // Redirect to login instead of showing placeholder message
+    window.location.href = '/login';
+    return null;
   }
 
   return (

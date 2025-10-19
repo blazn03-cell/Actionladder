@@ -76,10 +76,6 @@
         "environment": "production"
       }
     },
-    "updates": {
-      "fallbackToCacheTimeout": 0,
-      "url": "https://u.expo.dev/[your-project-id]"
-    },
     "runtimeVersion": {
       "policy": "sdkVersion"
     }

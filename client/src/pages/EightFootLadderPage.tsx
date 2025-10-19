@@ -90,7 +90,7 @@ export default function EightFootLadderPage() {
           🌟 Premium Section - $50/month Add-On
         </p>
         <p className="text-green-600 text-sm mb-8">
-          Lock into the side pot before the break
+          Lock into the bonus pool before the break
         </p>
         
         {/* Premium Access Button */}

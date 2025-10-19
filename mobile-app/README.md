@@ -2,14 +2,11 @@
 
 The official ActionLadder mobile application built with React Native and Expo.
 
+> **📱 For complete build instructions, see [BUILD.md](./BUILD.md)**
+
 ## Quick Start
 
-### Prerequisites
-- Node.js 18+
-- Expo CLI: `npm install -g expo-cli`
-- EAS CLI: `npm install -g eas-cli`
-
-### Development
+### Development Setup
 
 1. **Install dependencies:**
    ```bash
@@ -17,37 +14,32 @@ The official ActionLadder mobile application built with React Native and Expo.
    npm install
    ```
 
-2. **Update the app URL:**
-   Edit `App.js` and change `APP_URL` to your ActionLadder deployment URL.
-
-3. **Start development server:**
+2. **Start development server:**
    ```bash
    npm start
    ```
 
-4. **Test on device:**
+3. **Test on device:**
    - Install Expo Go on your phone
    - Scan QR code from terminal/browser
    - App loads ActionLadder web app in native WebView
 
-### Building for Production
+### Building Apps
 
-1. **Configure EAS:**
-   ```bash
-   eas login
-   eas build:configure
-   ```
+**For detailed build instructions, troubleshooting, and store submission guides, see [BUILD.md](./BUILD.md)**
 
-2. **Build APK for testing:**
-   ```bash
-   npm run preview:android
-   ```
+Quick build commands:
 
-3. **Build for app stores:**
-   ```bash
-   npm run build:android  # Google Play Store
-   npm run build:ios      # Apple App Store
-   ```
+```bash
+# Android APK (for testing)
+npm run preview:android
+
+# Android AAB (for Play Store)
+npm run build:android
+
+# iOS IPA (for App Store)
+npm run build:ios
+```
 
 ## Features
 
@@ -60,32 +52,28 @@ The official ActionLadder mobile application built with React Native and Expo.
 
 ## Configuration
 
-### App URLs
-Update these URLs in the configuration files:
-- `App.js`: Change `APP_URL` to your deployment
-- `app.json`: Update `extra.actionLadder.apiUrl`
+The app is pre-configured to connect to the ActionLadder production backend at:
+```
+https://billiard-ladder-blazn03.replit.app
+```
 
-### Assets
-Replace placeholder assets:
-- `assets/icon.png` - 1024x1024 app icon
-- `assets/splash.png` - Splash screen image
-- `assets/favicon.png` - Web favicon
+**To change the backend URL:**
+- Edit `App.js`: Update `APP_URL` constant
+- Edit `app.json`: Update `extra.actionLadder.apiUrl`
 
-### Store Metadata
-Update store information in `app.json`:
-- Bundle identifiers
-- App Store Connect details
-- Permissions descriptions
+**To customize branding:**
+- Replace `assets/icon.png` - 1024x1024 app icon
+- Replace `assets/splash.png` - Splash screen image
+- Replace `assets/favicon.png` - Web favicon
 
-## Deployment
+## Store Submission
 
-### Google Play Store
-1. Build app bundle: `npm run build:android`
-2. Submit: `npm run submit:android`
+**For complete store submission instructions, see [BUILD.md](./BUILD.md#store-submission)**
 
-### Apple App Store
-1. Build IPA: `npm run build:ios`
-2. Submit: `npm run submit:ios`
+Quick links:
+- [Google Play Store Guide](./BUILD.md#google-play-store-submission)
+- [Apple App Store Guide](./BUILD.md#apple-app-store-submission)
+- [Troubleshooting](./BUILD.md#troubleshooting)
 
 ## ActionLadder Integration
 

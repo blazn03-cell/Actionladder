@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Users, Trophy, DollarSign, Shield } from "lucide-react";
+import { Users, Trophy, DollarSign, Shield, Lock, Clock } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 
 interface TeamChallenge {
@@ -27,9 +27,8 @@ interface TeamChallenge {
 }
 
 const CHALLENGE_TYPES = {
-  "2man_army": { name: "2-Man Army", size: 2, emoji: "👥👥" },
-  "3man_crew": { name: "3-Man Crew", size: 3, emoji: "👥👥👥" },
-  "5man_squad": { name: "5-Man Squad", size: 5, emoji: "👥👥👥👥👥" }
+  "2man_army": { name: "2-Man Army", size: 2, emoji: "👥👥", comingSoon: true },
+  "3man_crew": { name: "3-Man Crew", size: 3, emoji: "👥👥👥", comingSoon: true }
 };
 
 export default function TeamChallenges() {
@@ -120,13 +119,19 @@ export default function TeamChallenges() {
       </div>
 
       {/* Challenge Types Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {Object.entries(CHALLENGE_TYPES).map(([type, info]) => (
-          <Card key={type} className="bg-gray-800 border-gray-700">
+          <Card key={type} className={`border-gray-700 ${info.comingSoon ? 'bg-gray-800/50 opacity-75' : 'bg-gray-800'}`}>
             <CardHeader className="text-center">
-              <CardTitle className="text-emerald-400 flex items-center justify-center gap-2">
+              <CardTitle className={`flex items-center justify-center gap-2 ${info.comingSoon ? 'text-gray-400' : 'text-emerald-400'}`}>
                 <span className="text-2xl">{info.emoji}</span>
                 {info.name}
+                {info.comingSoon && (
+                  <Badge variant="secondary" className="ml-2 bg-orange-600 text-white">
+                    <Clock className="h-3 w-3 mr-1" />
+                    Coming Soon
+                  </Badge>
+                )}
               </CardTitle>
               <CardDescription className="text-gray-300">
                 Team size: {info.size} players
@@ -134,16 +139,28 @@ export default function TeamChallenges() {
             </CardHeader>
             <CardContent className="text-center">
               <div className="space-y-2">
-                <div className="flex items-center justify-center gap-2 text-sm text-gray-400">
-                  <Shield className="h-4 w-4" />
-                  Pro Membership only
-                </div>
+                {info.comingSoon ? (
+                  <div className="flex items-center justify-center gap-2 text-sm text-orange-400">
+                    <Lock className="h-4 w-4" />
+                    Feature Coming Soon
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-center gap-2 text-sm text-gray-400">
+                    <Shield className="h-4 w-4" />
+                    Pro Membership only
+                  </div>
+                )}
                 <div className="text-sm text-gray-400">
-                  Each player puts up a challenge fee ($10 – $10,000)
+                  {info.comingSoon ? 
+                    "Team matches are being developed and will be available soon" :
+                    "Each player puts up a challenge fee ($10 – $10,000)"
+                  }
                 </div>
-                <div className="text-sm text-emerald-400 font-semibold">
-                  Total team stake = individual fee × {info.size}
-                </div>
+                {!info.comingSoon && (
+                  <div className="text-sm text-emerald-400 font-semibold">
+                    Total team stake = individual fee × {info.size}
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -153,96 +170,50 @@ export default function TeamChallenges() {
       {/* Create Challenge Form */}
       <Card className="bg-gray-800 border-gray-700">
         <CardHeader>
-          <CardTitle className="text-emerald-400 flex items-center gap-2">
-            <Trophy className="h-5 w-5" />
+          <CardTitle className="text-gray-400 flex items-center gap-2">
+            <Lock className="h-5 w-5" />
             Create Team Challenge
           </CardTitle>
           <CardDescription className="text-gray-300">
-            Challenge other teams to a high-stakes competition
+            Team challenges are coming soon! Check back later for team match functionality.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="challengeType" className="text-white">Challenge Type</Label>
-              <Select value={challengeType} onValueChange={setChallengeType}>
-                <SelectTrigger data-testid="select-challenge-type" className="bg-gray-700 border-gray-600 text-white">
-                  <SelectValue placeholder="Select challenge type" />
-                </SelectTrigger>
-                <SelectContent className="bg-gray-700 border-gray-600">
-                  {Object.entries(CHALLENGE_TYPES).map(([type, info]) => (
-                    <SelectItem key={type} value={type} className="text-white">
-                      {info.emoji} {info.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+          <div className="p-6 bg-gray-700 rounded-lg text-center">
+            <div className="flex items-center justify-center gap-2 text-orange-400 mb-4">
+              <Clock className="h-6 w-6" />
+              <span className="text-lg font-semibold">Feature Coming Soon</span>
             </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="individualFee" className="text-white">Individual Fee ($)</Label>
-              <Input
-                id="individualFee"
-                data-testid="input-individual-fee"
-                type="number"
-                min="10"
-                max="10000"
-                value={individualFee}
-                onChange={(e) => setIndividualFee(Number(e.target.value))}
-                className="bg-gray-700 border-gray-600 text-white"
-                placeholder="60"
-              />
-            </div>
+            <p className="text-gray-300 mb-4">
+              We're working hard to bring you team challenges! This feature will include:
+            </p>
+            <ul className="text-left text-gray-300 space-y-2 mb-6">
+              <li className="flex items-center gap-2">
+                <span className="text-emerald-400">•</span>
+                2v2 Army matches with strategic team play
+              </li>
+              <li className="flex items-center gap-2">
+                <span className="text-emerald-400">•</span>
+                3v3 Crew battles with lineup strategies
+              </li>
+              <li className="flex items-center gap-2">
+                <span className="text-emerald-400">•</span>
+                High-stakes team competitions
+              </li>
+              <li className="flex items-center gap-2">
+                <span className="text-emerald-400">•</span>
+                Pro membership integration
+              </li>
+            </ul>
+            <Button
+              disabled
+              className="w-full bg-gray-600 text-gray-400 cursor-not-allowed"
+              data-testid="button-create-challenge-disabled"
+            >
+              <Lock className="mr-2 h-4 w-4" />
+              Team Challenges Coming Soon
+            </Button>
           </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="title" className="text-white">Challenge Title</Label>
-            <Input
-              id="title"
-              data-testid="input-challenge-title"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              className="bg-gray-700 border-gray-600 text-white"
-              placeholder="Friday Night Showdown"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="description" className="text-white">Description (Optional)</Label>
-            <Input
-              id="description"
-              data-testid="input-challenge-description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              className="bg-gray-700 border-gray-600 text-white"
-              placeholder="Winner takes all..."
-            />
-          </div>
-
-          {challengeType && (
-            <div className="p-4 bg-gray-700 rounded-lg">
-              <div className="flex items-center gap-2 text-emerald-400 mb-2">
-                <DollarSign className="h-4 w-4" />
-                <span className="font-semibold">Challenge Summary</span>
-              </div>
-              <div className="space-y-1 text-sm text-gray-300">
-                <div>Individual Fee: {formatCurrency(individualFee * 100)}</div>
-                <div>Team Size: {CHALLENGE_TYPES[challengeType as keyof typeof CHALLENGE_TYPES].size} players</div>
-                <div className="text-emerald-400 font-semibold">
-                  Total Team Stake: {formatCurrency(individualFee * CHALLENGE_TYPES[challengeType as keyof typeof CHALLENGE_TYPES].size * 100)}
-                </div>
-              </div>
-            </div>
-          )}
-
-          <Button
-            data-testid="button-create-challenge"
-            onClick={handleCreateChallenge}
-            disabled={!challengeType || !title || createChallenge.isPending}
-            className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
-          >
-            {createChallenge.isPending ? "Creating..." : "Create Challenge"}
-          </Button>
         </CardContent>
       </Card>
 

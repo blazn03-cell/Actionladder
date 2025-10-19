@@ -53,7 +53,7 @@ const BarboxLadderPage: React.FC = () => {
           📐 7ft Tables Only
         </p>
         <p className="text-green-600 text-sm mb-8">
-          Lock into the side pot before the break
+          Lock into the bonus pool before the break
         </p>
         
         {/* Live Bounties */}
@@ -345,7 +345,7 @@ const BarboxLadderPage: React.FC = () => {
           <div className="space-y-4">
             <div className="bg-black/30 rounded border border-green-800/30 p-4">
               <h3 className="text-green-400 font-bold mb-2">Challenge System</h3>
-              <p className="text-green-500 text-sm">Challenger pays entry / side pot → Money = Points = Pride.</p>
+              <p className="text-green-500 text-sm">Challenger pays entry / bonus pool → Money = Points = Pride.</p>
             </div>
             
             <div className="bg-black/30 rounded border border-green-800/30 p-4">

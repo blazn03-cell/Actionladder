@@ -45,7 +45,11 @@ function CreateKellyPoolDialog() {
   });
 
   const createKellyPoolMutation = useMutation({
-    mutationFn: (data: InsertKellyPool) => apiRequest("POST", "/api/kelly-pools", data),
+    mutationFn: (data: InsertKellyPool) => 
+      apiRequest("/api/kelly-pools", { 
+        method: "POST", 
+        body: JSON.stringify(data) 
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/kelly-pools"] });
       toast({
@@ -71,7 +75,7 @@ function CreateKellyPoolDialog() {
     
     const kellyPoolData: InsertKellyPool = {
       ...data,
-      pot: 0,
+      prizePool: 0,
       currentPlayers: 0,
       balls,
       status: "open",

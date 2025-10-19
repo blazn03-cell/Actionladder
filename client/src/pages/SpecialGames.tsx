@@ -50,7 +50,7 @@ export default function SpecialGames() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-5 bg-gray-900 border border-gray-700">
+        <TabsList className="grid w-full grid-cols-8 bg-gray-900 border border-gray-700">
           <TabsTrigger 
             value="money-ball" 
             className="data-[state=active]:bg-green-600 data-[state=active]:text-white"
@@ -66,6 +66,14 @@ export default function SpecialGames() {
           >
             <Target className="mr-2 h-4 w-4" />
             Kelly Pool
+          </TabsTrigger>
+          <TabsTrigger 
+            value="spot-shot" 
+            className="data-[state=active]:bg-green-600 data-[state=active]:text-white"
+            data-testid="tab-spot-shot"
+          >
+            <Target className="mr-2 h-4 w-4" />
+            Spot Shot
           </TabsTrigger>
           <TabsTrigger 
             value="object-carom" 
@@ -90,6 +98,22 @@ export default function SpecialGames() {
           >
             <Vote className="mr-2 h-4 w-4" />
             Game Voting
+          </TabsTrigger>
+          <TabsTrigger 
+            value="tournament-calcutta" 
+            className="data-[state=active]:bg-green-600 data-[state=active]:text-white"
+            data-testid="tab-tournament-calcutta"
+          >
+            <Trophy className="mr-2 h-4 w-4" />
+            Tournament Calcutta
+          </TabsTrigger>
+          <TabsTrigger 
+            value="season-predictions" 
+            className="data-[state=active]:bg-green-600 data-[state=active]:text-white"
+            data-testid="tab-season-predictions"
+          >
+            <Crown className="mr-2 h-4 w-4" />
+            Season Predictions
           </TabsTrigger>
         </TabsList>
 
@@ -127,6 +151,10 @@ export default function SpecialGames() {
           </Card>
         </TabsContent>
 
+        <TabsContent value="spot-shot" className="space-y-6">
+          <SpotShotGames />
+        </TabsContent>
+
         <TabsContent value="object-carom" className="space-y-6">
           <ObjectBallCarom />
         </TabsContent>
@@ -137,6 +165,14 @@ export default function SpecialGames() {
 
         <TabsContent value="game-voting" className="space-y-6">
           <GameOfTheMonthVoting />
+        </TabsContent>
+
+        <TabsContent value="tournament-calcutta" className="space-y-6">
+          <TournamentCalcutta />
+        </TabsContent>
+
+        <TabsContent value="season-predictions" className="space-y-6">
+          <SeasonPredictions />
         </TabsContent>
       </Tabs>
     </div>
@@ -302,7 +338,7 @@ function ObjectBallCarom() {
               <li>• Player shoots object ball first</li>
               <li>• Cue ball must carom off object ball to hit target</li>
               <li>• Both players alternate attempts</li>
-              <li>• First to complete required caroms wins pot</li>
+              <li>• First to complete required caroms wins Prize Pool</li>
               <li>• Failed attempts result in ball-in-hand for opponent</li>
             </ul>
           </div>
@@ -460,8 +496,7 @@ function PoolhallMatches() {
                         <SelectValue placeholder="Select format" />
                       </SelectTrigger>
                       <SelectContent className="bg-gray-800 border-gray-600">
-                        <SelectItem value="5v5_team">5v5 Team Battle</SelectItem>
-                        <SelectItem value="3v3_team">3v3 Team Battle</SelectItem>
+                        <SelectItem value="3v3_team">3v3 Team Battle (Coming Soon)</SelectItem>
                         <SelectItem value="singles_bracket">Singles Bracket</SelectItem>
                         <SelectItem value="mixed_format">Mixed Format</SelectItem>
                       </SelectContent>
@@ -522,7 +557,7 @@ function PoolhallMatches() {
             <ul className="text-sm text-gray-300 space-y-1">
               <li>• Home hall provides venue and table conditions</li>
               <li>• Away hall brings their best team</li>
-              <li>• Winner takes 70% of pot, runner-up gets 30%</li>
+              <li>• Winner takes 70% of Prize Pool, runner-up gets 30%</li>
               <li>• Live streaming encouraged for bragging rights</li>
               <li>• Annual championship between top performing halls</li>
             </ul>
@@ -811,5 +846,564 @@ function GameOfTheMonthVoting() {
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+function SpotShotGames() {
+  const { toast } = useToast();
+  const [selectedVariant, setSelectedVariant] = useState("classic");
+
+  return (
+    <Card className="bg-gray-900 border-gray-700">
+      <CardHeader>
+        <CardTitle className="text-green-400 flex items-center gap-2">
+          <Target className="h-5 w-5" />
+          Spot Shot Challenges
+        </CardTitle>
+        <CardDescription>
+          Precision spot shot variations for skilled players
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-6">
+          {/* Spot Shot Variant Selector */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <Button
+              variant={selectedVariant === "classic" ? "default" : "outline"}
+              onClick={() => setSelectedVariant("classic")}
+              className={selectedVariant === "classic" ? "bg-green-600" : ""}
+              data-testid="button-classic-spot"
+            >
+              Classic Spot
+            </Button>
+            <Button
+              variant={selectedVariant === "bank" ? "default" : "outline"}
+              onClick={() => setSelectedVariant("bank")}
+              className={selectedVariant === "bank" ? "bg-green-600" : ""}
+              data-testid="button-bank-spot"
+            >
+              Bank Spot
+            </Button>
+            <Button
+              variant={selectedVariant === "call-pocket" ? "default" : "outline"}
+              onClick={() => setSelectedVariant("call-pocket")}
+              className={selectedVariant === "call-pocket" ? "bg-green-600" : ""}
+              data-testid="button-call-pocket-spot"
+            >
+              Call Pocket
+            </Button>
+            <Button
+              variant={selectedVariant === "rotation" ? "default" : "outline"}
+              onClick={() => setSelectedVariant("rotation")}
+              className={selectedVariant === "rotation" ? "bg-green-600" : ""}
+              data-testid="button-rotation-spot"
+            >
+              Rotation Spot
+            </Button>
+          </div>
+
+          {/* Game Rules Display */}
+          {selectedVariant === "classic" && (
+            <div className="p-4 bg-green-900/20 border border-green-700 rounded">
+              <h3 className="font-semibold text-green-400 mb-2">The Spot Shot</h3>
+              <p className="text-gray-300 mb-3">Ball on the dot and shoot any corner</p>
+              <ul className="text-sm text-gray-300 space-y-1">
+                <li>• Place object ball on the foot spot (dot)</li>
+                <li>• Cue ball can be placed anywhere behind the head string</li>
+                <li>• Must pocket the spotted ball in any corner pocket</li>
+                <li>• Both players alternate attempts</li>
+                <li>• First to make the shot wins the challenge</li>
+              </ul>
+            </div>
+          )}
+
+          {selectedVariant === "bank" && (
+            <div className="p-4 bg-blue-900/20 border border-blue-700 rounded">
+              <h3 className="font-semibold text-blue-400 mb-2">Bank Spot Shot</h3>
+              <p className="text-gray-300 mb-3">Ball must be banked off a cushion before being pocketed</p>
+              <ul className="text-sm text-gray-300 space-y-1">
+                <li>• Place object ball on the foot spot (dot)</li>
+                <li>• Ball must hit at least one cushion before going in pocket</li>
+                <li>• Can be pocketed in any corner pocket after banking</li>
+                <li>• Direct shots (no bank) are automatic misses</li>
+                <li>• Requires advanced cue ball control and angles</li>
+              </ul>
+            </div>
+          )}
+
+          {selectedVariant === "call-pocket" && (
+            <div className="p-4 bg-purple-900/20 border border-purple-700 rounded">
+              <h3 className="font-semibold text-purple-400 mb-2">Call-the-Pocket Spot Shot</h3>
+              <p className="text-gray-300 mb-3">Players must call the exact pocket before shooting</p>
+              <ul className="text-sm text-gray-300 space-y-1">
+                <li>• Place object ball on the foot spot (dot)</li>
+                <li>• Player must declare which corner pocket before shooting</li>
+                <li>• Ball must go in the called pocket to count</li>
+                <li>• Wrong pocket or scratch is automatic miss</li>
+                <li>• Strategic pocket selection is key to victory</li>
+              </ul>
+            </div>
+          )}
+
+          {selectedVariant === "rotation" && (
+            <div className="p-4 bg-orange-900/20 border border-orange-700 rounded">
+              <h3 className="font-semibold text-orange-400 mb-2">Rotation Spot Shot</h3>
+              <p className="text-gray-300 mb-3">Players move the spotted ball to different spots for tougher shots</p>
+              <ul className="text-sm text-gray-300 space-y-1">
+                <li>• Start with ball on foot spot, then rotate positions</li>
+                <li>• Move to side spots (left and right)</li>
+                <li>• Progress to head spot for maximum difficulty</li>
+                <li>• Must make from each position to advance</li>
+                <li>• First to complete all spots wins the challenge</li>
+              </ul>
+            </div>
+          )}
+
+          {/* Create Challenge Section */}
+          <div className="border-t border-gray-700 pt-4">
+            <h3 className="font-semibold text-gray-300 mb-4">Start a Spot Shot Challenge</h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="text-center">
+                <div className="text-2xl mb-2">🎯</div>
+                <div className="text-sm text-gray-400">Classic precision shooting</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl mb-2">🔄</div>
+                <div className="text-sm text-gray-400">Bank shot mastery</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl mb-2">📞</div>
+                <div className="text-sm text-gray-400">Called pocket accuracy</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl mb-2">🔄</div>
+                <div className="text-sm text-gray-400">Progressive difficulty</div>
+              </div>
+            </div>
+            <div className="mt-4 text-center">
+              <Button className="bg-green-600 hover:bg-green-700" data-testid="button-create-spot-challenge">
+                <Plus className="mr-2 h-4 w-4" />
+                Create Spot Shot Challenge
+              </Button>
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// Tournament Calcutta Component - Bidding on tournament participants
+function TournamentCalcutta() {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [selectedTournament, setSelectedTournament] = useState<string>("");
+  const [bidAmount, setBidAmount] = useState<string>("");
+
+  // Fetch tournaments with calcutta enabled
+  const { data: tournaments, isLoading: tournamentsLoading } = useQuery({
+    queryKey: ["/api/tournaments"],
+  });
+
+  // Fetch calcuttas for selected tournament
+  const { data: calcuttas, isLoading: calcuttasLoading } = useQuery({
+    queryKey: ["/api/tournaments", selectedTournament, "calcuttas"],
+    enabled: !!selectedTournament,
+  });
+
+  // Fetch bids for selected calcuttas
+  const { data: allBids } = useQuery({
+    queryKey: ["/api/calcutta-bids"],
+  });
+
+  const placeBidMutation = useMutation({
+    mutationFn: (bidData: any) => apiRequest("/api/calcutta-bids", {
+      method: "POST",
+      body: JSON.stringify(bidData),
+    }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/calcutta-bids"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tournament-calcuttas"] });
+      toast({
+        title: "Success",
+        description: "Your bid has been placed successfully!",
+      });
+      setBidAmount("");
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to place bid",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handlePlaceBid = (calcuttaId: string) => {
+    const amount = parseFloat(bidAmount);
+    if (!amount || amount <= 0) {
+      toast({
+        title: "Error",
+        description: "Please enter a valid bid amount",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    placeBidMutation.mutate({
+      calcuttaId,
+      bidderId: "current-user-id", // Replace with actual user ID
+      bidAmount: Math.floor(amount * 100), // Convert to cents
+      isWinning: false,
+    });
+  };
+
+  const formatCurrency = (cents: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+    }).format(cents / 100);
+  };
+
+  return (
+    <div className="space-y-6">
+      <Card className="bg-gray-900 border-gray-700">
+        <CardHeader>
+          <CardTitle className="text-green-400 flex items-center gap-2">
+            <Trophy className="h-5 w-5" />
+            Tournament Calcutta - Bid on Tournament Participants
+          </CardTitle>
+          <CardDescription>
+            Place bids on tournament players before events start. Winners split the prize pool!
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {/* Tournament Selection */}
+          <div className="space-y-2">
+            <Label>Select Tournament</Label>
+            <Select value={selectedTournament} onValueChange={setSelectedTournament}>
+              <SelectTrigger data-testid="select-tournament">
+                <SelectValue placeholder="Choose a tournament..." />
+              </SelectTrigger>
+              <SelectContent>
+                {tournaments?.filter((t: any) => t.calcuttaEnabled)?.map((tournament: any) => (
+                  <SelectItem key={tournament.id} value={tournament.id}>
+                    {tournament.name} - {formatCurrency(tournament.entry)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {selectedTournament && (
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold text-green-400">Available Participants</h3>
+              
+              {calcuttasLoading ? (
+                <div className="text-center py-8 text-gray-400">Loading participants...</div>
+              ) : calcuttas?.length === 0 ? (
+                <div className="text-center py-8 text-gray-400">
+                  No participants available for bidding yet.
+                </div>
+              ) : (
+                <div className="grid gap-4 md:grid-cols-2">
+                  {calcuttas?.map((calcutta: any) => {
+                    const participantBids = allBids?.filter((bid: any) => bid.calcuttaId === calcutta.id) || [];
+                    const highestBid = participantBids.reduce((max: any, bid: any) => 
+                      bid.bidAmount > (max?.bidAmount || 0) ? bid : max, null);
+
+                    return (
+                      <Card key={calcutta.id} className="bg-gray-800 border-gray-600">
+                        <CardHeader className="pb-3">
+                          <CardTitle className="text-sm text-green-400">
+                            Participant: {calcutta.participantId}
+                          </CardTitle>
+                          <div className="flex justify-between text-sm">
+                            <span className="text-gray-400">
+                              Current Bid: {calcutta.currentBid ? formatCurrency(calcutta.currentBid) : "No bids"}
+                            </span>
+                            <Badge variant={calcutta.biddingOpen ? "default" : "secondary"}>
+                              {calcutta.biddingOpen ? "Open" : "Closed"}
+                            </Badge>
+                          </div>
+                        </CardHeader>
+                        
+                        {calcutta.biddingOpen && (
+                          <CardContent className="space-y-3">
+                            <div className="flex gap-2">
+                              <Input
+                                type="number"
+                                placeholder="Bid amount ($)"
+                                value={bidAmount}
+                                onChange={(e) => setBidAmount(e.target.value)}
+                                min="1"
+                                step="0.01"
+                                data-testid={`input-bid-${calcutta.id}`}
+                              />
+                              <Button
+                                onClick={() => handlePlaceBid(calcutta.id)}
+                                disabled={placeBidMutation.isPending}
+                                data-testid={`button-place-bid-${calcutta.id}`}
+                              >
+                                Place Bid
+                              </Button>
+                            </div>
+                            
+                            {participantBids.length > 0 && (
+                              <div className="text-xs text-gray-400">
+                                {participantBids.length} bid(s) placed
+                              </div>
+                            )}
+                          </CardContent>
+                        )}
+                      </Card>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+// Season Predictions Component - Championship prediction markets
+function SeasonPredictions() {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [selectedPrediction, setSelectedPrediction] = useState<string>("");
+  const [firstPlace, setFirstPlace] = useState<string>("");
+  const [secondPlace, setSecondPlace] = useState<string>("");
+  const [thirdPlace, setThirdPlace] = useState<string>("");
+
+  // Fetch season predictions
+  const { data: predictions, isLoading: predictionsLoading } = useQuery({
+    queryKey: ["/api/season-predictions"],
+  });
+
+  // Fetch players for prediction selection
+  const { data: players } = useQuery({
+    queryKey: ["/api/players"],
+  });
+
+  // Fetch prediction entries
+  const { data: entries } = useQuery({
+    queryKey: ["/api/prediction-entries"],
+  });
+
+  const submitPredictionMutation = useMutation({
+    mutationFn: (entryData: any) => apiRequest("/api/prediction-entries", {
+      method: "POST",
+      body: JSON.stringify(entryData),
+    }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/prediction-entries"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/season-predictions"] });
+      toast({
+        title: "Success",
+        description: "Your season prediction has been submitted!",
+      });
+      setFirstPlace("");
+      setSecondPlace("");
+      setThirdPlace("");
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to submit prediction",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleSubmitPrediction = () => {
+    if (!selectedPrediction || !firstPlace || !secondPlace || !thirdPlace) {
+      toast({
+        title: "Error",
+        description: "Please select a prediction market and all three places",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (firstPlace === secondPlace || firstPlace === thirdPlace || secondPlace === thirdPlace) {
+      toast({
+        title: "Error",
+        description: "Please select different players for each position",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const prediction = predictions?.find((p: any) => p.id === selectedPrediction);
+    if (!prediction) return;
+
+    submitPredictionMutation.mutate({
+      predictionId: selectedPrediction,
+      predictorId: "current-user-id", // Replace with actual user ID
+      firstPlacePick: firstPlace,
+      secondPlacePick: secondPlace,
+      thirdPlacePick: thirdPlace,
+      entryFee: prediction.entryFee,
+    });
+  };
+
+  const formatCurrency = (cents: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+    }).format(cents / 100);
+  };
+
+  const getPlayerName = (playerId: string) => {
+    const player = players?.find((p: any) => p.id === playerId);
+    return player ? player.name : playerId;
+  };
+
+  return (
+    <div className="space-y-6">
+      <Card className="bg-gray-900 border-gray-700">
+        <CardHeader>
+          <CardTitle className="text-green-400 flex items-center gap-2">
+            <Crown className="h-5 w-5" />
+            Season Championship Predictions
+          </CardTitle>
+          <CardDescription>
+            Predict the top 3 players by wins at season end. Must have 3+ matches played to qualify.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {/* Active Predictions */}
+          <div className="grid gap-4">
+            {predictionsLoading ? (
+              <div className="text-center py-8 text-gray-400">Loading predictions...</div>
+            ) : predictions?.length === 0 ? (
+              <div className="text-center py-8 text-gray-400">
+                No active season predictions available.
+              </div>
+            ) : (
+              predictions?.filter((p: any) => p.predictionsOpen)?.map((prediction: any) => (
+                <Card key={prediction.id} className="bg-gray-800 border-gray-600">
+                  <CardHeader>
+                    <CardTitle className="text-green-400 text-lg">{prediction.name}</CardTitle>
+                    <CardDescription>{prediction.description}</CardDescription>
+                    <div className="flex justify-between text-sm">
+                      <span>Entry Fee: {formatCurrency(prediction.entryFee)}</span>
+                      <span>Prize Pool: {formatCurrency(prediction.prizePool || 0)}</span>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <Button
+                      onClick={() => setSelectedPrediction(prediction.id)}
+                      variant={selectedPrediction === prediction.id ? "default" : "outline"}
+                      data-testid={`button-select-prediction-${prediction.id}`}
+                    >
+                      {selectedPrediction === prediction.id ? "Selected" : "Make Prediction"}
+                    </Button>
+                  </CardContent>
+                </Card>
+              ))
+            )}
+          </div>
+
+          {/* Prediction Form */}
+          {selectedPrediction && (
+            <Card className="bg-gray-800 border-gray-600">
+              <CardHeader>
+                <CardTitle className="text-green-400">Make Your Prediction</CardTitle>
+                <CardDescription>
+                  Select the top 3 players you think will have the most wins this season
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid gap-4 md:grid-cols-3">
+                  <div className="space-y-2">
+                    <Label>1st Place (70% Performance Bonus)</Label>
+                    <Select value={firstPlace} onValueChange={setFirstPlace}>
+                      <SelectTrigger data-testid="select-first-place">
+                        <SelectValue placeholder="Select player..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {players?.map((player: any) => (
+                          <SelectItem key={player.id} value={player.id}>
+                            {player.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>2nd Place (20% Performance Bonus)</Label>
+                    <Select value={secondPlace} onValueChange={setSecondPlace}>
+                      <SelectTrigger data-testid="select-second-place">
+                        <SelectValue placeholder="Select player..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {players?.map((player: any) => (
+                          <SelectItem key={player.id} value={player.id}>
+                            {player.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>3rd Place (10% Performance Bonus)</Label>
+                    <Select value={thirdPlace} onValueChange={setThirdPlace}>
+                      <SelectTrigger data-testid="select-third-place">
+                        <SelectValue placeholder="Select player..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {players?.map((player: any) => (
+                          <SelectItem key={player.id} value={player.id}>
+                            {player.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <Button
+                  onClick={handleSubmitPrediction}
+                  disabled={submitPredictionMutation.isPending || !firstPlace || !secondPlace || !thirdPlace}
+                  className="w-full"
+                  data-testid="button-submit-prediction"
+                >
+                  {submitPredictionMutation.isPending ? "Submitting..." : "Submit Prediction"}
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Current Entries */}
+          {entries && entries.length > 0 && (
+            <Card className="bg-gray-800 border-gray-600">
+              <CardHeader>
+                <CardTitle className="text-green-400">Recent Predictions</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {entries.slice(0, 5).map((entry: any) => (
+                    <div key={entry.id} className="flex justify-between text-sm border-b border-gray-700 pb-2">
+                      <span className="text-gray-400">Predictor</span>
+                      <span>
+                        1st: {getPlayerName(entry.firstPlacePick)} | 
+                        2nd: {getPlayerName(entry.secondPlacePick)} | 
+                        3rd: {getPlayerName(entry.thirdPlacePick)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </CardContent>
+      </Card>
+    </div>
   );
 }

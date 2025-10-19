@@ -29,8 +29,8 @@ interface SidePot {
   feeBps: number;
   status: string;
   lockCutoffAt?: string;
-  description?: string; // Custom bet description
-  customCreatedBy?: string; // Who created this custom bet
+  description?: string; // Custom challenge description
+  customCreatedBy?: string; // Who created this custom challenge
   createdAt: string;
   disputeDeadline?: string;
   disputeStatus?: string;
@@ -147,13 +147,13 @@ export default function ChallengePools() {
     },
   });
 
-  // Create side pot mutation
+  // Create challenge pool mutation
   const createPotMutation = useMutation({
     mutationFn: (data: any) => apiRequest("/api/side-pots", { method: "POST", body: data }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/side-pots"] });
       toast({
-        title: "Side Pot Created",
+        title: "Challenge Pool Created",
         description: "The pool is locked once both sides are in",
       });
       setNewPotStake("");
@@ -164,7 +164,7 @@ export default function ChallengePools() {
     onError: (error: any) => {
       toast({
         title: "Error",
-        description: error.message || "Failed to create side pot",
+        description: error.message || "Failed to create challenge pool",
         variant: "destructive",
       });
     },
@@ -178,14 +178,14 @@ export default function ChallengePools() {
       queryClient.invalidateQueries({ queryKey: ["/api/challenge-entries/user", userId] });
       queryClient.invalidateQueries({ queryKey: ["/api/side-pots"] });
       toast({
-        title: "Joined Side Pot",
+        title: "Joined Challenge Pool",
         description: "Your credits are locked until result",
       });
     },
     onError: (error: any) => {
       toast({
         title: "Error",
-        description: error.message || "Failed to place bet",
+        description: error.message || "Failed to place entry",
         variant: "destructive",
       });
     },
@@ -247,9 +247,9 @@ export default function ChallengePools() {
         return;
       }
 
-      // Calculate service fee based on total pot
-      const totalPot = stake * 2;
-      const serviceFeePercent = totalPot > 500 ? 5 : 8.5;
+      // Calculate service fee based on total prize pool
+      const totalPool = stake * 2;
+      const serviceFeePercent = totalPool > 500 ? 5 : 8.5;
 
       // Calculate lock cutoff (T-5 minutes default)
       const lockCutoffAt = new Date();
@@ -439,10 +439,10 @@ export default function ChallengePools() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="bet-type">Bet Type</Label>
-                  <Select value={betType} onValueChange={setBetType} data-testid="select-bet-type">
+                  <Label htmlFor="challenge-type">Challenge Type</Label>
+                  <Select value={betType} onValueChange={setBetType} data-testid="select-challenge-type">
                     <SelectTrigger>
-                      <SelectValue placeholder="Select bet type" />
+                      <SelectValue placeholder="Select challenge type" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="yes_no">Yes / No (Proposition)</SelectItem>
@@ -525,7 +525,7 @@ export default function ChallengePools() {
                 {newPotStake && parseFloat(newPotStake) >= 5 && (
                   <div className={`text-sm p-3 rounded border mb-3 ${parseFloat(newPotStake) > 300 ? 'bg-amber-900/30 border-amber-600' : 'bg-muted/30'}`}>
                     <div className={`font-medium mb-1 ${parseFloat(newPotStake) > 300 ? 'text-amber-400' : 'text-green-600'}`}>
-                      {parseFloat(newPotStake) > 300 ? 'Premium Required - Side Pot Summary:' : 'Side Pot Summary:'}
+                      {parseFloat(newPotStake) > 300 ? 'Premium Required - Challenge Pool Summary:' : 'Challenge Pool Summary:'}
                     </div>
                     {parseFloat(newPotStake) > 300 && (
                       <div className="text-amber-300 text-xs mb-2 p-2 bg-amber-900/50 rounded">
@@ -543,9 +543,9 @@ export default function ChallengePools() {
                     )}
                     <div className="grid grid-cols-2 gap-2 text-sm">
                       <div>Each side puts up: <span className="font-mono">${parseFloat(newPotStake).toLocaleString()}</span></div>
-                      <div>Total pot: <span className="font-mono">${(parseFloat(newPotStake) * 2).toLocaleString()}</span></div>
+                      <div>Total prize pool: <span className="font-mono">${(parseFloat(newPotStake) * 2).toLocaleString()}</span></div>
                       <div>Service fee: <span className="font-mono">{calculateServiceFee(parseFloat(newPotStake))}%</span></div>
-                      <div className="text-green-600 font-semibold">Winner receives the pot minus service fee: <span className="font-mono">${((parseFloat(newPotStake) * 2) * (1 - calculateServiceFee(parseFloat(newPotStake)) / 100)).toLocaleString()}</span></div>
+                      <div className="text-green-600 font-semibold">Winner receives the prize pool minus service fee: <span className="font-mono">${((parseFloat(newPotStake) * 2) * (1 - calculateServiceFee(parseFloat(newPotStake)) / 100)).toLocaleString()}</span></div>
                     </div>
                   </div>
                 )}
@@ -566,9 +566,9 @@ export default function ChallengePools() {
                   <Button 
                     onClick={handleCreatePot}
                     disabled={createPotMutation.isPending || !sideALabel || !sideBLabel || !newPotStake || parseFloat(newPotStake) < 5 || parseFloat(newPotStake) > 30000 || !validateDescription(description.trim())}
-                    data-testid="button-create-pot"
+                    data-testid="button-create-pool"
                   >
-                    {createPotMutation.isPending ? "Creating..." : "Lock Into Side Pot"}
+                    {createPotMutation.isPending ? "Creating..." : "Lock Into Challenge Pool"}
                   </Button>
                 </div>
               </div>
@@ -577,7 +577,7 @@ export default function ChallengePools() {
 
           <div className="grid gap-4">
             {sidePots.map((pot) => (
-              <Card key={pot.id} data-testid={`side-pot-${pot.id}`}>
+              <Card key={pot.id} data-testid={`challenge-pool-${pot.id}`}>
                 <CardHeader>
                   <div className="flex justify-between items-start">
                     <div>

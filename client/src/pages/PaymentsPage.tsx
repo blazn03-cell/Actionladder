@@ -159,15 +159,15 @@ const PaymentsPage: React.FC = () => {
 
         <div className="bg-green-900/10 border border-green-700/30 rounded-lg p-6">
           <h3 className="text-xl font-bold text-green-400 mb-4">
-            Betting Limits
+            Challenge Limits
           </h3>
           <div className="space-y-3 text-sm">
             <div className="flex justify-between">
-              <span>Minimum Bet:</span>
+              <span>Minimum Challenge Fee:</span>
               <span className="text-yellow-400 font-bold">$60</span>
             </div>
             <div className="flex justify-between">
-              <span>Maximum Bet:</span>
+              <span>Maximum Challenge Fee:</span>
               <span className="text-yellow-400 font-bold">$500,000</span>
             </div>
             <div className="text-xs text-green-600 mt-4">

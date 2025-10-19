@@ -167,6 +167,15 @@ export default function Checkout() {
     const type = urlParams.get('type');
     const id = urlParams.get('id');
     const amount = Number(urlParams.get('amount'));
+    const tier = urlParams.get('tier');
+    const billingPeriod = urlParams.get('billing') || 'monthly';
+
+    // Handle subscription payments
+    if (type === 'subscription' && tier) {
+      // Redirect to subscription page for proper Stripe checkout
+      window.location.href = `/app?tab=player-subscription&tier=${tier}&billing=${billingPeriod}`;
+      return;
+    }
 
     if (!type || !amount) {
       window.location.href = '/';
@@ -180,6 +189,8 @@ export default function Checkout() {
           return 'Tournament Entry';
         case 'kelly-pool':
           return 'Kelly Pool Entry';
+        case 'subscription':
+          return 'Subscription Payment';
         default:
           return 'Payment';
       }

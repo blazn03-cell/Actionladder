@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Route, Switch, useLocation } from "wouter";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { queryClient } from "@/lib/queryClient";
 import { Toaster } from "@/components/ui/toaster";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { ChevronDown, Trophy, Camera, DollarSign, Users, Settings } from "lucide-react";
@@ -43,13 +44,115 @@ import { FileManager } from "@/components/file-upload";
 import NotFound from "@/pages/not-found";
 import Landing from "@/pages/Landing";
 import AuthSuccess from "@/pages/AuthSuccess";
+import Login from "@/pages/Login";
+import OwnerLogin from "@/pages/OwnerLogin";
+import TrusteeLogin from "@/pages/TrusteeLogin";
+import Signup from "@/pages/Signup";
+import SelectRole from "@/pages/SelectRole";
+import ForgotPassword from "@/pages/ForgotPassword";
+import BillingSuccess from "@/pages/BillingSuccess";
+import BillingCancel from "@/pages/BillingCancel";
 import { PlayerSubscription } from "@/pages/PlayerSubscription";
 import { ChallengeCalendar } from "@/pages/ChallengeCalendar";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { MobileNav } from "@/components/MobileNav";
+import { WebVitals } from "@/components/WebVitals";
+import RevenueAdmin from "@/pages/RevenueAdmin";
+import HallLeaderboard from "@/pages/HallLeaderboard";
+import TrainingSession from "@/pages/TrainingSession";
+import CoachFeedback from "@/pages/CoachFeedback";
+import AdminTrainingRewards from "@/pages/AdminTrainingRewards";
 import logoBackground from "@assets/assets_task_01k3jk55jwew0tmd764vvanv2x_1756192093_img_0_1756634613619.webp";
 
-const queryClient = new QueryClient();
+// Auth-protected route component
+function AppContent({ activeTab, logoBackground }: { activeTab: string; logoBackground: string }) {
+  const { user, isLoading, isAuthenticated } = useAuth();
+  
+  // Get current tab from URL params
+  const urlParams = new URLSearchParams(window.location.search);
+  const currentTab = urlParams.get('tab') || activeTab;
+  
+  // List of tabs that require authentication
+  const protectedTabs = [
+    'dashboard', 'ladder', 'eightfoot-ladder', 'barbox-ladder', 'rookie-section',
+    'escrow-challenges', 'challenge-calendar', 'hall-battles', 'tournaments', 
+    'tournament-brackets', 'special-games', 'league-standings', 'match-divisions',
+    'ai-features', 'poster-generator', 'file-manager', 'player-subscription', 
+    'checkout', 'monetization', 'team-management', 'team-matches', 'team-challenges',
+    'sportsmanship', 'bounties', 'qr-registration', 'operator-settings', 
+    'operator-subscriptions', 'revenue-admin', 'admin', 'admin-training-rewards'
+  ];
+  
+  // If trying to access protected content and not authenticated, redirect to login
+  if (!isLoading && protectedTabs.includes(currentTab) && !isAuthenticated) {
+    window.location.href = '/login';
+    return null;
+  }
+  
+  return (
+    <>
+      {/* Hero Banner */}
+      <section className="py-12 relative overflow-hidden">
+        <div 
+          className="absolute inset-0 opacity-10"
+          style={{
+            backgroundImage: `url(${logoBackground})`,
+            backgroundSize: 'contain',
+            backgroundPosition: 'center',
+            backgroundRepeat: 'no-repeat'
+          }}
+        ></div>
+        <div className="absolute inset-0 bg-gradient-to-r from-emerald-600/20 via-transparent to-emerald-600/20"></div>
+        <div className="container mx-auto px-4 relative z-10">
+          <div className="text-center">
+            <h2 className="text-4xl md:text-5xl font-black text-white mb-4">
+              POOL. POINTS. PRIDE.
+            </h2>
+            <p className="text-lg text-gray-300 mb-6">
+              In here, respect is earned in racks, not words
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <div className="container mx-auto px-4 py-8">
+        {activeTab === "dashboard" && <Dashboard />}
+        {activeTab === "player-subscription" && <PlayerSubscription />}
+        {activeTab === "ladder" && <Ladder />}
+        {activeTab === "barbox-ladder" && <BarboxLadderPage />}
+        {activeTab === "eightfoot-ladder" && <EightFootLadderPage />}
+        {activeTab === "rookie-section" && <RookieSection />}
+        {activeTab === "escrow-challenges" && <EscrowChallenges />}
+        {activeTab === "hall-battles" && <HallBattles />}
+        {activeTab === "league-standings" && <LeagueStandings />}
+        {activeTab === "qr-registration" && <QRRegistration />}
+        {activeTab === "poster-generator" && <PosterGenerator />}
+        {activeTab === "live-stream" && <LiveStream />}
+        {activeTab === "ai-features" && <AIDashboard />}
+        {activeTab === "operator-settings" && <OperatorSettings />}
+        {activeTab === "admin" && <AdminDashboard />}
+        {activeTab === "tournaments" && <Tournaments />}
+        {activeTab === "tournament-brackets" && <TournamentBrackets />}
+        {activeTab === "special-games" && <SpecialGames />}
+        {activeTab === "players" && <Players />}
+        {activeTab === "bounties" && <Bounties />}
+        {activeTab === "charity" && <Charity />}
+        {activeTab === "team-management" && <TeamManagement />}
+        {activeTab === "team-matches" && <TeamMatches />}
+        {activeTab === "team-challenges" && <TeamChallenges />}
+        {activeTab === "match-divisions" && <MatchDivisions />}
+        {activeTab === "sportsmanship" && <SportsmanshipSystem />}
+        {activeTab === "file-manager" && <FileManager />}
+        {activeTab === "operator-subscriptions" && <OperatorSubscriptions />}
+        {activeTab === "monetization" && <MonetizationDashboard />}
+        {activeTab === "revenue-admin" && <RevenueAdmin />}
+        {activeTab === "challenge-calendar" && <ChallengeCalendar />}
+        {activeTab === "admin-training-rewards" && <AdminTrainingRewards />}
+      </div>
+      <RealTimeNotifications />
+    </>
+  );
+}
 
 function Navigation({ activeTab, setActiveTab }: { activeTab: string; setActiveTab: (tab: string) => void }) {
   const { user, isLoading, isAuthenticated } = useAuth();
@@ -61,23 +164,23 @@ function Navigation({ activeTab, setActiveTab }: { activeTab: string; setActiveT
       label: "Competition",
       icon: Trophy,
       items: [
-        { id: "dashboard", label: "📊 Dashboard" },
+        { id: "dashboard", label: "📊 Dashboard", requiresAuth: true },
         // Ladders Section
-        { id: "ladder", label: "🥇 Big Dog Throne (9ft)" },
-        { id: "eightfoot-ladder", label: "🥈 Almost Big Time (8ft)" },
-        { id: "barbox-ladder", label: "🥉 Kiddie Box King (7ft)" },
-        { id: "rookie-section", label: "🔰 Rookie Section" },
+        { id: "ladder", label: "🥇 Big Dog Throne (9ft)", requiresAuth: true },
+        { id: "eightfoot-ladder", label: "🥈 Almost Big Time (8ft)", requiresAuth: true },
+        { id: "barbox-ladder", label: "🥉 Kiddie Box King (7ft)", requiresAuth: true },
+        { id: "rookie-section", label: "🔰 Rookie Section", requiresAuth: true },
         // Challenges Section  
-        { id: "escrow-challenges", label: "⚔️ Challenge Matches" },
-        { id: "challenge-calendar", label: "📅 Challenge Calendar" },
-        { id: "hall-battles", label: "🏟️ Hall Battles" },
+        { id: "escrow-challenges", label: "⚔️ Challenge Matches", requiresAuth: true },
+        { id: "challenge-calendar", label: "📅 Challenge Calendar", requiresAuth: true },
+        { id: "hall-battles", label: "🏟️ Hall Battles", requiresAuth: true },
         // Tournaments Section
-        { id: "tournaments", label: "🏆 Tournaments" },
-        { id: "tournament-brackets", label: "🌲 Tournament Brackets" },
-        { id: "special-games", label: "⭐ Special Games" },
+        { id: "tournaments", label: "🏆 Tournaments", requiresAuth: true },
+        { id: "tournament-brackets", label: "🌲 Tournament Brackets", requiresAuth: true },
+        { id: "special-games", label: "⭐ Special Games", requiresAuth: true },
         // Standings Section
-        { id: "league-standings", label: "📈 League Standings" },
-        { id: "match-divisions", label: "📊 Match Divisions" },
+        { id: "league-standings", label: "📈 League Standings", requiresAuth: true },
+        { id: "match-divisions", label: "📊 Match Divisions", requiresAuth: true },
       ]
     },
     {
@@ -86,19 +189,20 @@ function Navigation({ activeTab, setActiveTab }: { activeTab: string; setActiveT
       icon: Camera,
       items: [
         { id: "live-stream", label: "📺 Live Stream" },
-        { id: "ai-features", label: "🤖 AI Features" },
-        { id: "poster-generator", label: "🎨 Poster Generator" },
-        { id: "file-manager", label: "📁 File Manager" },
+        { id: "ai-features", label: "🤖 AI Features", requiresAuth: true },
+        { id: "poster-generator", label: "🎨 Poster Generator", requiresAuth: true },
+        { id: "file-manager", label: "📁 File Manager", requiresAuth: true },
       ]
     },
     {
       id: "finance",
       label: "Finance",
       icon: DollarSign,
+      requiresAuth: true, // Entire finance section requires authentication
       items: [
-        { id: "player-subscription", label: "💳 Subscription Plans" },
-        { id: "checkout", label: "💰 Billing & Payments" },
-        { id: "monetization", label: "📊 Revenue Dashboard", roles: ["OWNER", "OPERATOR", "TRUSTEE"] as GlobalRole[] },
+        { id: "player-subscription", label: "💳 Subscription Plans", requiresAuth: true },
+        { id: "checkout", label: "💰 Billing & Payments", requiresAuth: true },
+        { id: "monetization", label: "📊 Revenue Dashboard", roles: ["OWNER", "OPERATOR", "TRUSTEE"] as GlobalRole[], requiresAuth: true },
       ]
     },
     {
@@ -106,12 +210,12 @@ function Navigation({ activeTab, setActiveTab }: { activeTab: string; setActiveT
       label: "Community",
       icon: Users,
       items: [
-        { id: "team-management", label: "👥 Team Management" },
-        { id: "team-matches", label: "🤝 Team Matches" },
-        { id: "team-challenges", label: "⚡ Team Challenges" },
+        { id: "team-management", label: "👥 Team Management", requiresAuth: true },
+        { id: "team-matches", label: "🤝 Team Matches", requiresAuth: true },
+        { id: "team-challenges", label: "⚡ Team Challenges", requiresAuth: true },
         { id: "players", label: "🎯 Players" },
-        { id: "sportsmanship", label: "🤝 Sportsmanship" },
-        { id: "bounties", label: "💎 Bounties" },
+        { id: "sportsmanship", label: "🤝 Sportsmanship", requiresAuth: true },
+        { id: "bounties", label: "💎 Bounties", requiresAuth: true },
         { id: "charity", label: "❤️ Charity" },
       ]
     },
@@ -120,11 +224,14 @@ function Navigation({ activeTab, setActiveTab }: { activeTab: string; setActiveT
       label: "Operations",
       icon: Settings,
       roles: ["OWNER", "OPERATOR", "TRUSTEE"] as GlobalRole[], // Role-based section visibility
+      requiresAuth: true,
       items: [
-        { id: "qr-registration", label: "📱 QR Registration" },
-        { id: "operator-settings", label: "⚙️ Operator Settings" },
-        { id: "operator-subscriptions", label: "💼 Operator Subscriptions" },
-        { id: "admin", label: "🛡️ Admin Dashboard" },
+        { id: "qr-registration", label: "📱 QR Registration", requiresAuth: true },
+        { id: "operator-settings", label: "⚙️ Operator Settings", requiresAuth: true },
+        { id: "operator-subscriptions", label: "💼 Operator Subscriptions", requiresAuth: true },
+        { id: "revenue-admin", label: "💰 Revenue Configuration", roles: ["OWNER", "TRUSTEE"] as GlobalRole[], requiresAuth: true },
+        { id: "admin-training-rewards", label: "🏆 Training Rewards", roles: ["OWNER", "OPERATOR", "STAFF"] as GlobalRole[], requiresAuth: true },
+        { id: "admin", label: "🛡️ Admin Dashboard", requiresAuth: true },
       ]
     },
   ];
@@ -132,10 +239,25 @@ function Navigation({ activeTab, setActiveTab }: { activeTab: string; setActiveT
   // Get user role from authentication - default to PLAYER if not authenticated
   const userRole: GlobalRole = user?.globalRole || "PLAYER";
 
-  // Filter groups based on user role (OWNER sees all, others see role-specific)
-  const visibleGroups = navigationGroups.filter(group => 
-    !group.roles || userRole === "OWNER" || group.roles.includes(userRole)
-  );
+  // Filter groups based on user role (but show all to encourage signups)
+  const visibleGroups = navigationGroups.filter(group => {
+    // If group has role restrictions, check them (only for authenticated users)
+    if (group.roles && isAuthenticated && userRole !== "OWNER" && !group.roles.includes(userRole)) {
+      return false;
+    }
+    
+    // Filter items within the group based on role (but not auth status)
+    if (isAuthenticated) {
+      group.items = group.items.filter(item => {
+        if ((item as any).roles && userRole !== "OWNER" && !(item as any).roles.includes(userRole)) {
+          return false;
+        }
+        return true;
+      });
+    }
+    
+    return true; // Show all groups to unauthenticated users
+  });
 
   // Show loading state while fetching user data
   if (isLoading) {
@@ -170,6 +292,41 @@ function Navigation({ activeTab, setActiveTab }: { activeTab: string; setActiveT
             </span>
           </div>
         </div>
+
+        {/* Desktop Navigation Dropdowns */}
+        <nav className="hidden md:flex items-center gap-2 flex-shrink-0 min-w-0">
+          {visibleGroups.map(group => (
+            <DropdownMenu key={group.id}>
+              <DropdownMenuTrigger className="flex items-center gap-2 text-emerald-200/80 hover:text-white px-4 py-2.5 rounded-lg hover:bg-emerald-500/15 transition-all duration-200 whitespace-nowrap font-medium text-sm border border-transparent hover:border-emerald-500/20">
+                <group.icon className="w-4 h-4" />
+                {group.label}
+                <ChevronDown className="w-4 h-4" />
+              </DropdownMenuTrigger>
+
+              <DropdownMenuContent 
+                className="max-h-96 w-64 overflow-y-auto bg-gray-900 text-white border border-gray-700"
+                align="start"
+              >
+                {group.items.map(item => (
+                  <DropdownMenuItem
+                    className="hover:bg-emerald-700 hover:text-white cursor-pointer px-3 py-2 text-sm whitespace-nowrap"
+                    key={item.id}
+                    onClick={() => {
+                      if (item.requiresAuth && !isAuthenticated) {
+                        window.location.href = "/login";
+                      } else {
+                        setActiveTab(item.id);
+                        window.location.href = `/app?tab=${item.id}`;
+                      }
+                    }}
+                  >
+                    <span className="whitespace-nowrap">{item.label}</span>
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ))}
+        </nav>
 
         <div className="flex items-center gap-2 md:gap-3">
           <span className="hidden sm:inline rounded-full px-3 py-1 text-xs font-bold bg-red-900/40 text-red-300 ring-1 ring-red-500/40">
@@ -241,6 +398,30 @@ function App() {
             <Route path="/auth-success">
               <AuthSuccess />
             </Route>
+            <Route path="/login">
+              <Login />
+            </Route>
+            <Route path="/owner-login">
+              <OwnerLogin />
+            </Route>
+            <Route path="/trustee-login">
+              <TrusteeLogin />
+            </Route>
+            <Route path="/signup">
+              <Signup />
+            </Route>
+            <Route path="/select-role">
+              <SelectRole />
+            </Route>
+            <Route path="/forgot-password">
+              <ForgotPassword />
+            </Route>
+            <Route path="/billing/success">
+              <BillingSuccess />
+            </Route>
+            <Route path="/billing/cancel">
+              <BillingCancel />
+            </Route>
             <Route path="/checkout">
               <Checkout />
             </Route>
@@ -256,64 +437,17 @@ function App() {
             <Route path="/acceptable-use">
               <AcceptableUse />
             </Route>
+            <Route path="/training/leaderboard/:hallId?">
+              <HallLeaderboard />
+            </Route>
+            <Route path="/training/session">
+              <TrainingSession />
+            </Route>
+            <Route path="/training/insights/:sessionId">
+              <CoachFeedback />
+            </Route>
             <Route path="/app">
-              {/* Hero Banner */}
-              <section className="py-12 relative overflow-hidden">
-                <div 
-                  className="absolute inset-0 opacity-10"
-                  style={{
-                    backgroundImage: `url(${logoBackground})`,
-                    backgroundSize: 'contain',
-                    backgroundPosition: 'center',
-                    backgroundRepeat: 'no-repeat'
-                  }}
-                ></div>
-                <div className="absolute inset-0 bg-gradient-to-r from-emerald-600/20 via-transparent to-emerald-600/20"></div>
-                <div className="container mx-auto px-4 relative z-10">
-                  <div className="text-center">
-                    <h2 className="text-4xl md:text-5xl font-black text-white mb-4">
-                      POOL. POINTS. PRIDE.
-                    </h2>
-                    <p className="text-lg text-gray-300 mb-6">
-                      In here, respect is earned in racks, not words
-                    </p>
-                  </div>
-                </div>
-              </section>
-
-              <div className="container mx-auto px-4 py-8">
-                {activeTab === "dashboard" && <Dashboard />}
-                {activeTab === "player-subscription" && <PlayerSubscription />}
-                {activeTab === "ladder" && <Ladder />}
-                {activeTab === "barbox-ladder" && <BarboxLadderPage />}
-                {activeTab === "eightfoot-ladder" && <EightFootLadderPage />}
-                {activeTab === "rookie-section" && <RookieSection />}
-                {activeTab === "escrow-challenges" && <EscrowChallenges />}
-                {activeTab === "hall-battles" && <HallBattles />}
-                {activeTab === "league-standings" && <LeagueStandings />}
-                {activeTab === "qr-registration" && <QRRegistration />}
-                {activeTab === "poster-generator" && <PosterGenerator />}
-                {activeTab === "live-stream" && <LiveStream />}
-                {activeTab === "ai-features" && <AIDashboard />}
-                {activeTab === "operator-settings" && <OperatorSettings />}
-                {activeTab === "admin" && <AdminDashboard />}
-                {activeTab === "tournaments" && <Tournaments />}
-                {activeTab === "tournament-brackets" && <TournamentBrackets />}
-                {activeTab === "special-games" && <SpecialGames />}
-                {activeTab === "players" && <Players />}
-                {activeTab === "bounties" && <Bounties />}
-                {activeTab === "charity" && <Charity />}
-                {activeTab === "team-management" && <TeamManagement />}
-                {activeTab === "team-matches" && <TeamMatches />}
-                {activeTab === "team-challenges" && <TeamChallenges />}
-                {activeTab === "match-divisions" && <MatchDivisions />}
-                {activeTab === "sportsmanship" && <SportsmanshipSystem />}
-                {activeTab === "file-manager" && <FileManager />}
-                {activeTab === "operator-subscriptions" && <OperatorSubscriptions />}
-                {activeTab === "monetization" && <MonetizationDashboard />}
-                {activeTab === "challenge-calendar" && <ChallengeCalendar />}
-              </div>
-              <RealTimeNotifications />
+              <AppContent activeTab={activeTab} logoBackground={logoBackground} />
             </Route>
             <Route component={NotFound} />
             </Switch>
@@ -321,6 +455,7 @@ function App() {
         </main>
 
         <Toaster />
+        <WebVitals />
 
         {/* Footer with Policy Links */}
         <footer className="relative z-10 bg-black/80 border-t border-neon-green/20 py-8 mt-16">

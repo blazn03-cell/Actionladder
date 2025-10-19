@@ -3,6 +3,17 @@ import { pgTable, text, varchar, integer, boolean, real, timestamp, index, uniqu
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
+// Session storage table for authentication (required by Replit Auth)
+export const sessions = pgTable(
+  "sessions",
+  {
+    sid: varchar("sid").primaryKey(),
+    sess: jsonb("sess").notNull(),
+    expire: timestamp("expire").notNull(),
+  },
+  (table) => [index("IDX_session_expire").on(table.expire)],
+);
+
 // Global user roles for platform management
 export const globalRoles = ["OWNER", "STAFF", "OPERATOR", "CREATOR", "PLAYER", "TRUSTEE"] as const;
 export type GlobalRole = typeof globalRoles[number];
@@ -39,6 +50,7 @@ export const users = pgTable("users", {
   city: text("city"),
   state: text("state"),
   subscriptionTier: text("subscription_tier"), // "small", "medium", "large", "mega"
+  trusteeId: text("trustee_id"), // ID of trustee who signed up this operator (receives 53% of subscription)
   
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
@@ -127,6 +139,87 @@ export const tournaments = pgTable("tournaments", {
   currentPlayers: integer("current_players").default(0),
   status: text("status").default("open"), // "open", "in_progress", "completed"
   stripeProductId: text("stripe_product_id"),
+  addedMoney: integer("added_money").default(0), // ActionLadder added money in cents
+  calcuttaEnabled: boolean("calcutta_enabled").default(false), // Enable bidding on participants
+  calcuttaDeadline: timestamp("calcutta_deadline"), // When bidding closes
+  seasonPredictionEnabled: boolean("season_prediction_enabled").default(false), // Link to season championship
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Tournament Calcutta - Players bid on tournament participants before event starts
+export const tournamentCalcuttas = pgTable("tournament_calcuttas", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tournamentId: text("tournament_id").notNull(),
+  participantId: text("participant_id").notNull(), // Player being bid on
+  currentBid: integer("current_bid").default(0), // Highest bid in cents
+  currentBidderId: text("current_bidder_id"), // Player who made highest bid
+  minimumBid: integer("minimum_bid").default(1000), // Starting bid $10 default
+  totalBids: integer("total_bids").default(0), // Number of bids placed
+  biddingOpen: boolean("bidding_open").default(true),
+  finalPayout: integer("final_payout").default(0), // Winner's prize split in cents
+  status: text("status").default("open"), // "open", "closed", "paid_out"
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Individual bids placed in tournament calcutta
+export const calcuttaBids = pgTable("calcutta_bids", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  calcuttaId: text("calcutta_id").notNull(),
+  bidderId: text("bidder_id").notNull(),
+  bidAmount: integer("bid_amount").notNull(), // Bid amount in cents
+  bidTime: timestamp("bid_time").defaultNow(),
+  isWinning: boolean("is_winning").default(false), // Current highest bid
+  stripePaymentIntentId: text("stripe_payment_intent_id"), // Payment confirmation
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Season Championship Predictions - Most wins after 3+ matches
+export const seasonPredictions = pgTable("season_predictions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  seasonId: text("season_id").notNull(), // Season identifier
+  name: text("name").notNull(), // "Most Wins End of Season Q1 2025"
+  description: text("description"),
+  entryFee: integer("entry_fee").notNull().default(5000), // $50 default entry
+  totalPool: integer("total_pool").default(0), // Total entry fees collected
+  serviceFee: integer("service_fee").default(0), // 10% service fee in cents
+  prizePool: integer("prize_pool").default(0), // Remaining after service fee
+  addedMoneyContribution: integer("added_money_contribution").default(0), // Goes to tournaments
+  minimumMatches: integer("minimum_matches").default(3), // Players need 3+ matches to be eligible
+  predictionsOpen: boolean("predictions_open").default(true),
+  predictionDeadline: timestamp("prediction_deadline"), // When predictions close
+  seasonEndDate: timestamp("season_end_date"), // When to determine winners
+  status: text("status").default("open"), // "open", "closed", "determining_winners", "completed"
+  firstPlaceWins: integer("first_place_wins").default(70), // 70% payout
+  secondPlaceWins: integer("second_place_wins").default(20), // 20% payout  
+  thirdPlaceWins: integer("third_place_wins").default(10), // 10% payout
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Individual predictions for season championship
+export const predictionEntries = pgTable("prediction_entries", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  predictionId: text("prediction_id").notNull(),
+  predictorId: text("predictor_id").notNull(), // Player making prediction
+  firstPlacePick: text("first_place_pick").notNull(), // Player ID predicted for 1st
+  secondPlacePick: text("second_place_pick").notNull(), // Player ID predicted for 2nd
+  thirdPlacePick: text("third_place_pick").notNull(), // Player ID predicted for 3rd
+  entryFee: integer("entry_fee").notNull(), // Entry fee paid in cents
+  predictionScore: integer("prediction_score").default(0), // Points for correct predictions
+  payout: integer("payout").default(0), // Prize money earned in cents
+  stripePaymentIntentId: text("stripe_payment_intent_id"), // Payment confirmation
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Tournament Added Money tracking - Revenue allocation for tournaments
+export const addedMoneyFund = pgTable("added_money_fund", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  sourceType: text("source_type").notNull(), // "season_prediction_fee", "challenge_pool_fee", "calcutta_fee"
+  sourceId: text("source_id").notNull(), // Reference to source transaction
+  amount: integer("amount").notNull(), // Amount in cents added to fund
+  allocationType: text("allocation_type").notNull(), // "monthly_tournament", "season_championship"
+  allocationDate: timestamp("allocation_date"), // When funds were allocated
+  tournamentId: text("tournament_id"), // Tournament that received the funds
+  remainingBalance: integer("remaining_balance").default(0), // Running balance
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -134,12 +227,27 @@ export const kellyPools = pgTable("kelly_pools", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
   entry: integer("entry").notNull(),
-  pot: integer("pot").notNull(),
+  prizePool: integer("prize_pool").notNull(), // renamed from "pot" for compliance
   maxPlayers: integer("max_players").notNull(),
   currentPlayers: integer("current_players").default(0),
   balls: text("balls").array(), // JSON array of assigned balls
   status: text("status").default("open"), // "open", "active", "completed"
   table: text("table"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const moneyGames = pgTable("money_games", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  billAmount: integer("bill_amount").notNull(),
+  prizePool: integer("prize_pool").notNull(),
+  currentPlayers: integer("current_players").default(0),
+  maxPlayers: integer("max_players").notNull(),
+  table: text("table").notNull(),
+  gameType: text("game_type").notNull(), // "straight-lag", "rail-first", "progressive"
+  status: text("status").default("waiting"), // "waiting", "active", "completed"
+  winner: text("winner"),
+  players: text("players").array().default(sql`ARRAY[]::text[]`), // Array of player names/IDs
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -277,19 +385,21 @@ export const createOwnerSchema = z.object({
 
 export const createOperatorSchema = z.object({
   email: z.string().email(),
+  password: z.string().min(8, "Password must be at least 8 characters"),
   name: z.string().min(2),
   hallName: z.string().min(2),
   city: z.string().min(2),
   state: z.string().min(2),
   subscriptionTier: z.enum(["small", "medium", "large", "mega"]),
-  stripePaymentMethodId: z.string(),
+  stripePaymentMethodId: z.string().optional(),
 });
 
 export const createPlayerSchema = z.object({
   email: z.string().email(),
+  password: z.string().min(8, "Password must be at least 8 characters"),
   name: z.string().min(2),
-  username: z.string().min(3),
-  hallId: z.string(),
+  city: z.string().min(2),
+  state: z.string().min(2),
   tier: z.enum(["rookie", "barbox", "eight_foot", "nine_foot"]),
   membershipTier: z.enum(["none", "basic", "pro"]).default("none"),
 });
@@ -334,7 +444,38 @@ export const insertTournamentSchema = createInsertSchema(tournaments).omit({
   createdAt: true,
 });
 
+export const insertTournamentCalcuttaSchema = createInsertSchema(tournamentCalcuttas).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertCalcuttaBidSchema = createInsertSchema(calcuttaBids).omit({
+  id: true,
+  createdAt: true,
+  bidTime: true,
+});
+
+export const insertSeasonPredictionSchema = createInsertSchema(seasonPredictions).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertPredictionEntrySchema = createInsertSchema(predictionEntries).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertAddedMoneyFundSchema = createInsertSchema(addedMoneyFund).omit({
+  id: true,
+  createdAt: true,
+});
+
 export const insertKellyPoolSchema = createInsertSchema(kellyPools).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertMoneyGameSchema = createInsertSchema(moneyGames).omit({
   id: true,
   createdAt: true,
 });
@@ -656,6 +797,23 @@ export const operatorSubscriptions = pgTable("operator_subscriptions", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// Operator Subscription Split Ledger - tracks revenue distribution
+export const operatorSubscriptionSplits = pgTable("operator_subscription_splits", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  subscriptionId: text("subscription_id").notNull(), // Links to operatorSubscriptions or Stripe subscription ID
+  operatorId: text("operator_id").notNull(), // Operator who paid the subscription
+  trusteeId: text("trustee_id"), // Trustee who signed up the operator (receives 53%)
+  potAmount: integer("pot_amount").notNull(), // 20% to pot/special games in cents
+  trusteeAmount: integer("trustee_amount").notNull(), // 53% to trustee in cents
+  founderAmount: integer("founder_amount").notNull(), // 23% to founder in cents
+  payrollAmount: integer("payroll_amount").notNull(), // 4% to payroll in cents
+  totalAmount: integer("total_amount").notNull(), // Total subscription amount in cents
+  stripePaymentIntentId: text("stripe_payment_intent_id"), // Stripe payment reference
+  billingPeriodStart: timestamp("billing_period_start"),
+  billingPeriodEnd: timestamp("billing_period_end"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Team Division System for 3-man and 5-man teams
 export const teams = pgTable("teams", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -663,8 +821,8 @@ export const teams = pgTable("teams", {
   operatorId: text("operator_id").notNull(), // Links to operator
   hallId: text("hall_id"), // Links to pool halls
   captainId: text("captain_id").notNull(), // Team captain player ID
-  teamType: text("team_type").notNull(), // "2man", "3man", "5man"
-  maxPlayers: integer("max_players").notNull(), // 2, 3, or 5
+  teamType: text("team_type").notNull(), // "2man", "3man" (5man discontinued)
+  maxPlayers: integer("max_players").notNull(), // 2 or 3 (5man discontinued)
   maxSubs: integer("max_subs").notNull(), // 2 or 3
   currentPlayers: integer("current_players").default(1), // Start with captain
   currentSubs: integer("current_subs").default(0),
@@ -684,7 +842,7 @@ export const teamPlayers = pgTable("team_players", {
   teamId: text("team_id").notNull(),
   playerId: text("player_id").notNull(),
   role: text("role").notNull(), // "captain", "player", "substitute"
-  position: integer("position"), // Lineup order (1-2 for 2man, 1-3 for 3man, 1-5 for 5man)
+  position: integer("position"), // Lineup order (1-2 for 2man, 1-3 for 3man)
   isActive: boolean("is_active").default(true),
   seasonWins: integer("season_wins").default(0),
   seasonLosses: integer("season_losses").default(0),
@@ -699,7 +857,7 @@ export const teamMatches = pgTable("team_matches", {
   operatorId: text("operator_id").notNull(),
   homeScore: integer("home_score").default(0),
   awayScore: integer("away_score").default(0),
-  maxSets: integer("max_sets").notNull(), // 2 for 2man, 3 for 3man, 5 for 5man
+  maxSets: integer("max_sets").notNull(), // 2 for 2man, 3 for 3man (5man discontinued)
   currentSet: integer("current_set").default(1),
   status: text("status").default("scheduled"), // "scheduled", "in_progress", "completed"
   winnerTeamId: text("winner_team_id"),
@@ -734,11 +892,11 @@ export const teamSets = pgTable("team_sets", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-// Team Challenges: 2-Man Army, 3-Man Crew, 5-Man Squad with fee structures
+// Team Challenges: 2-Man Army, 3-Man Crew (5-Man Squad discontinued)
 export const teamChallenges = pgTable("team_challenges", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   challengingTeamId: text("challenging_team_id").notNull(), // Team creating the challenge
-  challengeType: text("challenge_type").notNull(), // "2man_army", "3man_crew", "5man_squad"
+  challengeType: text("challenge_type").notNull(), // "2man_army", "3man_crew" (5man_squad discontinued)
   individualFee: integer("individual_fee").notNull(), // Fee per player in cents ($10-$10,000)
   totalStake: integer("total_stake").notNull(), // Total team stake (individualFee × team size)
   title: text("title").notNull(), // Challenge title/description
@@ -917,8 +1075,20 @@ export type Match = typeof matches.$inferSelect;
 export type InsertMatch = z.infer<typeof insertMatchSchema>;
 export type Tournament = typeof tournaments.$inferSelect;
 export type InsertTournament = z.infer<typeof insertTournamentSchema>;
+export type TournamentCalcutta = typeof tournamentCalcuttas.$inferSelect;
+export type InsertTournamentCalcutta = z.infer<typeof insertTournamentCalcuttaSchema>;
+export type CalcuttaBid = typeof calcuttaBids.$inferSelect;
+export type InsertCalcuttaBid = z.infer<typeof insertCalcuttaBidSchema>;
+export type SeasonPrediction = typeof seasonPredictions.$inferSelect;
+export type InsertSeasonPrediction = z.infer<typeof insertSeasonPredictionSchema>;
+export type PredictionEntry = typeof predictionEntries.$inferSelect;
+export type InsertPredictionEntry = z.infer<typeof insertPredictionEntrySchema>;
+export type AddedMoneyFund = typeof addedMoneyFund.$inferSelect;
+export type InsertAddedMoneyFund = z.infer<typeof insertAddedMoneyFundSchema>;
 export type KellyPool = typeof kellyPools.$inferSelect;
 export type InsertKellyPool = z.infer<typeof insertKellyPoolSchema>;
+export type MoneyGame = typeof moneyGames.$inferSelect;
+export type InsertMoneyGame = z.infer<typeof insertMoneyGameSchema>;
 export type Bounty = typeof bounties.$inferSelect;
 export type InsertBounty = z.infer<typeof insertBountySchema>;
 export type CharityEvent = typeof charityEvents.$inferSelect;
@@ -947,6 +1117,8 @@ export type RookieSubscription = typeof rookieSubscriptions.$inferSelect;
 export type InsertRookieSubscription = z.infer<typeof insertRookieSubscriptionSchema>;
 export type OperatorSubscription = typeof operatorSubscriptions.$inferSelect;
 export type InsertOperatorSubscription = z.infer<typeof insertOperatorSubscriptionSchema>;
+export type OperatorSubscriptionSplit = typeof operatorSubscriptionSplits.$inferSelect;
+export type InsertOperatorSubscriptionSplit = z.infer<typeof insertOperatorSubscriptionSplitSchema>;
 export type Team = typeof teams.$inferSelect;
 export type InsertTeam = z.infer<typeof insertTeamSchema>;
 export type TeamPlayer = typeof teamPlayers.$inferSelect;
@@ -1076,6 +1248,11 @@ export const insertOperatorSubscriptionSchema = createInsertSchema(operatorSubsc
   id: true,
   createdAt: true,
   updatedAt: true,
+});
+
+export const insertOperatorSubscriptionSplitSchema = createInsertSchema(operatorSubscriptionSplits).omit({
+  id: true,
+  createdAt: true,
 });
 
 export const insertTeamSchema = createInsertSchema(teams).omit({
@@ -2172,3 +2349,230 @@ export type SystemMetric = typeof systemMetrics.$inferSelect;
 export type InsertSystemMetric = z.infer<typeof insertSystemMetricSchema>;
 export type SystemAlert = typeof systemAlerts.$inferSelect;
 export type InsertSystemAlert = z.infer<typeof insertSystemAlertSchema>;
+
+// Revenue Configuration table for persistent storage
+export const revenueConfigs = pgTable("revenue_configs", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  isActive: boolean("is_active").default(false),
+  splitPercentages: jsonb("split_percentages").notNull(),
+  commissionRates: jsonb("commission_rates").notNull(), 
+  membershipPricing: jsonb("membership_pricing").notNull(),
+  settings: jsonb("settings").notNull(),
+  lastModified: timestamp("last_modified").defaultNow(),
+  modifiedBy: text("modified_by").notNull(),
+});
+
+export const insertRevenueConfigSchema = createInsertSchema(revenueConfigs).omit({
+  lastModified: true,
+});
+
+export type InsertRevenueConfig = z.infer<typeof insertRevenueConfigSchema>;
+export type SelectRevenueConfig = typeof revenueConfigs.$inferSelect;
+
+// === AI BILLIARDS COACH - TRAINING ANALYTICS ===
+
+// Session analytics - tracks individual training/match sessions
+export const sessionAnalytics = pgTable("session_analytics", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  playerId: text("player_id").notNull(),
+  hallId: text("hall_id").notNull(),
+  ladderId: text("ladder_id"),
+  sessionType: text("session_type").notNull(), // "practice" or "match"
+  focusArea: text("focus_area"), // "Break", "Position Play", "Bank Shots", "Safety", "Speed Control", "General Practice"
+  opponentId: text("opponent_id"),
+  date: timestamp("date").notNull(),
+  coachScore: real("coach_score").notNull(), // 0-100 AI coach rating
+  hours: real("hours").notNull(), // Duration in hours
+  win: boolean("win"), // If match type
+  makePercentage: real("make_percentage"),
+  breakSuccess: real("break_success"),
+  avgBallsRun: real("avg_balls_run"),
+  safetyWinPct: real("safety_win_pct"),
+  positionalErrorIn: real("positional_error_in"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Individual shots within a session
+export const shots = pgTable("shots", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  sessionId: text("session_id").notNull(),
+  timestamp: integer("timestamp").notNull(), // Milliseconds from session start
+  result: text("result").notNull(), // "MAKE" or "MISS"
+  shotType: text("shot_type").notNull(), // "cut", "bank", "kick", "safety", "break"
+  cutAngleDeg: real("cut_angle_deg"),
+  distanceIn: real("distance_in").notNull(), // Distance in inches
+  spinType: text("spin_type").notNull(), // "none", "draw", "follow", "left", "right"
+  cueSpeed: real("cue_speed"),
+  positionalErrorIn: real("positional_error_in"), // Inches off target
+  difficultyScore: real("difficulty_score"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Ladder training scores - aggregated monthly scores for training ladder
+export const ladderTrainingScores = pgTable("ladder_training_scores", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  playerId: text("player_id").notNull(),
+  hallId: text("hall_id").notNull(),
+  ladderId: text("ladder_id").notNull(),
+  period: text("period").notNull(), // "YYYY-MM" format
+  coachAvg: real("coach_avg").notNull(), // Average coach score
+  hoursTotal: real("hours_total").notNull(), // Total training hours
+  winRate: real("win_rate").notNull(), // Win percentage
+  totalScore: real("total_score").notNull(), // Weighted: 0.5*coach + 0.3*hours_norm + 0.2*winRate
+  rank: integer("rank").notNull(),
+  isWinner: boolean("is_winner").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  uniquePlayerPeriod: unique("unique_player_period").on(table.playerId, table.hallId, table.ladderId, table.period),
+}));
+
+// Subscription rewards - track training ladder rewards
+export const subscriptionRewards = pgTable("subscription_rewards", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  playerId: text("player_id").notNull(),
+  hallId: text("hall_id").notNull(),
+  ladderId: text("ladder_id").notNull(),
+  period: text("period").notNull(), // "YYYY-MM" format
+  rewardType: text("reward_type").notNull(), // "half" or "free"
+  appliedToStripe: boolean("applied_to_stripe").default(false),
+  stripeCouponId: text("stripe_coupon_id"),
+  appliedDate: timestamp("applied_date"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  uniqueRewardPeriod: unique("unique_reward_period").on(table.playerId, table.hallId, table.ladderId, table.period),
+}));
+
+// Prize Pool Aggregation - Track all prize pool contributions and distributions
+export const prizePools = pgTable("prize_pools", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  poolId: text("pool_id").notNull().unique(), // e.g., "tournament_123", "monthly_2025_01"
+  poolType: text("pool_type").notNull(), // "tournament", "monthly", "special_event"
+  hallId: text("hall_id"), // Operator's hall identifier
+  name: text("name").notNull(),
+  description: text("description"),
+  period: text("period"), // "YYYY-MM" for monthly pools
+  totalContributions: integer("total_contributions").default(0), // Total in cents
+  challengeFees: integer("challenge_fees").default(0), // Head-to-head challenge fees
+  subscriptionFees: integer("subscription_fees").default(0), // Tournament % from subscriptions
+  nonMemberFees: integer("non_member_fees").default(0), // Non-member match fees
+  extras: integer("extras").default(0), // Break & Run, Hill-Hill, Fines, Sponsors
+  platformFee: integer("platform_fee").default(0), // Platform commission in cents
+  operatorCut: integer("operator_cut").default(0), // Operator share in cents
+  trusteeCut: integer("trustee_cut").default(0), // Trustee/Admin share in cents
+  growthFund: integer("growth_fund").default(0), // Growth fund allocation in cents
+  availableForDistribution: integer("available_for_distribution").default(0), // Net prize pool
+  distributed: integer("distributed").default(0), // Amount already distributed
+  status: text("status").default("active"), // "active", "locked", "distributed", "completed"
+  distributionPlan: jsonb("distribution_plan"), // JSON with distribution percentages
+  lockedAt: timestamp("locked_at"), // When pool was locked for distribution
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => ({
+  poolIdIdx: index("prize_pools_pool_id_idx").on(table.poolId),
+  hallIdIdx: index("prize_pools_hall_id_idx").on(table.hallId),
+  periodIdx: index("prize_pools_period_idx").on(table.period),
+}));
+
+// Prize Pool Contributions - Track individual contributions to prize pools
+export const prizePoolContributions = pgTable("prize_pool_contributions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  poolId: text("pool_id").notNull(), // References prize_pools.pool_id
+  contributionType: text("contribution_type").notNull(), // "challenge_fee", "subscription", "non_member_fee", "extra"
+  sourceType: text("source_type"), // "match", "tournament_entry", "break_and_run", "hill_hill", "fine", "sponsor"
+  sourceId: text("source_id"), // Reference to source entity (match_id, tournament_id, etc.)
+  playerId: text("player_id"), // Player who contributed
+  amount: integer("amount").notNull(), // Contribution amount in cents
+  stripePaymentIntentId: text("stripe_payment_intent_id"), // Stripe payment reference
+  metadata: jsonb("metadata"), // Additional metadata from Stripe or source
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  poolIdIdx: index("prize_pool_contributions_pool_id_idx").on(table.poolId),
+  playerIdIdx: index("prize_pool_contributions_player_id_idx").on(table.playerId),
+}));
+
+// Prize Pool Distributions - Track prize pool payouts
+export const prizePoolDistributions = pgTable("prize_pool_distributions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  poolId: text("pool_id").notNull(), // References prize_pools.pool_id
+  recipientType: text("recipient_type").notNull(), // "winner", "operator", "trustee", "growth_fund", "platform"
+  recipientId: text("recipient_id"), // User ID or entity ID
+  amount: integer("amount").notNull(), // Distribution amount in cents
+  percentage: real("percentage"), // Percentage of total pool
+  stripeTransferId: text("stripe_transfer_id"), // Stripe Connect transfer reference
+  status: text("status").default("pending"), // "pending", "processing", "completed", "failed"
+  distributedAt: timestamp("distributed_at"),
+  failureReason: text("failure_reason"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  poolIdIdx: index("prize_pool_distributions_pool_id_idx").on(table.poolId),
+  recipientIdIdx: index("prize_pool_distributions_recipient_id_idx").on(table.recipientId),
+}));
+
+// Insert schemas for training analytics tables
+export const insertSessionAnalyticsSchema = createInsertSchema(sessionAnalytics).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertShotSchema = createInsertSchema(shots).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertLadderTrainingScoreSchema = createInsertSchema(ladderTrainingScores).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertSubscriptionRewardSchema = createInsertSchema(subscriptionRewards).omit({
+  id: true,
+  createdAt: true,
+});
+
+// Types for training analytics tables
+export type SessionAnalytics = typeof sessionAnalytics.$inferSelect;
+export type InsertSessionAnalytics = z.infer<typeof insertSessionAnalyticsSchema>;
+export type SelectSessionAnalytics = SessionAnalytics;
+
+export type Shot = typeof shots.$inferSelect;
+export type InsertShot = z.infer<typeof insertShotSchema>;
+export type SelectShot = Shot;
+
+export type LadderTrainingScore = typeof ladderTrainingScores.$inferSelect;
+export type InsertLadderTrainingScore = z.infer<typeof insertLadderTrainingScoreSchema>;
+export type SelectLadderTrainingScore = LadderTrainingScore;
+
+export type SubscriptionReward = typeof subscriptionRewards.$inferSelect;
+export type InsertSubscriptionReward = z.infer<typeof insertSubscriptionRewardSchema>;
+export type SelectSubscriptionReward = SubscriptionReward;
+
+// Insert schemas for Prize Pool tables
+export const insertPrizePoolSchema = createInsertSchema(prizePools).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertPrizePoolContributionSchema = createInsertSchema(prizePoolContributions).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertPrizePoolDistributionSchema = createInsertSchema(prizePoolDistributions).omit({
+  id: true,
+  createdAt: true,
+});
+
+// Types for Prize Pool tables
+export type PrizePool = typeof prizePools.$inferSelect;
+export type InsertPrizePool = z.infer<typeof insertPrizePoolSchema>;
+export type SelectPrizePool = PrizePool;
+
+export type PrizePoolContribution = typeof prizePoolContributions.$inferSelect;
+export type InsertPrizePoolContribution = z.infer<typeof insertPrizePoolContributionSchema>;
+export type SelectPrizePoolContribution = PrizePoolContribution;
+
+export type PrizePoolDistribution = typeof prizePoolDistributions.$inferSelect;
+export type InsertPrizePoolDistribution = z.infer<typeof insertPrizePoolDistributionSchema>;
+export type SelectPrizePoolDistribution = PrizePoolDistribution;

@@ -22,8 +22,25 @@ interface AuthResponse {
 }
 
 export function useAuth(): AuthResponse {
-  const { data: user, isLoading, error } = useQuery<User>({
+  const { data: user, isLoading, error } = useQuery<User | null>({
     queryKey: ["/api/auth/me"],
+    queryFn: async () => {
+      const response = await fetch("/api/auth/me", {
+        credentials: "include",
+      });
+      
+      // If 401, user is not authenticated - return null instead of throwing
+      if (response.status === 401) {
+        return null;
+      }
+      
+      if (!response.ok) {
+        throw new Error(`Auth check failed: ${response.status}`);
+      }
+      
+      const userData = await response.json();
+      return userData;
+    },
     retry: false, // Don't retry auth failures
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 10 * 60 * 1000, // 10 minutes cache

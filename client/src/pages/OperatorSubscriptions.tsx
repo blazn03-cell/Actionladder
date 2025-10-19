@@ -365,6 +365,9 @@ export default function OperatorSubscriptions() {
 }
 
 function SubscriptionCard({ subscription }: { subscription: OperatorSubscription }) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
   const getTierInfo = (tier: string) => {
     const tierInfo = {
       small: { name: "Small Hall", color: "bg-green-600", limit: "≤15 players" },
@@ -375,8 +378,36 @@ function SubscriptionCard({ subscription }: { subscription: OperatorSubscription
     return tierInfo[tier as keyof typeof tierInfo] || tierInfo.small;
   };
 
+  const toggleStatusMutation = useMutation({
+    mutationFn: (newStatus: string) => 
+      apiRequest(`/api/operator-subscriptions/${subscription.operatorId}`, {
+        method: "PUT",
+        body: JSON.stringify({ status: newStatus })
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/operator-subscriptions"] });
+      toast({
+        title: "Status Updated",
+        description: `Subscription ${subscription.status === "active" ? "deactivated" : "activated"} successfully`,
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update subscription status",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleToggleStatus = (checked: boolean) => {
+    const newStatus = checked ? "active" : "inactive";
+    toggleStatusMutation.mutate(newStatus);
+  };
+
   const tierInfo = getTierInfo(subscription.tier);
   const isOverLimit = getPlayerOverage(subscription);
+  const isActive = subscription.status === "active";
 
   return (
     <Card className="bg-gray-900 border-gray-700" data-testid={`card-subscription-${subscription.id}`}>
@@ -457,14 +488,29 @@ function SubscriptionCard({ subscription }: { subscription: OperatorSubscription
 
           <Separator className="bg-gray-700" />
 
-          {/* Billing Info */}
-          <div className="space-y-2 text-xs">
-            <div className="flex justify-between">
-              <span className="text-gray-400">Status:</span>
-              <Badge variant={subscription.status === "active" ? "default" : "destructive"}>
+          {/* Subscription Toggle */}
+          <div className="flex items-center justify-between p-3 bg-gray-800/50 rounded">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium">
+                {isActive ? "Active" : "Inactive"}
+              </span>
+              <Badge 
+                variant={isActive ? "default" : "destructive"}
+                className={isActive ? "bg-green-600" : "bg-gray-600"}
+              >
                 {subscription.status}
               </Badge>
             </div>
+            <Switch
+              checked={isActive}
+              onCheckedChange={handleToggleStatus}
+              disabled={toggleStatusMutation.isPending}
+              data-testid={`switch-subscription-status-${subscription.id}`}
+            />
+          </div>
+
+          {/* Billing Info */}
+          <div className="space-y-2 text-xs">
             
             {subscription.nextBillingDate && (
               <div className="flex justify-between">

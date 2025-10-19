@@ -1,142 +1,45 @@
 # Action Ladder Billiards
 
-## Project Overview
-Dark, gritty billiards tournament ladder system with live streaming integration, Stripe payment processing, and extensive player support features. Built with React, TypeScript, Express, and Tailwind CSS.
-
-## Core Features
-- **Player Ladder System**: Rankings, points, wins/losses tracking
-- **Live Streaming Integration**: Twitch/YouTube embeds with live status
-- **Stripe Payment Processing**: Secure checkout for tournaments and memberships
-- **Special Events**: Birthday bonuses, charity nights, player support programs
-- **QR Code Join Flow**: Easy player registration via mobile
-- **Automated Poster Generator**: One-click fight night poster creation
-- **Respect Points System**: Community recognition beyond just winning
-- **Side Betting System**: Credit-based wagering with closed-loop funds and pre-funding to prevent ghosting
-
-## Challenge Pool System
-Complete production-ready challenge pool infrastructure featuring:
-- **Credit-Based Entries**: Closed-loop system with wallet management and Stripe top-ups
-- **Challenge Pool Creation**: Players create custom challenge markets with configurable entry fees and prizes
-- **Operator Controls**: Administrative dashboard for locking pools and resolving challenges
-- **Automated Resolution**: Winner determination with automatic prize distribution
-- **Transaction Ledger**: Complete audit trail of all financial activities
-- **Anti-Ghosting Protection**: Pre-funding requirement ensures all entries are backed by real credits
-- **Service Fee Management**: Tiered fee structure (8.5% default, 5% for pools over $500)
-- **Real-Time Updates**: Live challenge status and pool tracking across all interfaces
-
-## Theme & Branding
-- **Slogan**: "In here, respect is earned in racks, not words"
-- **Aesthetic**: Dark, gritty green theme representing pool hall atmosphere
-- **Color Scheme**: Black backgrounds with bright green (#00ff00) accents
-- **Typography**: Monospace fonts for that underground tech feel
-
-## Challenge & Financial Features
-- **Entry Range**: $60 minimum to $500,000 maximum for qualified high-stakes players
-- **League Fee Structure**: 5% for members, 15% for non-members  
-- **Membership Tiers**: Basic ($25/month), Pro ($60/month with tutoring credits)
-- **Payment Methods**: Stripe integration with test mode enabled
-
-## Special Community Features
-- **Birthday Month Benefits**: Free tournament entry, $25 bonus if they win, special recognition
-- **Family Support System**: Free passes for players going through tough times
-- **Charity Nights**: Percentage of pots donated to community causes
-- **Player in Need Rule**: Emergency support for struggling players (max $100)
-- **Respect Points**: Earned through good sportsmanship and community contributions
-
-## Technical Architecture
-- **Frontend**: React 18 with TypeScript, Wouter routing, TanStack Query
-- **Backend**: Express.js with in-memory storage (MemStorage)
-- **Mobile App**: React Native with Expo (WebView wrapper)
-- **Styling**: Tailwind CSS with custom dark theme
-- **Payments**: Stripe Checkout API integration
-- **Database**: PostgreSQL available (currently using memory storage)
-- **Streaming**: Multi-platform live stream integration (Twitch, YouTube, Facebook, TikTok, Kick)
+## Overview
+Action Ladder Billiards is a dark, gritty billiards tournament ladder system aiming to redefine the competitive billiards scene. It integrates live streaming, secure Stripe payment processing, and comprehensive player support features. The project's vision is to foster a vibrant, engaged community around billiards, offering not just competition but also player development, financial incentives, and social responsibility. Key capabilities include a robust player ranking system, a credit-based challenge pool with anti-ghosting measures, and an innovative AI billiards coach. The project targets both casual players and high-stakes enthusiasts, providing a platform for skill development, community interaction, and competitive play with significant market potential in the digital sports and entertainment sector.
 
 ## User Preferences
 - **Communication Style**: Concise, professional, no emojis in code
 - **Code Style**: TypeScript strict mode, functional components, proper error handling
 - **Theme**: Dark mode preferred, green accent colors for billiards aesthetic
 
-## Recent Changes
-- Updated slogan to reflect street hustle mentality
-- Increased challenge limits to accommodate high-stakes players
-- Added Stripe Checkout API integration with proper price IDs
-- Implemented dark green pool hall theme throughout
-- Created comprehensive player support and community features
-- Enhanced Live Streams with geographic filtering and 6 platform support
-- Built complete React Native mobile app with Expo
-- Added "Money on the Table" challenge game with multiple variants
-- Integrated OCR capabilities with tesseract.js for tournament features
-- **Implemented complete challenge pool system with credit-based entries** (December 2024)
-- Extended database schema for wallet management and challenge pool tracking
-- Created comprehensive API infrastructure for challenge operations and resolution
-- Built React UI components for both user entries and operator management
-- Integrated Stripe payment processing for wallet top-ups
-- **Updated all language to league-safe terminology** - replaced gambling terms with league/competition language for legal compliance
-- **Implemented comprehensive three-tier authentication system** (January 2025)
-- Created distinct user roles: Creator/Owner, Operator, and Player with specialized dashboards
-- Added role-based authentication with password login and 2FA for Creator accounts
-- **Deployed automatic language sanitization system** (January 2025)
-- Added global text sanitization that replaces gambling terms with league-safe language
-- Integrated sanitization middleware across all API endpoints
-- Created SafeText React component for automatic UI text sanitization
-- Added Stripe-safe wrappers to ensure payment descriptions use appropriate language
+## System Architecture
+The system is built on a modern web stack designed for performance, scalability, and a unique user experience.
 
-## Development Setup
-- Uses Vite for frontend development server
-- Express backend on port 3000
-- Frontend on port 5173 with proxy to backend
-- TypeScript strict mode enabled
-- Tailwind CSS for styling
+### UI/UX Decisions
+- **Aesthetic**: Dark, gritty green theme representing a pool hall atmosphere.
+- **Color Scheme**: Black backgrounds with bright green (#00ff00) accents.
+- **Typography**: Monospace fonts for an underground tech feel.
+- **QR Code Join Flow**: Facilitates easy player registration via mobile devices.
+- **Automated Poster Generator**: One-click creation of event posters.
 
-## Key Files
-- `shared/schema.ts`: Data models and validation
-- `server/storage.ts`: In-memory data storage
-- `server/routes.ts`: API endpoints including Stripe integration
-- `client/src/App.tsx`: Main application with navigation
-- `client/src/pages/`: Individual page components
-- `client/src/index.css`: Custom CSS with pool hall theme
+### Technical Implementations
+- **Frontend**: React 18 with TypeScript, Wouter for routing, and TanStack Query for data fetching.
+- **Backend**: Express.js, primarily utilizing in-memory storage (MemStorage) with a PostgreSQL database available for persistent data.
+- **Mobile App**: React Native with Expo, functioning as a WebView wrapper for the web application, incorporating native features like camera access for OCR, push notifications, and location services.
+- **Styling**: Tailwind CSS with a custom dark theme.
+- **Challenge Pool System**: Features credit-based entries, wallet management, configurable challenge markets, automated resolution, and a transaction ledger. Includes anti-ghosting protection via pre-funding and a tiered service fee structure.
+- **AI Billiards Coach**: Integrates Dr. Dave's physics rules for shot analysis, provides insights on overdraw, spin bias, break accuracy, and other techniques. It includes a scoring formula for improvement and monthly leaderboards.
+- **Authentication**: A three-tier system with Creator/Owner, Operator, and Player roles, supporting password login and 2FA for Creator accounts.
+- **Language Sanitization**: An automatic system replaces gambling terms with league-safe terminology across the application, enforced via middleware and a SafeText React component.
+- **Live Streaming**: Multi-platform integration (Twitch, YouTube, Facebook, TikTok, Kick) with geographic filtering and stream categories.
 
-## Environment Variables Needed
-- `STRIPE_SECRET_KEY`: Stripe API secret key
-- `STRIPE_WEBHOOK_SECRET`: Stripe webhook endpoint secret
-- `STRIPE_PUBLISHABLE_KEY`: Stripe public key for frontend
-- `DATABASE_URL`: PostgreSQL connection string (available)
-- `SESSION_SECRET`: Session encryption key (available)
-- `REPLIT_DOMAINS`: Deployment domains (available)
+### Feature Specifications
+- **Player Ladder System**: Tracks rankings, points, wins, and losses.
+- **Special Events**: Supports birthday bonuses, charity nights, and player support programs (e.g., "Player in Need Rule").
+- **Respect Points System**: Community recognition for sportsmanship.
+- **Side Betting System**: Credit-based wagering with closed-loop funds.
+- **Financial Features**: Entry ranges from $60 to $500,000 for high-stakes players. League fees are 5% for members, 15% for non-members. Membership tiers include Basic ($25/month) and Pro ($60/month).
+- **Automated Rewards**: The AI Coach system includes automated monthly rewards for top trainers, offering Stripe subscription discounts.
 
-## Payment Integration
-Uses Stripe Checkout Sessions API with:
-- One-time payments for tournaments/entries
-- Subscription billing for memberships
-- Webhook handling for payment confirmation
-- Metadata tracking for payment types and user tiers
-
-## Mobile Application
-React Native app built with Expo featuring:
-- **WebView Integration**: Full web app in native mobile wrapper
-- **Camera/Microphone Access**: OCR scanning, live streaming, match recording
-- **Deep Linking**: actionladder:// URLs for sharing tournaments/matches
-- **Push Notifications**: Tournament updates, match results, live stream alerts
-- **Offline Support**: Cached content when internet unavailable
-- **Store Deployment**: Ready for Google Play Store and Apple App Store
-- **Location Services**: Find nearby pool halls and tournaments
-- **Native Optimizations**: Touch gestures, keyboard handling, performance
-
-### Mobile App Setup
-1. Navigate to `mobile-app/` directory
-2. Install dependencies: `npm install`
-3. Update `APP_URL` in `App.js` to your deployment URL
-4. Start development: `npm start`
-5. Test with Expo Go app on your phone
-6. Build for stores: `npm run build:android` or `npm run build:ios`
-
-## Live Streaming Features
-Comprehensive streaming platform with:
-- **Multi-Platform Support**: Twitch, YouTube, Facebook, TikTok, Kick, Other
-- **Geographic Discovery**: Filter streams by city, state, and pool hall
-- **Stream Categories**: Tournament, casual, practice, special event
-- **Quality Indicators**: HD, Full HD, 4K streaming support
-- **Real-Time Stats**: Live viewer counts with peak tracking
-- **Integration**: Connected with tournaments, matches, and player profiles
-- **Operator Controls**: Stream management and moderation tools
+## External Dependencies
+- **Payment Processing**: Stripe (Checkout Sessions API for one-time payments, subscriptions, and webhooks).
+- **Streaming Platforms**: Twitch, YouTube, Facebook, TikTok, Kick (for live streaming integration).
+- **Email Notifications**: SendGrid (for admin summaries and notifications related to rewards).
+- **OCR**: tesseract.js (for optical character recognition capabilities within tournament features).
+- **Database**: PostgreSQL (available as an option, currently in-memory storage is used for core data).

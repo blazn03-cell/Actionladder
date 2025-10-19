@@ -46,7 +46,8 @@ export function getSession() {
     saveUninitialized: false,
     cookie: {
       httpOnly: true,
-      secure: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
       maxAge: sessionTtl,
     },
   });
@@ -79,7 +80,7 @@ export async function setupAuth(app: Express) {
   app.use(passport.session());
 
   // Import and register enhanced auth routes
-  const { registerAuthRoutes } = await import("./authRoutes");
+  const { registerAuthRoutes } = await import("./routes/auth.routes");
   registerAuthRoutes(app);
 
   const config = await getOidcConfig();
@@ -126,9 +127,43 @@ export async function setupAuth(app: Express) {
 
   app.get("/api/callback", (req, res, next) => {
     passport.authenticate(`replitauth:${req.hostname}`, {
-      successRedirect: "/auth-success",
+      successRedirect: "/api/auth/oauth-complete",
       failureRedirect: "/api/login",
-    })(req, res, next);
+    })(req, res, (err: any) => {
+      if (err) {
+        return res.status(500).send(`OAuth Error: ${err.message}`);
+      }
+      next();
+    });
+  });
+
+  app.get("/api/auth/oauth-complete", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.redirect("/login");
+      }
+
+      const user = req.user as any;
+      const dbUser = await storage.getUser(user.claims.sub);
+
+      // If user has a global role, redirect to home
+      if (dbUser?.globalRole && dbUser.globalRole !== "PLAYER") {
+        return res.redirect("/");
+      }
+
+      // If player with profile, redirect to home
+      if (dbUser?.globalRole === "PLAYER") {
+        const player = await storage.getPlayerByUserId(dbUser.id);
+        if (player) {
+          return res.redirect("/");
+        }
+      }
+
+      // New user or incomplete profile - redirect to role selection
+      res.redirect("/select-role");
+    } catch (error) {
+      res.redirect("/login");
+    }
   });
 
   app.get("/api/logout", (req, res) => {

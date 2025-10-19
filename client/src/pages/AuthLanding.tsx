@@ -14,7 +14,7 @@ import { Crown, Building2, Target, Shield, Users, ArrowRight } from "lucide-reac
 import { createOperatorSchema, createPlayerSchema } from "@shared/schema";
 import { z } from "zod";
 
-type UserType = "creator" | "operator" | "player";
+type UserType = "operator" | "player";
 
 // Login form schema
 const loginSchema = z.object({
@@ -48,7 +48,7 @@ const membershipTiers = [
 ];
 
 export default function AuthLanding() {
-  const [activeTab, setActiveTab] = useState<UserType>("creator");
+  const [activeTab, setActiveTab] = useState<UserType>("player");
   const [showLogin, setShowLogin] = useState(false);
   const [requires2FA, setRequires2FA] = useState(false);
   const { toast } = useToast();
@@ -67,7 +67,10 @@ export default function AuthLanding() {
 
   // Login mutation
   const loginMutation = useMutation({
-    mutationFn: (data: LoginFormData) => apiRequest("POST", "/api/auth/login", data),
+    mutationFn: (data: LoginFormData) => apiRequest("/api/auth/login", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
     onSuccess: (response: any) => {
       if (response.requires2FA) {
         setRequires2FA(true);
@@ -95,7 +98,10 @@ export default function AuthLanding() {
 
   // Operator signup mutation
   const operatorSignupMutation = useMutation({
-    mutationFn: (data: OperatorFormData) => apiRequest("POST", "/api/auth/signup-operator", data),
+    mutationFn: (data: OperatorFormData) => apiRequest("/api/auth/signup-operator", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
     onSuccess: () => {
       toast({
         title: "Account Created!",
@@ -114,7 +120,10 @@ export default function AuthLanding() {
 
   // Player signup mutation
   const playerSignupMutation = useMutation({
-    mutationFn: (data: PlayerFormData) => apiRequest("POST", "/api/auth/signup-player", data),
+    mutationFn: (data: PlayerFormData) => apiRequest("/api/auth/signup-player", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
     onSuccess: () => {
       toast({
         title: "Account Created!",
@@ -143,13 +152,13 @@ export default function AuthLanding() {
     playerSignupMutation.mutate(data);
   };
 
-  if (showLogin || activeTab === "creator") {
+  if (showLogin || false) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-black via-gray-900 to-felt-green/10 flex items-center justify-center p-4">
         <Card className="w-full max-w-md bg-black/60 backdrop-blur-sm border border-neon-green/30 shadow-felt">
           <CardHeader className="text-center">
             <CardTitle className="text-2xl font-bold text-white flex items-center justify-center">
-              {activeTab === "creator" ? (
+              {false ? (
                 <>
                   <Crown className="mr-3 text-yellow-400" />
                   Creator / Owner Login
@@ -161,7 +170,7 @@ export default function AuthLanding() {
                 </>
               )}
             </CardTitle>
-            {activeTab !== "creator" && (
+            {true && (
               <Button 
                 variant="ghost" 
                 onClick={() => setShowLogin(false)}
@@ -265,12 +274,12 @@ export default function AuthLanding() {
           {/* Creator/Owner Card */}
           <Card 
             className={`cursor-pointer transition-all bg-black/60 backdrop-blur-sm border shadow-felt ${
-              activeTab === "creator" 
+              false 
                 ? "border-yellow-400 ring-2 ring-yellow-400/50" 
                 : "border-yellow-400/30 hover:border-yellow-400/60"
             }`}
-            onClick={() => setActiveTab("creator")}
-            data-testid="card-creator-owner"
+            onClick={() => setActiveTab("operator")}
+            data-testid="card-operator"
           >
             <CardHeader className="text-center">
               <Crown className="w-12 h-12 mx-auto text-yellow-400 mb-2" />
@@ -495,19 +504,6 @@ export default function AuthLanding() {
                       )}
                     />
                     
-                    <FormField
-                      control={playerForm.control}
-                      name="username"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-gray-300">Username</FormLabel>
-                          <FormControl>
-                            <Input {...field} className="bg-black/50 border-green-500/30 text-white" data-testid="input-username" />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
                   </div>
 
                   <FormField
@@ -590,7 +586,7 @@ export default function AuthLanding() {
         )}
 
         {/* Already have an account link */}
-        {activeTab !== "creator" && (
+        {true && (
           <div className="text-center mt-8">
             <Button 
               variant="ghost" 

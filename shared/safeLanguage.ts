@@ -27,14 +27,14 @@ const rules: Array<{ pattern: RegExp; safe: string }> = [
   { pattern: make(`${WORD}(wager|wagers|wagering)${NOT_LETTER}`), safe: "match fee" },
   { pattern: make(`${WORD}(gamble|gambles|gambling|gambler)${NOT_LETTER}`), safe: "ladder fee" },
 
-  // Money pools
+  // Money pools (context-aware to avoid replacing "Kelly Pool" or "pool table")
   { pattern: make(`${WORD}(pot|pots)${NOT_LETTER}`), safe: "prize pool" },
   { pattern: make(`${WORD}(side[ -]?pot|side[ -]?pots)${NOT_LETTER}`), safe: "bonus pool" },
-  { pattern: make(`${WORD}(pool)${NOT_LETTER}(?!.*table)`), safe: "season pool" }, // Avoid "pool table"
+  { pattern: make(`${WORD}(prize[ -]?pool|money[ -]?pool|cash[ -]?pool)${NOT_LETTER}`), safe: "prize pool" }, // Only money-related pools
 
   // Entry/participation
   { pattern: make(`${WORD}(buy[ -]?in|buyins)${NOT_LETTER}`), safe: "entry fee" },
-  { pattern: make(`${WORD}(stake|stakes|staked|staking)${NOT_LETTER}`), safe: "registration fee" },
+  { pattern: make(`${WORD}(stake|stakes|staked|staking)${NOT_LETTER}`), safe: "challenge credit" },
   { pattern: make(`${WORD}(ante)${NOT_LETTER}`), safe: "challenge credit" },
 
   // Payouts/rewards
@@ -44,12 +44,14 @@ const rules: Array<{ pattern: RegExp; safe: string }> = [
 
   // Casino/lottery terms
   { pattern: make(`${WORD}(jackpot|jackpots)${NOT_LETTER}`), safe: "end-of-season prize" },
-  { pattern: make(`${WORD}(lottery|lotteries)${NOT_LETTER}`), safe: "ladder bonus" },
+  { pattern: make(`${WORD}(lottery|lotteries)${NOT_LETTER}`), safe: "competition reward" },
+  { pattern: make(`${WORD}(slots|slot[ -]?machine)${NOT_LETTER}`), safe: "competition reward" },
   { pattern: make(`${WORD}(casino|casinos)${NOT_LETTER}`), safe: "competition venue" },
   { pattern: make(`${WORD}(bookie|bookmaker|sportsbook)${NOT_LETTER}`), safe: "league coordinator" },
 
   // Money/risk words
-  { pattern: make(`${WORD}(win cash|make money|profit from)${NOT_LETTER}`), safe: "earn rewards" },
+  { pattern: make(`${WORD}(win cash|make money)${NOT_LETTER}`), safe: "earn rewards" },
+  { pattern: make(`${WORD}(unlock prizes|profit from)${NOT_LETTER}`), safe: "unlock prizes" },
   { pattern: make(`${WORD}(bankroll)${NOT_LETTER}`), safe: "credits balance" },
   { pattern: make(`${WORD}(risk)${NOT_LETTER}`), safe: "challenge credit" },
 

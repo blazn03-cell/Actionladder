@@ -3,8 +3,8 @@ import { SafeAreaView, ActivityIndicator, BackHandler, Platform, StatusBar } fro
 import { WebView } from "react-native-webview";
 
 // ActionLadder Production URL
-// Current Replit deployment URL
-const APP_URL = "https://55c116d9-0e49-4c49-84e1-5d6a7add994d-00-2zj3cxyq9sjki.worf.replit.dev";
+// Must match the apiUrl in app.json extra.actionLadder.apiUrl
+const APP_URL = "https://billiard-ladder-blazn03.replit.app";
 
 export default function App() {
   const webRef = useRef(null);
