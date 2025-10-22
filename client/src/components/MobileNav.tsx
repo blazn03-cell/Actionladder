@@ -3,7 +3,7 @@ import { Menu, X, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import type { GlobalRole } from "@shared/schema";
+import type { GlobalRole } from "action-ladder-shared/schema";
 
 interface NavigationGroup {
   id: string;

@@ -5,7 +5,7 @@ import { queryClient } from "@/lib/queryClient";
 import { Toaster } from "@/components/ui/toaster";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { ChevronDown, Trophy, Camera, DollarSign, Users, Settings } from "lucide-react";
-import type { GlobalRole } from "@shared/schema";
+import type { GlobalRole } from "action-ladder-shared/schema";
 import { useAuth } from "@/hooks/useAuth";
 import Dashboard from "@/components/dashboard";
 import Ladder from "@/components/ladder";

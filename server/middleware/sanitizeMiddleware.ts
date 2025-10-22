@@ -1,5 +1,5 @@
 import type { Request, Response, NextFunction } from "express";
-import { sanitizeText } from "@shared/safeLanguage";
+import { sanitizeText } from "action-ladder-shared/safeLanguage";
 
 // Sanitizes common text fields on req.body
 export function sanitizeBody(fields: string[] = ["title", "description", "notes", "message", "name", "blurb", "rules"]) {

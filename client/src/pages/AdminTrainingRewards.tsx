@@ -12,7 +12,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { Award, TrendingUp, DollarSign, Users, Download, Search, AlertTriangle, CheckCircle2 } from "lucide-react";
-import type { SelectSubscriptionReward, SelectLadderTrainingScore } from "@shared/schema";
+import type { SelectSubscriptionReward, SelectLadderTrainingScore } from "action-ladder-shared/schema";
 
 interface RewardHistoryItem extends SelectSubscriptionReward {
   playerName?: string;

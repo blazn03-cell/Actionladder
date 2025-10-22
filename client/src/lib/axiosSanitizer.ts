@@ -1,4 +1,4 @@
-import { sanitizeText } from "@shared/safeLanguage";
+import { sanitizeText } from "action-ladder-shared/safeLanguage";
 
 // Global request interceptor to sanitize outgoing data
 // Only set up if we have fetch available (modern browsers)

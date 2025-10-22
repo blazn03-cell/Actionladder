@@ -2,8 +2,8 @@ import bcrypt from "bcryptjs";
 import speakeasy from "speakeasy";
 import type { Express, RequestHandler } from "express";
 import { storage } from "../storage";
-import { createOwnerSchema, createOperatorSchema, createPlayerSchema, loginSchema } from "@shared/schema";
-import type { GlobalRole } from "@shared/schema";
+import { createOwnerSchema, createOperatorSchema, createPlayerSchema, loginSchema } from "action-ladder-shared/schema";
+import type { GlobalRole } from "action-ladder-shared/schema";
 
 // Password hashing utilities
 export async function hashPassword(password: string): Promise<string> {

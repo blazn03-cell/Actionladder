@@ -1,6 +1,6 @@
 import OpenAI from 'openai';
 import { storage } from '../storage';
-import type { Player, Match } from '@shared/schema';
+import type { Player, Match } from 'action-ladder-shared/schema';
 
 if (!process.env.OPENAI_API_KEY) {
   throw new Error('Missing required OpenAI API key: OPENAI_API_KEY');

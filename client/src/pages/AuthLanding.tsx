@@ -11,7 +11,7 @@ import { useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { Crown, Building2, Target, Shield, Users, ArrowRight } from "lucide-react";
-import { createOperatorSchema, createPlayerSchema } from "@shared/schema";
+import { createOperatorSchema, createPlayerSchema } from "action-ladder-shared/schema";
 import { z } from "zod";
 
 type UserType = "operator" | "player";

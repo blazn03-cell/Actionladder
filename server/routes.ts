@@ -50,7 +50,7 @@ import { sanitizeResponse } from "./middleware/sanitizeMiddleware";
 //   insertUploadedFileSchema, insertFileShareSchema,
 //   insertSessionAnalyticsSchema, insertShotSchema,
 //   type GlobalRole
-// } from "@shared/schema";
+// } from "action-ladder-shared/schema";
 // import { generateCoachInsights } from './services/coachService';
 // import type { SessionData, CoachTip } from './services/coachService';
 // import { ObjectStorageService, ObjectNotFoundError } from "./services/objectStorage";

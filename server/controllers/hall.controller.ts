@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import { storage } from "../storage";
-import type { InsertHallMatch, InsertHallRoster } from "@shared/schema";
+import type { InsertHallMatch, InsertHallRoster } from "action-ladder-shared/schema";
 
 // Get all pool halls with standings (only shows unlocked halls for battles)
 export async function getAllHalls(req: Request, res: Response) {

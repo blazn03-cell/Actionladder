@@ -1,6 +1,6 @@
 import { File } from "@google-cloud/storage";
 import { storage } from "../storage";
-import type { GlobalRole } from "@shared/schema";
+import type { GlobalRole } from "action-ladder-shared/schema";
 
 const ACL_POLICY_METADATA_KEY = "custom:aclPolicy";
 

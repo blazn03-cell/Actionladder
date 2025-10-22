@@ -1,5 +1,5 @@
 import { storage } from "../storage";
-import type { InsertPrizePool, InsertPrizePoolContribution, InsertPrizePoolDistribution } from "@shared/schema";
+import type { InsertPrizePool, InsertPrizePoolContribution, InsertPrizePoolDistribution } from "action-ladder-shared/schema";
 import Stripe from "stripe";
 
 if (!process.env.STRIPE_SECRET_KEY) {

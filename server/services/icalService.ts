@@ -1,7 +1,7 @@
 import ical, { ICalEventStatus, ICalAlarmType, ICalAttendeeRole, ICalAttendeeStatus } from 'ical-generator';
 import { randomBytes } from 'crypto';
 import type { IStorage } from '../storage';
-import type { Challenge } from '@shared/schema';
+import type { Challenge } from 'action-ladder-shared/schema';
 
 export interface ICalOptions {
   playerId?: string;

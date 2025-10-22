@@ -13,7 +13,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import type { KellyPool, InsertKellyPool } from "@shared/schema";
+import type { KellyPool, InsertKellyPool } from "action-ladder-shared/schema";
 
 const kellyPoolSchema = z.object({
   name: z.string().min(1, "Game name is required"),

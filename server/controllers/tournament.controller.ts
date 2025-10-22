@@ -9,7 +9,7 @@ import {
   insertMatchDivisionSchema,
   insertMatchEntrySchema,
   insertPayoutDistributionSchema
-} from "@shared/schema";
+} from "action-ladder-shared/schema";
 import { createStripeDescription } from "../utils/sanitize";
 import { emailService } from "../services/email-service";
 

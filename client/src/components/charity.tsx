@@ -14,7 +14,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import type { CharityEvent, InsertCharityEvent } from "@shared/schema";
+import type { CharityEvent, InsertCharityEvent } from "action-ladder-shared/schema";
 
 const charityEventSchema = z.object({
   name: z.string().min(1, "Event name is required"),

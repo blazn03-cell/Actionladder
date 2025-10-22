@@ -93,7 +93,7 @@ import {
   prizePools,
   prizePoolContributions,
   prizePoolDistributions
-} from "@shared/schema";
+} from "action-ladder-shared/schema";
 import { db } from "./config/db";
 import { eq, and, desc } from "drizzle-orm";
 

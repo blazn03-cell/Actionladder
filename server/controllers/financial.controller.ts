@@ -6,7 +6,7 @@ import { sanitizeBody, createStripeDescription } from "../utils/sanitize";
 import { createSafeCheckoutSession } from "../utils/stripeSafe";
 import { refundDeposit, refundMatchEntry, refundTournamentEntry, canRefundPayment } from "../services/refund-service";
 import { calculateCommission, MEMBERSHIP_TIERS, COMMISSION_CONFIG, calculateSavings } from "../services/pricing-service";
-import { insertOperatorSubscriptionSchema } from "@shared/schema";
+import { insertOperatorSubscriptionSchema } from "action-ladder-shared/schema";
 import { OperatorSubscriptionCalculator } from "../utils/operator-subscription-utils";
 import { calculateOperatorSubscriptionSplit } from "../services/operatorSubscriptionSplits";
 import { payStaffFromInvoice } from "../routes/admin.routes";

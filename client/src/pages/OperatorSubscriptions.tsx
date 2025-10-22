@@ -28,7 +28,7 @@ import {
   Crown,
   DollarSign
 } from "lucide-react";
-import type { OperatorSubscription } from "@shared/schema";
+import type { OperatorSubscription } from "action-ladder-shared/schema";
 
 export default function OperatorSubscriptions() {
   const { toast } = useToast();

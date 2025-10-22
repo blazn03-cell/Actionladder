@@ -39,7 +39,7 @@ import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { UploadedFile, InsertUploadedFile, insertUploadedFileSchema } from "@shared/schema";
+import { UploadedFile, InsertUploadedFile, insertUploadedFileSchema } from "action-ladder-shared/schema";
 import { 
   Upload, 
   File, 

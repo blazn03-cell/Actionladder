@@ -12,7 +12,7 @@ import { Separator } from '@/components/ui/separator';
 import { Brain, Target, TrendingUp, MessageCircle, Zap, Users } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
-import type { Player } from '@shared/schema';
+import type { Player } from 'action-ladder-shared/schema';
 
 export default function AIDashboard() {
   const { toast } = useToast();

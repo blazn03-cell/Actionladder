@@ -14,7 +14,7 @@ import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { Video, MapPin, Users, Eye, Search, Filter, Play, Square, Trash2, RefreshCw, Clock, TrendingUp } from "lucide-react";
-import type { LiveStream, InsertLiveStream } from "@shared/schema";
+import type { LiveStream, InsertLiveStream } from "action-ladder-shared/schema";
 
 const liveStreamSchema = z.object({
   platform: z.enum(["twitch", "youtube", "facebook", "tiktok", "kick", "other"]),

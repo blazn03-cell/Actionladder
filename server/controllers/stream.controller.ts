@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import { IStorage } from "../storage";
-import { insertLiveStreamSchema } from "@shared/schema";
+import { insertLiveStreamSchema } from "action-ladder-shared/schema";
 
 export function getLiveStreams(storage: IStorage) {
   return async (req: Request, res: Response) => {

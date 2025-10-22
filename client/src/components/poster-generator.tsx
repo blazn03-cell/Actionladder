@@ -15,7 +15,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { queryClient } from "@/lib/queryClient";
 import { FileImage, Download, Palette, Type, Crown, Target, Zap } from "lucide-react";
-import type { Player } from "@shared/schema";
+import type { Player } from "action-ladder-shared/schema";
 
 const posterSchema = z.object({
   title: z.string().min(1, "Title is required"),

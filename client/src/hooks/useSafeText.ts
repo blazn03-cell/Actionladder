@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { sanitizeText } from "@shared/safeLanguage";
+import { sanitizeText } from "action-ladder-shared/safeLanguage";
 
 /**
  * Hook to automatically sanitize text content

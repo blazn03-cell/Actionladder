@@ -14,7 +14,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import type { Bounty, InsertBounty, Player } from "@shared/schema";
+import type { Bounty, InsertBounty, Player } from "action-ladder-shared/schema";
 
 const bountySchema = z.object({
   type: z.enum(["onRank", "onPlayer"]),

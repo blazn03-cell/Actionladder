@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { insertChallengeSchema } from "@shared/schema";
+import { insertChallengeSchema } from "action-ladder-shared/schema";
 import { storage } from "../storage";
 import { z } from "zod";
 

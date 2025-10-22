@@ -5,7 +5,7 @@ import rateLimit from "express-rate-limit";
 import helmet from "helmet";
 import cors from "cors";
 import { registerRoutes } from "./routes";
-import { setupVite, serveStatic, log } from "./vite";
+import { log } from "./vite";
 
 const app = express();
 
@@ -137,18 +137,18 @@ if (process.env.NODE_ENV === "development") {
     throw err;
   });
 
-  // importantly only setup vite in development and after
-  // setting up all the other routes so the catch-all route
-  // doesn't interfere with the other routes
-  if (app.get("env") === "development") {
-    await setupVite(app, server);
-  } else {
-    serveStatic(app);
-  }
+  // DISABLED: Vite integration removed for separated client/server architecture
+  // Client now runs independently on port 5173
+  // Server is now a pure API server
+  // if (app.get("env") === "development") {
+  //   await setupVite(app, server);
+  // } else {
+  //   serveStatic(app);
+  // }
 
-  // ALWAYS serve the app on the port specified in the environment variable PORT
+  // ALWAYS serve the API server on the port specified in the environment variable PORT
   // The system expects port 5000 to be opened. Use environment variable PORT which is set to 5000.
-  // this serves both the API and the client.
+  // This serves only the API - client runs separately on port 5173
   // It is the only port that is not firewalled.
   const port = parseInt(process.env.PORT || '5000', 10);
   // server.listen({

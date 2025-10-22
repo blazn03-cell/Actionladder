@@ -1,0 +1,20 @@
+{
+  "name": "action-ladder-shared",
+  "version": "1.0.0",
+  "type": "module",
+  "private": true,
+  "main": "schema.ts",
+  "exports": {
+    "./schema": "./schema.ts",
+    "./safeTerms": "./safeTerms.ts",
+    "./safeLanguage": "./safeLanguage.ts"
+  },
+  "dependencies": {
+    "drizzle-orm": "^0.39.3",
+    "drizzle-zod": "^0.7.0",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "typescript": "5.6.3"
+  }
+}

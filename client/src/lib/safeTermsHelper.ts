@@ -1,4 +1,4 @@
-import { SAFE_TERMS, UI_LABELS, replaceSafeTerms, getSafeTerm, type SafeTermKey } from "@shared/safeTerms";
+import { SAFE_TERMS, UI_LABELS, replaceSafeTerms, getSafeTerm, type SafeTermKey } from "action-ladder-shared/safeTerms";
 
 /**
  * React hook for getting safe terminology in components

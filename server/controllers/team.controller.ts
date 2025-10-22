@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import { IStorage } from "../storage";
 import Stripe from "stripe";
-import { insertTeamRegistrationSchema } from "@shared/schema";
+import { insertTeamRegistrationSchema } from "action-ladder-shared/schema";
 import { emailService } from "../services/email-service";
 
 export function getTeams(storage: IStorage) {

@@ -18,7 +18,7 @@ import {
   DialogTrigger 
 } from "@/components/ui/dialog";
 import { Users, Crown, Shield, Plus, UserPlus, Trash2, Lock, Clock, Construction } from "lucide-react";
-import type { Team, TeamPlayer, Player } from "@shared/schema";
+import type { Team, TeamPlayer, Player } from "action-ladder-shared/schema";
 
 export default function TeamManagement() {
   const { toast } = useToast();

@@ -14,7 +14,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import type { Player, InsertPlayer } from "@shared/schema";
+import type { Player, InsertPlayer } from "action-ladder-shared/schema";
 import { Brain, Target } from "lucide-react";
 
 const playerSchema = z.object({

@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import type { GlobalRole } from "@shared/schema";
+import type { GlobalRole } from "action-ladder-shared/schema";
 
 interface User {
   id: string;
@@ -28,16 +28,16 @@ export function useAuth(): AuthResponse {
       const response = await fetch("/api/auth/me", {
         credentials: "include",
       });
-      
+
       // If 401, user is not authenticated - return null instead of throwing
       if (response.status === 401) {
         return null;
       }
-      
+
       if (!response.ok) {
         throw new Error(`Auth check failed: ${response.status}`);
       }
-      
+
       const userData = await response.json();
       return userData;
     },

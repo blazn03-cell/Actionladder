@@ -14,7 +14,7 @@ import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { Brain, Trophy } from "lucide-react";
-import type { Tournament, InsertTournament } from "@shared/schema";
+import type { Tournament, InsertTournament } from "action-ladder-shared/schema";
 
 const tournamentSchema = z.object({
   name: z.string().min(1, "Tournament name is required"),

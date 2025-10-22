@@ -2,7 +2,7 @@ import { Request, Response } from "express";
 import Stripe from "stripe";
 import { z } from "zod";
 import { type IStorage } from "../storage";
-import { insertPaymentMethodSchema } from "@shared/schema";
+import { insertPaymentMethodSchema } from "action-ladder-shared/schema";
 
 // === ZOD VALIDATION SCHEMAS ===
 const attachPaymentMethodSchema = z.object({

@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import { IStorage } from "../storage";
-import { insertPlayerSchema } from "@shared/schema";
+import { insertPlayerSchema } from "action-ladder-shared/schema";
 
 export function getPlayers(storage: IStorage) {
   return async (req: Request, res: Response) => {

@@ -1,5 +1,5 @@
 import Stripe from "stripe";
-import { sanitizeFields } from "@shared/safeLanguage";
+import { sanitizeFields } from "action-ladder-shared/safeLanguage";
 
 if (!process.env.STRIPE_SECRET_KEY) {
   throw new Error('Missing required Stripe secret: STRIPE_SECRET_KEY');

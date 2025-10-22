@@ -6,7 +6,7 @@ import {
   insertChallengeCheckInSchema, 
   insertChallengePolicySchema,
   Challenge
-} from "@shared/schema";
+} from "action-ladder-shared/schema";
 import dayjs from "dayjs";
 import stripe from "stripe";
 import { sanitizeResponse } from "../middleware/sanitizeMiddleware";

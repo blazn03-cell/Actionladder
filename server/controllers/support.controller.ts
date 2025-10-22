@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import { IStorage } from "../storage";
-import { insertSupportRequestSchema } from "@shared/schema";
+import { insertSupportRequestSchema } from "action-ladder-shared/schema";
 
 export function getSupportRequests(storage: IStorage) {
   return async (req: Request, res: Response) => {

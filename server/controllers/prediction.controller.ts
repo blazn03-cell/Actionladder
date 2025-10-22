@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import { IStorage } from "../storage";
-import { insertSeasonPredictionSchema, insertPredictionEntrySchema } from "@shared/schema";
+import { insertSeasonPredictionSchema, insertPredictionEntrySchema } from "action-ladder-shared/schema";
 
 // ==================== SEASON PREDICTION CONTROLLERS ====================
 

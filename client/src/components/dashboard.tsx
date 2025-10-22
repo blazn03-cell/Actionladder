@@ -14,7 +14,7 @@ import type {
   Tournament,
   CharityEvent,
   KellyPool,
-} from "@shared/schema";
+} from "action-ladder-shared/schema";
 
 function StatsCard({
   title,

@@ -8,7 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Trophy, Info, Calendar, Award } from "lucide-react";
-import type { SelectLadderTrainingScore } from "@shared/schema";
+import type { SelectLadderTrainingScore } from "action-ladder-shared/schema";
 
 interface LeaderboardEntry extends SelectLadderTrainingScore {
   playerName?: string;

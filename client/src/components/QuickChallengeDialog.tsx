@@ -30,7 +30,7 @@ import { Badge } from '@/components/ui/badge';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
-import type { Player } from '@shared/schema';
+import type { Player } from 'action-ladder-shared/schema';
 
 const quickChallengeSchema = z.object({
   opponentId: z.string().min(1, 'Please select an opponent'),

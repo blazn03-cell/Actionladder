@@ -1,6 +1,6 @@
 import Stripe from 'stripe';
 import { storage } from '../storage';
-import type { InsertSubscriptionReward } from '@shared/schema';
+import type { InsertSubscriptionReward } from 'action-ladder-shared/schema';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2024-06-20" as any,

@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import Stripe from "stripe";
 import { IStorage } from "../storage";
-import { insertCharityEventSchema, insertBountySchema, insertAddedMoneyFundSchema } from "@shared/schema";
+import { insertCharityEventSchema, insertBountySchema, insertAddedMoneyFundSchema } from "action-ladder-shared/schema";
 import { createSafeCheckoutSession } from "../utils/stripeSafe";
 
 if (!process.env.STRIPE_SECRET_KEY) {

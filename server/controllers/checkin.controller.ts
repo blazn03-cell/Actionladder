@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import { IStorage } from "../storage";
-import { insertCheckinSchema } from "@shared/schema";
+import { insertCheckinSchema } from "action-ladder-shared/schema";
 import { sanitizeBody } from "../utils/sanitize";
 
 export function createCheckin(storage: IStorage) {

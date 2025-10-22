@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import { IStorage } from "../storage";
-import { insertUploadedFileSchema, insertFileShareSchema } from "@shared/schema";
+import { insertUploadedFileSchema, insertFileShareSchema } from "action-ladder-shared/schema";
 import { ObjectStorageService, ObjectNotFoundError } from "../services/objectStorage";
 import { ObjectPermission, getObjectAclPolicy } from "../utils/objectAcl";
 

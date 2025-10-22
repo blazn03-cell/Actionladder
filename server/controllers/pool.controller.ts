@@ -7,7 +7,7 @@ import {
   insertChallengePoolSchema,
   insertChallengeEntrySchema,
   insertResolutionSchema
-} from "@shared/schema";
+} from "action-ladder-shared/schema";
 
 // Kelly Pool Controllers
 export function getKellyPools(storage: IStorage) {
