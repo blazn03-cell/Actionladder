@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { storage } from "../storage";
+import { supabase } from "../config/supabase";
 import {
   hashPassword,
   verifyPassword,
@@ -17,84 +18,153 @@ import {
   loginSchema
 } from "action-ladder-shared/schema";
 
-// Password-based login for all user types
+// Enhanced login supporting both Supabase and legacy password auth
 export async function login(req: Request, res: Response) {
   try {
     const { email, password, twoFactorCode } = loginSchema.parse(req.body);
+    const useSupabase = req.body.useSupabase !== false; // Default to true
 
-    // Check if account is locked
-    if (await checkAccountLockout(email)) {
-      return res.status(423).json({
-        message: "Account temporarily locked due to multiple failed login attempts"
-      });
-    }
+    // Try Supabase authentication first if enabled
+    if (useSupabase) {
+      try {
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email,
+          password
+        });
 
-    // Find user by email
-    const user = await storage.getUserByEmail(email);
-    if (!user || !user.passwordHash) {
-      await incrementLoginAttempts(email);
-      return res.status(401).json({ message: "Invalid email or password" });
-    }
-
-    // Verify password
-    const passwordValid = await verifyPassword(password, user.passwordHash);
-    if (!passwordValid) {
-      await incrementLoginAttempts(email);
-      return res.status(401).json({ message: "Invalid email or password" });
-    }
-
-    // Check 2FA if enabled
-    if (user.twoFactorEnabled && user.twoFactorSecret) {
-      if (!twoFactorCode) {
-        return res.status(200).json({ requires2FA: true });
-      }
-
-      if (!verifyTwoFactor(twoFactorCode, user.twoFactorSecret)) {
-        await incrementLoginAttempts(email);
-        return res.status(401).json({ message: "Invalid two-factor code" });
-      }
-    }
-
-    // Reset login attempts and create session
-    await resetLoginAttempts(email);
-
-    const userSession = createUserSession(user);
-    req.login(userSession, (err) => {
-      if (err) {
-        return res.status(500).json({ message: "Login failed" });
-      }
-
-      res.json({
-        user: {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          globalRole: user.globalRole,
-          hallName: user.hallName,
-          city: user.city,
-          state: user.state
+        if (error) {
+          // If Supabase fails, fall back to legacy auth
+          return await legacyLogin(req, res);
         }
-      });
-    });
+
+        if (!data.user) {
+          return res.status(401).json({ message: "Authentication failed" });
+        }
+
+        // Get user from our database
+        const dbUser = await storage.getUser(data.user.id);
+        if (!dbUser) {
+          return res.status(401).json({ message: "User not found in database" });
+        }
+
+        // Create session-compatible user object
+        const sessionUser = {
+          id: data.user.id,
+          email: data.user.email,
+          name: dbUser.name,
+          globalRole: dbUser.globalRole,
+          claims: {
+            sub: data.user.id,
+            email: data.user.email
+          },
+          access_token: data.session?.access_token,
+          refresh_token: data.session?.refresh_token,
+          expires_at: data.session?.expires_at
+        };
+
+        req.login(sessionUser, (err) => {
+          if (err) {
+            return res.status(500).json({ message: "Session creation failed" });
+          }
+
+          res.json({
+            user: {
+              id: dbUser.id,
+              email: dbUser.email,
+              name: dbUser.name,
+              globalRole: dbUser.globalRole,
+              hallName: dbUser.hallName,
+              city: dbUser.city,
+              state: dbUser.state
+            }
+          });
+        });
+
+        return;
+      } catch (supabaseError) {
+        // Fall back to legacy authentication
+        return await legacyLogin(req, res);
+      }
+    }
+
+    // Legacy password authentication
+    return await legacyLogin(req, res);
 
   } catch (error: any) {
     res.status(400).json({ message: error.message });
   }
 }
 
-// Creator/Owner account creation (admin only)
-export async function createOwner(req: Request, res: Response) {
-  try {
-    const userData = createOwnerSchema.parse(req.body);
+// Legacy password-based login
+async function legacyLogin(req: Request, res: Response) {
+  const { email, password, twoFactorCode } = req.body;
 
-    // Check if email already exists
-    const existingUser = await storage.getUserByEmail(userData.email);
-    if (existingUser) {
-      return res.status(409).json({ message: "Email already registered" });
+  // Check if account is locked
+  if (await checkAccountLockout(email)) {
+    return res.status(423).json({
+      message: "Account temporarily locked due to multiple failed login attempts"
+    });
+  }
+
+  // Find user by email
+  const user = await storage.getUserByEmail(email);
+  if (!user || !user.passwordHash) {
+    await incrementLoginAttempts(email);
+    return res.status(401).json({ message: "Invalid email or password" });
+  }
+
+  // Verify password
+  const passwordValid = await verifyPassword(password, user.passwordHash);
+  if (!passwordValid) {
+    await incrementLoginAttempts(email);
+    return res.status(401).json({ message: "Invalid email or password" });
+  }
+
+  // Check 2FA if enabled
+  if (user.twoFactorEnabled && user.twoFactorSecret) {
+    if (!twoFactorCode) {
+      return res.status(200).json({ requires2FA: true });
     }
 
-    // Hash password
-    const passwordHash = await hashPassword(userData.password);
+    if (!verifyTwoFactor(twoFactorCode, user.twoFactorSecret)) {
+      await incrementLoginAttempts(email);
+      return res.status(401).json({ message: "Invalid two-factor code" });
+    }
+  }
+
+  // Reset login attempts and create session
+  await resetLoginAttempts(email);
+
+  const userSession = createUserSession(user);
+  req.login(userSession, (err) => {
+    if (err) {
+      return res.status(500).json({ message: "Login failed" });
+    }
+
+    res.json({
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        globalRole: user.globalRole,
+        hallName: user.hallName,
+        city: user.city,
+        state: user.state
+      }
+    });
+  });
+}
+
+// Creator/Owner account creation (admin only) - Now uses Supabase
+export async function createOwner(req: Request, res: Response) {
+  try {
+    // Supabase middleware should have already created the user
+    if (!req.supabaseUser) {
+      return res.status(500).json({ message: "User creation failed" });
+    }
+
+    const { dbUser } = req.supabaseUser;
+    const userData = createOwnerSchema.parse(req.body);
 
     // Generate 2FA secret if enabled
     let twoFactorSecret;
@@ -102,26 +172,21 @@ export async function createOwner(req: Request, res: Response) {
       twoFactorSecret = generateTwoFactorSecret();
     }
 
-    // Create owner account
-    const newUser = await storage.createUser({
-      email: userData.email,
-      name: userData.name,
-      globalRole: "OWNER",
-      passwordHash,
+    // Update user with additional owner-specific data
+    const updatedUser = await storage.updateUser(dbUser.id, {
       twoFactorEnabled: userData.twoFactorEnabled,
       twoFactorSecret,
       phoneNumber: userData.phoneNumber,
-      accountStatus: "active",
       onboardingComplete: true,
       profileComplete: true,
     });
 
     res.status(201).json({
       user: {
-        id: newUser.id,
-        email: newUser.email,
-        name: newUser.name,
-        globalRole: newUser.globalRole,
+        id: updatedUser.id,
+        email: updatedUser.email,
+        name: updatedUser.name,
+        globalRole: updatedUser.globalRole,
       },
       ...(twoFactorSecret && { twoFactorSecret })
     });
@@ -131,31 +196,23 @@ export async function createOwner(req: Request, res: Response) {
   }
 }
 
-// Operator signup (public)
+// Operator signup (public) - Now uses Supabase
 export async function signupOperator(req: Request, res: Response) {
   try {
-    const operatorData = createOperatorSchema.parse(req.body);
-
-    // Check if email already exists
-    const existingUser = await storage.getUserByEmail(operatorData.email);
-    if (existingUser) {
-      return res.status(409).json({ message: "Email already registered" });
+    // Supabase middleware should have already created the user
+    if (!req.supabaseUser) {
+      return res.status(500).json({ message: "User creation failed" });
     }
 
-    // Hash the password from the signup form
-    const passwordHash = await hashPassword(operatorData.password);
+    const { dbUser } = req.supabaseUser;
+    const operatorData = createOperatorSchema.parse(req.body);
 
-    // Create operator account
-    const newUser = await storage.createUser({
-      email: operatorData.email,
-      name: operatorData.name,
-      globalRole: "OPERATOR",
-      passwordHash,
+    // Update user with operator-specific data
+    const updatedUser = await storage.updateUser(dbUser.id, {
       hallName: operatorData.hallName,
       city: operatorData.city,
       state: operatorData.state,
       subscriptionTier: operatorData.subscriptionTier,
-      accountStatus: "active", // Changed from "pending"
       onboardingComplete: false,
       profileComplete: false,
     });
@@ -165,12 +222,12 @@ export async function signupOperator(req: Request, res: Response) {
 
     res.status(201).json({
       user: {
-        id: newUser.id,
-        email: newUser.email,
-        name: newUser.name,
-        globalRole: newUser.globalRole,
-        hallName: newUser.hallName,
-        subscriptionTier: newUser.subscriptionTier,
+        id: updatedUser.id,
+        email: updatedUser.email,
+        name: updatedUser.name,
+        globalRole: updatedUser.globalRole,
+        hallName: updatedUser.hallName,
+        subscriptionTier: updatedUser.subscriptionTier,
       },
       message: "Account created successfully! You can now log in with your credentials."
     });
@@ -180,35 +237,21 @@ export async function signupOperator(req: Request, res: Response) {
   }
 }
 
-// Player signup (public)
+// Player signup (public) - Now uses Supabase
 export async function signupPlayer(req: Request, res: Response) {
   try {
-    const playerData = createPlayerSchema.parse(req.body);
-
-    // Check if email already exists
-    const existingUser = await storage.getUserByEmail(playerData.email);
-    if (existingUser) {
-      return res.status(409).json({ message: "Email already registered" });
+    // Supabase middleware should have already created the user
+    if (!req.supabaseUser) {
+      return res.status(500).json({ message: "User creation failed" });
     }
 
-    // Hash the password from the signup form
-    const passwordHash = await hashPassword(playerData.password);
-
-    // Create player account
-    const newUser = await storage.createUser({
-      email: playerData.email,
-      name: playerData.name,
-      globalRole: "PLAYER",
-      passwordHash,
-      accountStatus: "active", // Changed from "pending"
-      onboardingComplete: false,
-      profileComplete: false,
-    });
+    const { dbUser } = req.supabaseUser;
+    const playerData = createPlayerSchema.parse(req.body);
 
     // Create player profile
     const player = await storage.createPlayer({
       name: playerData.name,
-      userId: newUser.id,
+      userId: dbUser.id,
       membershipTier: playerData.membershipTier,
       isRookie: playerData.tier === "rookie",
       rookiePassActive: playerData.tier === "rookie",
@@ -216,10 +259,10 @@ export async function signupPlayer(req: Request, res: Response) {
 
     res.status(201).json({
       user: {
-        id: newUser.id,
-        email: newUser.email,
-        name: newUser.name,
-        globalRole: newUser.globalRole,
+        id: dbUser.id,
+        email: dbUser.email,
+        name: dbUser.name,
+        globalRole: dbUser.globalRole,
       },
       player: {
         id: player.id,

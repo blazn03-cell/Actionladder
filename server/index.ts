@@ -79,10 +79,11 @@ const generalLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+// TODO: Uncomment this when we have a way to test the rate limiting
 // Apply rate limiting with webhook exclusions
-app.use('/api/auth', skipWebhooks(authLimiter));
-app.use('/api/payments', skipWebhooks(paymentLimiter));
-app.use('/api', skipWebhooks(generalLimiter));
+// app.use('/api/auth', skipWebhooks(authLimiter));
+// app.use('/api/payments', skipWebhooks(paymentLimiter));
+// app.use('/api', skipWebhooks(generalLimiter));
 
 // Development-only API logging middleware
 if (process.env.NODE_ENV === "development") {

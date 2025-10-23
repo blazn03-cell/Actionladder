@@ -11,12 +11,13 @@
     "db:push": "drizzle-kit push --config=drizzle.config.ts"
   },
   "dependencies": {
-    "action-ladder-shared": "workspace:*",
     "@google-cloud/storage": "^7.17.1",
     "@neondatabase/serverless": "^0.10.4",
     "@openai/agents": "^0.1.0",
     "@replit/object-storage": "^1.0.0",
     "@sendgrid/mail": "^8.1.5",
+    "@supabase/supabase-js": "^2.76.1",
+    "action-ladder-shared": "workspace:*",
     "bcryptjs": "^3.0.2",
     "connect-pg-simple": "^10.0.0",
     "cors": "^2.8.5",
@@ -37,6 +38,7 @@
     "openai": "^5.16.0",
     "openid-client": "^6.7.1",
     "passport": "^0.7.0",
+    "passport-custom": "^1.1.1",
     "passport-local": "^1.0.0",
     "qrcode": "^1.5.4",
     "socket.io": "^4.8.1",

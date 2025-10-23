@@ -91,15 +91,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Global response sanitization (sanitizes all outgoing text)
   app.use(sanitizeResponse());
 
-  // Setup authentication middleware FIRST
-  const { setupAuth } = await import("./replitAuth");
+  // Setup Supabase authentication middleware FIRST
+  const { setupAuth } = await import("./supabaseAuth");
   await setupAuth(app);
 
   // Health check endpoint (required for production deployment)
   app.get("/healthz", (_, res) => res.send("ok"));
 
   // Register authentication routes
-  registerAuthRoutes(app);
+  // registerAuthRoutes(app);
 
   // Register admin routes for staff management and payouts
   registerAdminRoutes(app);
