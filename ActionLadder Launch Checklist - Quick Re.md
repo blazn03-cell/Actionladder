@@ -29,15 +29,18 @@ Time: 1 hour | Blocker: Data persistence required
 
 🟡 HIGH PRIORITY (Week 1-2)
 Environment Configuration
-# Create .env.production with:
+
+# Create .env.production with
+
 NODE_ENV=production
 DATABASE_URL=postgresql://...
-APP_BASE_URL=https://yourdomain.com
+APP_BASE_URL=<https://yourdomain.com>
 STRIPE_SECRET_KEY=sk_live_...
 STRIPE_PUBLISHABLE_KEY=pk_live_...
 STRIPE_WEBHOOK_SECRET=whsec_live_...
 OPENAI_API_KEY=sk-...
 SENDGRID_API_KEY=SG...
+
 # (Add any other required keys from .env.example)
 
 [ ] Environment variables locked down (no secrets in code)
@@ -47,8 +50,8 @@ SENDGRID_API_KEY=SG...
 Build & Test
 [ ] Client Build
 cd client && npm run build
-# Verify: dist/ folder created, no errors
 
+# Verify: dist/ folder created, no errors
 
 [ ] No TypeScript errors
 [ ] No console warnings
@@ -56,12 +59,13 @@ cd client && npm run build
 Time: 2 hours (including optimizations)
 [ ] Server Build
 cd server && npm run build
+
 # Verify: dist/index.js created
+
 npm start  # Should start on port 5000
 
-
 [ ] No TypeScript errors
-[ ] Health check: curl http://localhost:5000/healthz
+[ ] Health check: curl <http://localhost:5000/healthz>
 [ ] Returns ok
 Time: 1 hour
 [ ] Database Schema
@@ -121,8 +125,8 @@ User Journey Testing
 Performance Optimization
 [ ] Bundle Analysis
 npm install -D webpack-bundle-analyzer
-# Check: No large dependencies, proper code splitting
 
+# Check: No large dependencies, proper code splitting
 
 [ ] Caching Headers
 [ ] Static assets cached (30 days)
@@ -143,8 +147,8 @@ cd mobile-app
 npm install
 eas login
 eas build --platform android --profile preview
-# Download APK and test on 3+ devices
 
+# Download APK and test on 3+ devices
 
 [ ] App loads correctly in WebView
 [ ] All touches respond
@@ -153,13 +157,13 @@ eas build --platform android --profile preview
 [ ] No crashes
 [ ] Android (AAB for store)
 eas build --platform android --profile production
-# Ready for Google Play Console
 
+# Ready for Google Play Console
 
 [ ] iOS (IPA for TestFlight)
 eas build --platform ios --profile production
-# Deploy to TestFlight, test on iPhone/iPad
 
+# Deploy to TestFlight, test on iPhone/iPad
 
 Monitoring Setup
 [ ] Error Tracking
@@ -214,7 +218,7 @@ Legal & Compliance
 [ ] /refund - Clear refund policy
 [ ] /acceptable-use - No gambling language
 [ ] Support System
-[ ] Email: support@actionladder.com
+[ ] Email: <support@actionladder.com>
 [ ] Response SLA: 24 hours
 [ ] Ticketing system (Zendesk/HubSpot)
 [ ] FAQ document created
@@ -230,7 +234,7 @@ Pre-Launch (T-2 hours)
 [ ] Rollback plan reviewed
 Launch (T-0)
 [ ] Deploy to production
-[ ] Verify health check: curl https://yourdomain.com/healthz
+[ ] Verify health check: curl <https://yourdomain.com/healthz>
 [ ] Test critical user journeys
 [ ] Monitor error rate (should be <0.1%)
 [ ] Monitor Stripe webhooks
@@ -288,23 +292,29 @@ NO-GO Criteria (Any is red flag)
 [ ] Team unprepared for 24/7 support
 
 💡 Quick Command Reference
+
 # Environment Setup
+
 export DATABASE_URL="postgresql://..."
 export STRIPE_SECRET_KEY="sk_live_..."
 export NODE_ENV="production"
 
 # Build Everything
+
 npm run install:all   # Install all dependencies
 npm run build         # Build client + server
 npm run check         # Type check everything
 
 # Database
+
 npm run db:push       # Migrate schema to production DB
 
 # Stripe
+
 node scripts/createStripeCatalog.mjs  # Sync Stripe products
 
 # Mobile
+
 cd mobile-app
 npm install
 eas login
@@ -312,13 +322,14 @@ eas build --platform android --profile preview
 eas build --platform ios --profile production
 
 # Local Testing
+
 npm run dev           # Start dev servers
 npm run start         # Start production server (after build)
 
 # Health Checks
-curl http://localhost:5000/healthz
-curl https://yourdomain.com/healthz
 
+curl <http://localhost:5000/healthz>
+curl <https://yourdomain.com/healthz>
 
 📞 SUPPORT CONTACTS
 Role
@@ -337,7 +348,7 @@ Support
 Customer issues, billing
 Business hours initially
 
-Support Email: support@actionladder.com
+Support Email: <support@actionladder.com>
 Slack Channel: #incidents (in product workspace)
 Escalation Path: Support → Dev on-call → Founder
 
@@ -363,7 +374,6 @@ Improve documentation
 Mobile App Rating
 >4.5 stars
 Fix reported issues quickly
-
 
 Document Status: Ready to Use
 Owner: [Project Lead]
