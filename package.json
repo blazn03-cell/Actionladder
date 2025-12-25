@@ -16,7 +16,12 @@
     "check:client": "cd client && npm run check",
     "check:server": "cd server && npm run check",
     "db:push": "cd server && npx drizzle-kit push",
-    "install:all": "npm install && cd client && npm install && cd ../server && npm install"
+    "install:all": "npm install && cd client && npm install && cd ../server && npm install",
+    "build:mobile": "cd mobile-app && npm ci && npm run build:all:production",
+    "build:mobile:android": "cd mobile-app && npm ci && npm run build:android:production",
+    "build:mobile:ios": "cd mobile-app && npm ci && npm run build:ios:production",
+    "upload-google-secret:sh": "bash ./scripts/upload-google-secret.sh",
+    "upload-google-secret:ps1": "pwsh ./scripts/upload-google-secret.ps1"
   },
   "devDependencies": {
     "concurrently": "^8.2.2"

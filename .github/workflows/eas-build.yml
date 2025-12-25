@@ -1,0 +1,97 @@
+name: EAS Build & Download
+
+on:
+  workflow_dispatch: {}
+  push:
+    tags:
+      - 'v*'
+    branches:
+      - main
+
+jobs:
+  build:
+    name: Build for ${{ matrix.platform }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        platform: [android, ios]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
+
+      - name: Install mobile dependencies
+        run: cd mobile-app && npm ci
+
+      - name: Run asset check
+        run: node mobile-app/scripts/check-assets.js
+
+      - name: Decode Google service account JSON (if provided)
+        if: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON != '' }}
+        run: |
+          echo "Decoding GOOGLE_SERVICE_ACCOUNT_JSON into mobile-app/google-service-account.json"
+          mkdir -p mobile-app
+          echo "${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}" | base64 --decode > mobile-app/google-service-account.json
+          ls -l mobile-app/google-service-account.json || true
+        shell: bash
+
+      - name: Run EAS build (start)
+        env:
+          EAS_BUILD_AUTOCONFIRM: '1'
+          EAS_TOKEN: ${{ secrets.EAS_TOKEN }}
+        run: |
+          set -e
+          if [ "${{ matrix.platform }}" = "android" ]; then
+            out=$(cd mobile-app && npx eas build --platform android --profile production --non-interactive --json)
+          else
+            out=$(cd mobile-app && npx eas build --platform ios --profile production --non-interactive --json)
+          fi
+          echo "$out" > build_output.json
+          buildId=$(jq -r '.id' build_output.json)
+          echo "BUILD_ID=$buildId" >> $GITHUB_ENV
+
+      - name: Download build artifact
+        env:
+          EAS_TOKEN: ${{ secrets.EAS_TOKEN }}
+        run: |
+          mkdir -p mobile-app/builds/${{ matrix.platform }}
+          cd mobile-app
+          npx eas build:download --platform ${{ matrix.platform }} --id $BUILD_ID --output ./builds/${{ matrix.platform }} || echo "No downloadable artifact for $BUILD_ID yet. Check EAS build logs."
+
+      - name: Submit Android build to Google Play (optional)
+        if: ${{ matrix.platform == 'android' && secrets.GOOGLE_SERVICE_ACCOUNT_JSON != '' }}
+        env:
+          EAS_TOKEN: ${{ secrets.EAS_TOKEN }}
+        run: |
+          set -e
+          echo "Preparing to submit Android build to Google Play via eas submit"
+          cd mobile-app
+          # Ensure the decoded service account exists (decoded earlier)
+          if [ ! -f ./google-service-account.json ]; then
+            echo "google-service-account.json not found; aborting submit"
+            exit 1
+          fi
+          export GOOGLE_APPLICATION_CREDENTIALS=$(pwd)/google-service-account.json
+          # Submit the latest Android build produced by EAS
+          npx eas submit --platform android --latest --non-interactive || echo "eas submit failed; check logs"
+          echo "Submit step finished"
+
+      - name: Cleanup decoded credentials
+        if: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON != '' }}
+        run: |
+          echo "Removing decoded Google service account file for safety"
+          rm -f mobile-app/google-service-account.json || true
+        shell: bash
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mobile-app-${{ matrix.platform }}-build
+          path: mobile-app/builds/${{ matrix.platform }}/**

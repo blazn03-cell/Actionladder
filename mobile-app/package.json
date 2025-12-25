@@ -16,7 +16,13 @@
     "preview:android": "eas build --platform android --profile preview",
     "submit:android": "eas submit --platform android",
     "submit:ios": "eas submit --platform ios",
-    "update": "eas update"
+    "update": "eas update",
+    "prebuild:assets": "node ./scripts/check-assets.js",
+    "prebuild": "npm run prebuild:assets",
+    "build:android:production": "npm run prebuild:assets && eas build --platform android --profile production",
+    "build:android:preview": "npm run prebuild:assets && eas build --platform android --profile preview",
+    "build:ios:production": "npm run prebuild:assets && eas build --platform ios --profile production",
+    "build:all:production": "npm run prebuild:assets && eas build --platform all --profile production"
   },
   "dependencies": {
     "expo": "~49.0.0",
