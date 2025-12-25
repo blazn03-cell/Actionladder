@@ -199,23 +199,28 @@ Defined in `eas.json`:
 
 ---
 Error: Could not find file at path: ./assets/icon.png
-```
+
+---
 
 **Solution:** Create required assets (icon.png, splash.png, favicon.png) in `mobile-app/assets/` directory
 
 ### Problem: Not Logged Into Expo
 
-```
+---
+
 Error: Not logged in. Please run 'eas login'
-```
+
+---
 
 **Solution:** Run `npx eas login` and enter your Expo credentials
 
 ### Problem: Apple Developer Account Required
 
-```
+---
+
 Error: iOS builds require Apple Developer account
-```
+
+---
 
 **Solution:** You need an Apple Developer account ($99/year). Sign up at <https://developer.apple.com>
 
@@ -236,15 +241,19 @@ Error: iOS builds require Apple Developer account
 **Build commands:**
 
 ```bash
+
 # Android APK (testing)
+
 npx eas build --platform android --profile preview
 
 # Android AAB (Play Store)
+
 npx eas build --platform android --profile production
 
 # iOS IPA (App Store/TestFlight)
+
 npx eas build --platform ios --profile production
-```
+---
 
 **After builds complete:**
 
@@ -317,26 +326,31 @@ For mobile app code issues:
 
 To run the included GitHub Actions workflow (`.github/workflows/eas-build.yml`) you'll need to create the following repository secrets in GitHub (Repository → Settings → Secrets and variables → Actions):
 
-- **EAS_TOKEN** — Expo/EAS API token. Create with `npx eas login` then `npx eas token:create` (or from https://expo.dev/account/tokens). Add the token value as `EAS_TOKEN`.
+- **EAS_TOKEN** — Expo/EAS API token. Create with `npx eas login` then `npx eas token:create` (or from <https://expo.dev/account/tokens>). Add the token value as `EAS_TOKEN`.
 - **GOOGLE_SERVICE_ACCOUNT_JSON** — Service account JSON for Google Play API (if you plan to upload to Play via `eas submit`). Add the full JSON content as the secret (or base64-encoded content). Name it `GOOGLE_SERVICE_ACCOUNT_JSON`.
 - **APPLE_APP_SPECIFIC_PASSWORD** (optional) — App-specific password for App Store Connect emails if using `eas submit`. Name the secret `APPLE_APP_SPECIFIC_PASSWORD` or `APP_STORE_CONNECT_PASSWORD`.
 - **OTHER_SECRETS** — If your project uses keystores, fastlane, or other credentials, add them as additional secrets and reference them in CI.
 
 Example: create an EAS token locally and add it with the GitHub CLI:
 
-```bash
+---bash
+
 # log in and create token locally
+
 npx eas login
 npx eas token:create --json
 
 # add secret with GitHub CLI (replace <token>)
+
 gh secret set EAS_TOKEN --body "<token>"
-```
+---
 
 Add the Google Play service account JSON (example using gh):
 
 ```bash
+
 # base64-encode the JSON to avoid multiline issues
+
 base64 service-account.json > sa.b64
 gh secret set GOOGLE_SERVICE_ACCOUNT_JSON --body "$(cat sa.b64)"
 ```
@@ -356,14 +370,18 @@ Local quick-run example (useful for debugging before CI):
 
 ```bash
 cd mobile-app
+
 # run asset check
+
 node ./scripts/check-assets.js
 
 # production Android build
+
 npx eas build --platform android --profile production
 
 # production iOS build
+
 npx eas build --platform ios --profile production
-```
+---
 
 Add these CI secret instructions to your internal onboarding so maintainers can quickly configure the repository for automated EAS builds.

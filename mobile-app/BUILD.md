@@ -38,16 +38,16 @@ Before building the mobile app, ensure you have:
 
 ### 1. Install Dependencies
 
-```bash
+---bash
 cd mobile-app
 npm install
-```
+---
 
 ### 2. Login to Expo
 
-```bash
+---bash
 eas login
-```
+---
 
 Enter your Expo account credentials when prompted.
 
@@ -55,9 +55,9 @@ Enter your Expo account credentials when prompted.
 
 If this is your first build, initialize EAS:
 
-```bash
+---bash
 eas build:configure
-```
+---
 
 This will create or update the `eas.json` configuration file.
 
@@ -66,18 +66,18 @@ This will create or update the `eas.json` configuration file.
 If your ActionLadder backend URL has changed, update it in two places:
 
 **App.js:**
-```javascript
+---javascript
 const APP_URL = "https://your-backend-url.com";
-```
+---
 
 **app.json:**
-```json
+---json
 "extra": {
   "actionLadder": {
     "apiUrl": "https://your-backend-url.com"
   }
 }
-```
+---
 
 ---
 
@@ -87,10 +87,10 @@ const APP_URL = "https://your-backend-url.com";
 
 APK files can be installed directly on Android devices without going through Google Play Store.
 
-```bash
+---bash
 cd mobile-app
 eas build --platform android --profile preview
-```
+---
 
 **Build Process:**
 1. EAS CLI will upload your code to Expo's build servers
@@ -107,10 +107,10 @@ eas build --platform android --profile preview
 
 AAB (Android App Bundle) is required for Google Play Store submission.
 
-```bash
+---bash
 cd mobile-app
 eas build --platform android --profile production
-```
+---
 
 **Build Process:**
 1. Build takes approximately 10-20 minutes
@@ -135,10 +135,10 @@ The build profiles are defined in `eas.json`:
 
 ### Build IPA (For App Store & TestFlight)
 
-```bash
+---bash
 cd mobile-app
 eas build --platform ios --profile production
-```
+---
 
 **Important:** iOS builds require:
 1. Apple Developer account ($99/year)
@@ -156,10 +156,10 @@ EAS will prompt you to:
 
 For testing on iOS Simulator (Mac only):
 
-```bash
+---bash
 cd mobile-app
 eas build --platform ios --profile preview
-```
+---
 
 This builds a simulator-compatible version for quick testing.
 
@@ -191,10 +191,10 @@ After build completes, EAS CLI provides:
 - QR code in terminal (scan with device camera)
 
 Example output:
-```
+---
 ✔ Build successful!
 Download: https://expo.dev/artifacts/eas/...
-```
+---
 
 ### Method 3: Email Notification
 
@@ -300,9 +300,9 @@ Essential test scenarios:
 #### "No valid iOS distribution certificate found"
 
 **Solution:**
-```bash
+---bash
 eas credentials
-```
+---
 Select your project and platform, then choose to generate new credentials.
 
 #### "Android build failed: Gradle error"
@@ -369,9 +369,9 @@ Select your project and platform, then choose to generate new credentials.
 ### Google Play Store Submission
 
 1. **Build Production AAB:**
-   ```bash
+   ---bash
    eas build --platform android --profile production
-   ```
+   ---
 
 2. **Upload to Play Console:**
    - Log in to [play.google.com/console](https://play.google.com/console)
@@ -391,14 +391,14 @@ Select your project and platform, then choose to generate new credentials.
 ### Apple App Store Submission
 
 1. **Build Production IPA:**
-   ```bash
+   ---bash
    eas build --platform ios --profile production
-   ```
+   ---
 
 2. **Submit to App Store:**
-   ```bash
+   ---bash
    eas submit --platform ios
-   ```
+   ---
 
    Or manually:
    - Open [appstoreconnect.apple.com](https://appstoreconnect.apple.com)
@@ -443,7 +443,7 @@ Select your project and platform, then choose to generate new credentials.
 
 ### Build Commands Reference
 
-```bash
+---bash
 # Development builds
 eas build --platform android --profile development
 eas build --platform ios --profile development
@@ -467,7 +467,7 @@ eas build:list
 
 # View build logs
 eas build:view [build-id]
-```
+---
 
 ---
 
@@ -478,7 +478,7 @@ eas build:view [build-id]
 Before each release, update version numbers in:
 
 **app.json:**
-```json
+---json
 {
   "expo": {
     "version": "1.0.1",
@@ -490,7 +490,7 @@ Before each release, update version numbers in:
     }
   }
 }
-```
+---
 
 **Version Number Guidelines:**
 - **version**: Human-readable (1.0.0, 1.0.1, 1.1.0)
@@ -501,9 +501,9 @@ Before each release, update version numbers in:
 
 For minor updates without rebuilding:
 
-```bash
+---bash
 eas update --branch production --message "Fix login bug"
-```
+---
 
 Note: OTA updates only work for JavaScript changes, not native code changes.
 

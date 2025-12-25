@@ -9,15 +9,15 @@ The official ActionLadder mobile application built with React Native and Expo.
 ### Development Setup
 
 1. **Install dependencies:**
-   ```bash
+   ---bash
    cd mobile-app
    npm install
-   ```
+   ---
 
 2. **Start development server:**
-   ```bash
+   ---bash
    npm start
-   ```
+   ---
 
 3. **Test on device:**
    - Install Expo Go on your phone
@@ -30,16 +30,20 @@ The official ActionLadder mobile application built with React Native and Expo.
 
 Quick build commands:
 
-```bash
+---bash
+
 # Android APK (for testing)
+
 npm run preview:android
 
 # Android AAB (for Play Store)
+
 npm run build:android
 
 # iOS IPA (for App Store)
+
 npm run build:ios
-```
+---
 
 ## Features
 
@@ -52,16 +56,19 @@ npm run build:ios
 
 ## Configuration
 
-The app is pre-configured to connect to the ActionLadder production backend at:
-```
-https://billiard-ladder-blazn03.replit.app
-```
+The app is pre-configured to connect to the ActionLadder production backend at
+---
+
+<https://billiard-ladder-blazn03.replit.app>
+---
 
 **To change the backend URL:**
+
 - Edit `App.js`: Update `APP_URL` constant
 - Edit `app.json`: Update `extra.actionLadder.apiUrl`
 
 **To customize branding:**
+
 - Replace `assets/icon.png` - 1024x1024 app icon
 - Replace `assets/splash.png` - Splash screen image
 - Replace `assets/favicon.png` - Web favicon
@@ -71,6 +78,7 @@ https://billiard-ladder-blazn03.replit.app
 **For complete store submission instructions, see [BUILD.md](./BUILD.md#store-submission)**
 
 Quick links:
+
 - [Google Play Store Guide](./BUILD.md#google-play-store-submission)
 - [Apple App Store Guide](./BUILD.md#apple-app-store-submission)
 - [Troubleshooting](./BUILD.md#troubleshooting)
@@ -78,6 +86,7 @@ Quick links:
 ## ActionLadder Integration
 
 The mobile app provides native access to all ActionLadder features:
+
 - Player ladder rankings and statistics
 - Live tournament streaming and betting
 - Kelly Pool and Money on the Table games

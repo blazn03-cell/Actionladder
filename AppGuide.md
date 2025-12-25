@@ -1,14 +1,14 @@
 # Action Ladder Billiards - Technical Documentation
 
 > **Last Updated:** October 18, 2025
-> 
+>
 > **Purpose:** This guide provides accurate, verified documentation of the Action Ladder platform's current implementation status, architecture, and setup instructions.
-
----
+>
+```markdown
 
 ## 📁 Code Structure (Verified)
 
-```
+```markdown
 action-ladder/
 ├── client/                          # Frontend (React + Vite + TypeScript)
 │   ├── src/
@@ -283,9 +283,9 @@ action-ladder/
     ├── codemagic.yaml            # CI/CD config
     ├── replit.md                 # Project memory
     └── PRODUCTION_DEPLOYMENT.md
-```
 
----
+```
+>
 
 ## 👤 User Stories & User Flows
 
@@ -330,13 +330,16 @@ action-ladder/
 9. **As an Owner**, I want to configure fee schedules and pricing tiers so I can optimize revenue.
 10. **As an Owner**, I want to review transparency logs and audit all financial transactions so I can ensure compliance.
 
----
+```markdown
+
+## 💰 Revenue
 
 ### 🔄 Key User Flows
 
 #### Flow 1: Player Registration & First Challenge
 
 ```
+
 1. Player lands on homepage (Landing.tsx)
    ↓
 2. Player clicks "Join Now" or scans QR code at hall
@@ -381,11 +384,13 @@ action-ladder/
     - Win/loss records
     - Ladder rankings
     - Wallet balances (winner receives pot minus commission)
-```
+
+```markdown
 
 #### Flow 2: AI Coaching Training Session
 
 ```
+
 1. Player navigates to Training Session page (TrainingSession.tsx)
    ↓
 2. Player starts new training session:
@@ -394,10 +399,10 @@ action-ladder/
    ↓
 3. Player records shots:
    - For each shot, enters:
-     * Shot type (draw, follow, stop, spin)
-     * Distance (in inches)
-     * Result (MAKE/MISS)
-     * Optional: positional error distance
+     - Shot type (draw, follow, stop, spin)
+     - Distance (in inches)
+     - Result (MAKE/MISS)
+     - Optional: positional error distance
    ↓
 4. Player submits session data
    ↓
@@ -429,11 +434,13 @@ action-ladder/
    - Stripe subscription discounts
    - Email notifications via SendGrid
    - Recognition on leaderboard
-```
+
+```markdown
 
 #### Flow 3: Operator Tournament Creation & Management
 
 ```
+
 1. Operator logs in via OwnerLogin.tsx or TrusteeLogin.tsx
    ↓
 2. Operator navigates to Tournament Page (TournamentPage.tsx)
@@ -480,11 +487,13 @@ action-ladder/
     - Processes payouts via Stripe
     - Updates player statistics and rankings
     - Generates transparency logs
-```
+
+```markdown
 
 #### Flow 4: Player Subscription Upgrade Flow
 
 ```
+
 1. Player on Free tier sees premium features locked
    ↓
 2. Player navigates to Subscription Page (PlayerSubscription.tsx)
@@ -535,11 +544,13 @@ action-ladder/
     - Priority support
     - Exclusive tournaments
     - AI coach premium features
-```
+
+```markdown
 
 #### Flow 5: Challenge Pool & Wallet Management
 
 ```
+
 1. Player navigates to wallet/credits page
    ↓
 2. Player clicks "Add Credits"
@@ -570,11 +581,13 @@ action-ladder/
    - Credit: Player B wallet (+$95, if 5% commission)
    - Credit: Platform revenue (+$5)
    - Logged in transparency system
-```
+
+```markdown
 
 #### Flow 6: Operator Revenue Split (Subscription)
 
 ```
+
 1. Operator subscribes to "Medium Hall" tier ($150/month)
    ↓
 2. Operator completes Stripe Checkout
@@ -607,12 +620,13 @@ action-ladder/
 8. Monthly recurring:
    - Stripe automatically charges operator
    - Split process repeats
-   - All transfers logged
-```
+   - All transfers logged in transparency system
 
+```markdown
 #### Flow 7: Sportsmanship Voting System
 
 ```
+
 1. Incident occurs during match (poor conduct, rule violation)
    ↓
 2. Operator initiates sportsmanship vote:
@@ -649,20 +663,21 @@ action-ladder/
    - Can appeal to Owner/Staff
    - Review of evidence
    - Final decision by admin
-```
 
----
-
+```markdown
+# Action Ladder - Application Guide
 ## 🚀 Local Setup Instructions
 
 ### Prerequisites
 
 1. **Node.js v20+**
+
    ```bash
    brew install node
    ```
 
-2. **PostgreSQL** (optional - uses in-memory storage by default)
+1. **PostgreSQL** (optional - uses in-memory storage by default)
+
    ```bash
    brew install postgresql@14
    brew services start postgresql@14
@@ -745,13 +760,13 @@ npm run dev
 
 ### Access Points
 
-- **Frontend:** http://localhost:5000
-- **Backend API:** http://localhost:5000/api
-- **Health Check:** http://localhost:5000/healthz
+- **Frontend:** <http://localhost:5000>
+- **Backend API:** <http://localhost:5000/api>
+- **Health Check:** <http://localhost:5000/healthz>
 
 ### Expected Console Output
 
-```
+```markdown
 Revenue configuration initialized with default settings (in-memory mode)
 [express] Revenue configuration system initialized
 Fee scheduler started - running every 30 minutes
@@ -777,15 +792,17 @@ npm run db:push  # Push schema changes to database
 ### ✅ **Fully Integrated**
 
 #### 1. **Stripe** (Payment Processing)
+
 - **Status:** Fully integrated with webhook handlers
 - **Purpose:** Player subscriptions, operator subscriptions, tournament entries, charity donations
-- **Sign up:** https://stripe.com
+- **Sign up:** <https://stripe.com>
 - **Required Environment Variables:**
   - `STRIPE_SECRET_KEY` (required for any payment)
   - `STRIPE_WEBHOOK_SECRET` (required for webhooks)
   - `VITE_STRIPE_PUBLIC_KEY` (required for frontend)
 
 **Integration Details:**
+
 - Checkout sessions for subscriptions and one-time payments
 - Webhook handling for: `checkout.session.completed`, `customer.subscription.*`, `invoice.paid/failed`, `payment_intent.succeeded`, `charge.refunded`
 - Billing portal for subscription management
@@ -793,7 +810,8 @@ npm run db:push  # Push schema changes to database
 - Refund processing
 
 **Required Webhook Events:**
-```
+
+```markdown
 checkout.session.completed
 customer.subscription.created
 customer.subscription.updated
@@ -805,6 +823,7 @@ charge.refunded
 ```
 
 #### 2. **PostgreSQL** (Database)
+
 - **Status:** Fully integrated via Drizzle ORM
 - **Purpose:** Primary data storage
 - **Provider:** Neon (via Replit) or self-hosted
@@ -812,6 +831,7 @@ charge.refunded
 - **Fallback:** In-memory storage (MemStorage) if DATABASE_URL not provided
 
 **Database Tables (50+):**
+
 - Users, players, matches, tournaments
 - Subscriptions, payments, refunds
 - AI training sessions, shots analytics
@@ -822,13 +842,15 @@ charge.refunded
 ### 🟡 **Partially Integrated (Optional)**
 
 #### 3. **OpenAI** (AI Features)
+
 - **Status:** Integrated but optional
 - **Purpose:** AI coaching, match predictions, commentary, performance analysis
-- **Sign up:** https://platform.openai.com
+- **Sign up:** <https://platform.openai.com>
 - **Required Environment Variable:** `OPENAI_API_KEY`
 - **Impact if missing:** AI features will not work, but app functions normally otherwise
 
 **AI Features Available:**
+
 - `/api/ai/match-commentary` - Generate match commentary
 - `/api/ai/opponent-suggestions/:playerId` - Suggest opponents
 - `/api/ai/performance-analysis/:playerId` - Analyze player stats
@@ -837,27 +859,30 @@ charge.refunded
 - `/api/ai/community-chat` - Answer community questions
 
 #### 4. **SendGrid** (Email Notifications)
+
 - **Status:** Integrated but optional
 - **Purpose:** Monthly training rewards notifications, match confirmations
-- **Sign up:** https://sendgrid.com (free tier: 100 emails/day)
+- **Sign up:** <https://sendgrid.com> (free tier: 100 emails/day)
 - **Required Environment Variables:**
   - `SENDGRID_API_KEY`
   - `SENDGRID_FROM_EMAIL`
 - **Impact if missing:** Email notifications will not be sent, but app functions normally
 
 #### 5. **Google Cloud Storage** (File Uploads)
+
 - **Status:** Integrated but optional
 - **Purpose:** Player avatars, tournament posters, match videos, file uploads
-- **Sign up:** https://cloud.google.com
+- **Sign up:** <https://cloud.google.com>
 - **Required Environment Variables:**
   - `GCS_BUCKET_NAME`
   - `GOOGLE_APPLICATION_CREDENTIALS`
 - **Impact if missing:** File upload features will not work
 
 #### 6. **Replit Auth** (OAuth Authentication)
+
 - **Status:** Integrated but optional
 - **Purpose:** OAuth login alternative to password authentication
-- **Sign up:** https://replit.com
+- **Sign up:** <https://replit.com>
 - **Required Environment Variables:**
   - `REPLIT_DOMAINS`
   - `REPL_ID`
@@ -879,6 +904,7 @@ export const globalRoles = ["OWNER", "STAFF", "OPERATOR", "CREATOR", "PLAYER", "
 **Login:** `/owner-login` (email/password + optional 2FA)
 
 **Responsibilities:**
+
 - Monitor platform-wide revenue and analytics
 - Configure revenue split percentages
 - Manage all operators, staff, and players
@@ -887,6 +913,7 @@ export const globalRoles = ["OWNER", "STAFF", "OPERATOR", "CREATOR", "PLAYER", "
 - Approve/ban users
 
 **Dashboard Access:**
+
 - `/app?tab=admin` - Admin dashboard
 - `/app?tab=revenue-admin` - Revenue configuration
 - `/app?tab=admin-training-rewards` - Training rewards management
@@ -900,17 +927,20 @@ export const globalRoles = ["OWNER", "STAFF", "OPERATOR", "CREATOR", "PLAYER", "
 **Login:** `/trustee-login`
 
 **Responsibilities:**
+
 - Recruit new operators to the platform
 - Earn 53% commission on operator subscriptions they recruit
 - Track operator performance
 - Monitor subscription status
 
 **Earnings:**
+
 - 53% of all operator subscription fees for operators they recruit
 - Monthly recurring revenue
 - Example: Operator pays $299/month → Trustee earns ~$158/month
 
 **Dashboard Access:**
+
 - Trustee dashboard (view recruited operators)
 - Earnings reports
 - Operator performance metrics
@@ -922,6 +952,7 @@ export const globalRoles = ["OWNER", "STAFF", "OPERATOR", "CREATOR", "PLAYER", "
 **Login:** `/login` (redirects to operator dashboard based on role)
 
 **Responsibilities:**
+
 - Manage pool hall operations
 - Configure match divisions and weight rules
 - Create tournaments
@@ -931,13 +962,15 @@ export const globalRoles = ["OWNER", "STAFF", "OPERATOR", "CREATOR", "PLAYER", "
 - Pay monthly subscription ($0 for operator, but gives platform access)
 
 **Subscription Tiers:**
+
 - **Small Hall:** $199/month (up to 50 active players)
 - **Medium Hall:** $299/month (up to 100 active players)
 - **Large Hall:** $399/month (up to 200 active players)
 - **Mega Hall:** $499/month (unlimited players)
 
 **Revenue Split (from operator subscription):**
-```
+
+```markdown
 20% → Pot and Special Games ($39.80 for $199 subscription)
 53% → Trustee who recruited ($105.47)
 23% → Founder ($45.77)
@@ -946,6 +979,7 @@ export const globalRoles = ["OWNER", "STAFF", "OPERATOR", "CREATOR", "PLAYER", "
 ```
 
 **Dashboard Access:**
+
 - `/app?tab=operator-settings` - Hall settings
 - `/app?tab=operator-subscriptions` - Subscription management
 - `/app?tab=monetization` - Revenue reports
@@ -955,9 +989,10 @@ export const globalRoles = ["OWNER", "STAFF", "OPERATOR", "CREATOR", "PLAYER", "
 
 ---
 
-### 4. **STAFF** 
+### 4. **STAFF**
 
 **Status:** Implementation unclear
+
 - Role exists in database schema
 - Receives revenue share via `payStaffFromInvoice()` function
 - May be for pool hall staff or platform staff
@@ -967,6 +1002,7 @@ export const globalRoles = ["OWNER", "STAFF", "OPERATOR", "CREATOR", "PLAYER", "
 ### 5. **CREATOR**
 
 **Status:** Implementation unclear
+
 - Role exists in database schema
 - Has dedicated login schema
 - Purpose not clearly defined in codebase
@@ -978,6 +1014,7 @@ export const globalRoles = ["OWNER", "STAFF", "OPERATOR", "CREATOR", "PLAYER", "
 **Login:** `/login` or `/signup`
 
 **Responsibilities:**
+
 - Maintain player profile
 - Challenge other players
 - Enter tournaments
@@ -986,18 +1023,21 @@ export const globalRoles = ["OWNER", "STAFF", "OPERATOR", "CREATOR", "PLAYER", "
 - Follow sportsmanship guidelines
 
 **Subscription Tiers (based on server/services/playerBilling.ts):**
-```
+
+```markdown
 Rookie: $20/month or $200/year
 Standard: $25/month or $250/year  
 Premium: $60/month or $600/year
 ```
 
 **Benefits by Tier:**
+
 - Different commission rates (10%, 8%, 5%)
 - Access to different features
 - Specific perks per tier
 
 **Dashboard Access:**
+
 - `/app?tab=dashboard` - Player dashboard
 - `/app?tab=ladder` - Ladder rankings
 - `/app?tab=tournaments` - Tournament registration
@@ -1013,6 +1053,7 @@ Premium: $60/month or $600/year
 ### ✅ **Fully Implemented & Verified**
 
 #### Authentication & User Management
+
 - ✅ Email/password authentication (with bcrypt hashing)
 - ✅ OAuth authentication (Replit)
 - ✅ 2FA/TOTP support (speakeasy)
@@ -1023,6 +1064,7 @@ Premium: $60/month or $600/year
 - ✅ User profile management
 
 #### Player Features
+
 - ✅ Player CRUD (create, read, update, delete)
 - ✅ Player stats tracking (rating, wins, losses, points, streak)
 - ✅ Rookie division with graduation system (500+ rating or 10+ wins)
@@ -1033,6 +1075,7 @@ Premium: $60/month or $600/year
 - ✅ Player subscription management
 
 #### Matches & Challenges
+
 - ✅ Match CRUD operations
 - ✅ Match divisions (HI/LO)
 - ✅ Weight rules and multipliers
@@ -1044,6 +1087,7 @@ Premium: $60/month or $600/year
 - ✅ Quick challenge creation API
 
 #### Tournaments
+
 - ✅ Tournament CRUD operations
 - ✅ Tournament entry fee processing
 - ✅ Player count management (currentPlayers/maxPlayers)
@@ -1055,6 +1099,7 @@ Premium: $60/month or $600/year
 - ✅ Single and double elimination support
 
 #### Tournament Calcutta (Auction System)
+
 - ✅ Calcutta creation for tournaments
 - ✅ Bid placement with Stripe payment intents
 - ✅ Highest bidder tracking
@@ -1063,6 +1108,7 @@ Premium: $60/month or $600/year
 - ✅ API routes: GET/POST calcuttas, GET/POST bids
 
 #### Season Predictions (Championship Betting)
+
 - ✅ Season prediction markets
 - ✅ Entry fee collection
 - ✅ Prize pool calculations (90% payout, 10% service fee)
@@ -1073,12 +1119,14 @@ Premium: $60/month or $600/year
 - ✅ 1st/2nd/3rd place payout percentages (70%/20%/10%)
 
 #### Special Games
+
 - ✅ Kelly Pool (pill/ball drawing game)
 - ✅ Money Games (straight lag, rail first, progressive)
 - ✅ Bounties system (on rank or specific player)
 - ✅ All with Stripe payment processing
 
 #### Charity System
+
 - ✅ Charity event creation
 - ✅ Donation tracking (goal, raised, percentage)
 - ✅ Stripe donation processing
@@ -1086,6 +1134,7 @@ Premium: $60/month or $600/year
 - ✅ Charity product in Stripe catalog
 
 #### Hall vs Hall Battles
+
 - ✅ Pool hall registration
 - ✅ Hall match creation (team 9-ball, 8-ball, mixed format)
 - ✅ Score tracking (home/away)
@@ -1095,6 +1144,7 @@ Premium: $60/month or $600/year
 - ✅ Battle unlocking system
 
 #### Live Streaming
+
 - ✅ Stream registration (Twitch, YouTube, Facebook, TikTok, Kick)
 - ✅ Stream metadata (title, category, quality)
 - ✅ Live status tracking
@@ -1104,6 +1154,7 @@ Premium: $60/month or $600/year
 - ✅ Embed URL processing
 
 #### AI Features (OpenAI Integration)
+
 - ✅ Match commentary generation
 - ✅ Opponent suggestions based on rating
 - ✅ Performance analysis
@@ -1112,6 +1163,7 @@ Premium: $60/month or $600/year
 - ✅ Community question answering
 
 #### AI Training & Coaching System
+
 - ✅ Training session creation
 - ✅ Shot-by-shot recording (type, outcome, position)
 - ✅ Session analytics (makes, misses, position quality)
@@ -1125,6 +1177,7 @@ Premium: $60/month or $600/year
 - ✅ Coach feedback page
 
 #### Sportsmanship & Voting System
+
 - ✅ Check-in system for sessions
 - ✅ Attitude vote creation
 - ✅ Voting ballots with reasoning
@@ -1135,6 +1188,7 @@ Premium: $60/month or $600/year
 - ✅ Frontend sportsmanship components
 
 #### Payment & Billing
+
 - ✅ Stripe Checkout integration
 - ✅ Player subscriptions (Rookie, Standard, Premium)
 - ✅ Operator subscriptions (Small, Medium, Large, Mega)
@@ -1148,6 +1202,7 @@ Premium: $60/month or $600/year
 - ✅ Refund eligibility checking
 
 #### File Management & Object Storage
+
 - ✅ File upload API
 - ✅ File metadata storage
 - ✅ File sharing system
@@ -1158,18 +1213,21 @@ Premium: $60/month or $600/year
 - ✅ Private object authentication
 
 #### QR Code & Registration
+
 - ✅ QR code generation for sessions
 - ✅ QR-based check-in system
 - ✅ Session tracking
 - ✅ Secure QR data encoding
 
 #### Poster Generation
+
 - ✅ Challenge poster creation
 - ✅ Poster metadata storage
 - ✅ Poster download API
 - ✅ Frontend poster generator component
 
 #### Calendar Integration
+
 - ✅ iCal file generation
 - ✅ Challenge calendar export
 - ✅ Training session calendar
@@ -1177,6 +1235,7 @@ Premium: $60/month or $600/year
 - ✅ Google Calendar integration support
 
 #### Team Features
+
 - ✅ Team registration
 - ✅ Team match creation
 - ✅ Match entry with payment
@@ -1185,6 +1244,7 @@ Premium: $60/month or $600/year
 - ✅ Match completion with payout
 
 #### Admin & Configuration
+
 - ✅ Revenue configuration system
 - ✅ Fee scheduler (runs every 30 minutes)
 - ✅ Automatic fee evaluation
@@ -1196,11 +1256,13 @@ Premium: $60/month or $600/year
 - ✅ Hall leaderboard access control
 
 #### Real-Time Features
+
 - ✅ WebSocket support (Socket.IO)
 - ✅ Challenge notifications
 - ✅ Real-time updates component
 
 #### Security & Compliance
+
 - ✅ Input sanitization (all user-provided text)
 - ✅ Response sanitization (prevent profanity in output)
 - ✅ Language compliance (safe terms replacement)
@@ -1211,6 +1273,7 @@ Premium: $60/month or $600/year
 - ✅ XSS prevention (sanitization)
 
 #### Developer Tools
+
 - ✅ Health check endpoint (`/healthz`)
 - ✅ Webhook event deduplication
 - ✅ Error boundaries (frontend)
@@ -1223,30 +1286,35 @@ Premium: $60/month or $600/year
 ### 🚧 **Partially Implemented**
 
 #### Mobile App
+
 - 🚧 React Native/Expo app structure exists
 - 🚧 Build documentation present
 - 🚧 Capacitor configuration exists
 - ❓ **Status unclear** - needs testing to verify functionality
 
 #### Operator Dashboard Features
+
 - 🚧 Operator settings page exists (frontend)
 - 🚧 Operator subscriptions page exists (frontend)
 - 🚧 Backend API partially implemented
 - ❓ Full operator workflow needs verification
 
 #### Side Betting System
+
 - 🚧 Frontend pages exist (SideBetting, SideBetOperator)
 - 🚧 Wallet schema exists (wallets, challenge_pools, challenge_entries, ledgers)
 - ❓ Backend API implementation unclear
 - ❓ Escrow challenge routes exist but use mock data
 
 #### Match Divisions System
+
 - 🚧 Database schema complete (match_divisions, operator_tiers, team_registrations, match_entries)
 - 🚧 Some API routes exist
 - 🚧 Frontend component exists
 - ❓ Complete workflow needs verification
 
 #### Escrow Challenges
+
 - 🚧 Frontend component exists
 - 🚧 API routes return mock data
 - ❓ Real payment integration status unclear
@@ -1256,18 +1324,21 @@ Premium: $60/month or $600/year
 ### 📋 **Planned / Not Yet Implemented**
 
 #### Features with Frontend Only
+
 - 📋 Escrow wallet system (deposit/withdraw)
 - 📋 Side bet creation and resolution
 - 📋 Challenge pool management
 - 📋 Ledger and resolution tracking
 
 #### Features with Schema Only
+
 - 📋 Support requests (schema exists, limited API)
 - 📋 Added money fund allocation (schema exists, basic API)
 - 📋 Season prediction winner determination
 - 📋 Calcutta payout distribution
 
 #### Not Started
+
 - 📋 Video analysis integration
 - 📋 Advanced analytics dashboards
 - 📋 Social features (following, messaging)
@@ -1283,6 +1354,7 @@ Based on `server/operatorSubscriptionSplits.ts`:
 ### Operator Subscription Split Breakdown
 
 **Formula:**
+
 ```typescript
 {
   potAmount: totalAmount * 0.20,        // 20%
@@ -1296,13 +1368,14 @@ Based on `server/operatorSubscriptionSplits.ts`:
 **Examples:**
 
 | Tier | Monthly Fee | Pot (20%) | Trustee (53%) | Founder (23%) | System (4%) | Operator (0%) |
-|------|------------|-----------|---------------|---------------|-------------|---------------|
+| ------ | ------ | ------ |------|---------------|---------------|-------------|---------------|
 | Small | $199 | $39.80 | $105.47 | $45.77 | $7.96 | $0.00 |
 | Medium | $299 | $59.80 | $158.47 | $68.77 | $11.96 | $0.00 |
 | Large | $399 | $79.80 | $211.47 | $91.77 | $15.96 | $0.00 |
 | Mega | $499 | $99.80 | $264.47 | $114.77 | $19.96 | $0.00 |
 
 **Implementation:**
+
 - Calculated in `server/operatorSubscriptionSplits.ts`
 - Applied on `invoice.paid` webhook event
 - Stored in `operator_subscription_splits` table
@@ -1314,6 +1387,7 @@ Based on `server/operatorSubscriptionSplits.ts`:
 ## 🛠️ Tech Stack (Verified from package.json)
 
 ### Frontend
+
 - **Framework:** React 18.3
 - **Routing:** Wouter 3.3
 - **Build Tool:** Vite 5.4
@@ -1331,6 +1405,7 @@ Based on `server/operatorSubscriptionSplits.ts`:
 - **Payments:** Stripe React Components
 
 ### Backend
+
 - **Runtime:** Node.js with TypeScript 5.6
 - **Framework:** Express 4.21
 - **Database:** PostgreSQL (via Neon)
@@ -1353,10 +1428,12 @@ Based on `server/operatorSubscriptionSplits.ts`:
 - **Utilities:** date-fns 3.6, dayjs 1.11, memoizee 0.4
 
 ### Mobile
+
 - **Framework:** Capacitor 7.4 (Android)
 - **Note:** React Native/Expo setup present in mobile-app/ directory
 
 ### Development Tools
+
 - **Build:** esbuild 0.25, TypeScript 5.6
 - **Linting:** (ESLint configuration present)
 - **CSS:** PostCSS 8.4, Autoprefixer 10.4
@@ -1389,6 +1466,7 @@ npm run check        # Run TypeScript compiler check
 ### Development Server Behavior
 
 When you run `npm run dev`:
+
 1. Express server starts on port 5000
 2. Vite dev server integrates via middleware
 3. HMR (Hot Module Replacement) enabled for frontend
@@ -1418,9 +1496,11 @@ npm run db:push --force
 
 1. Install Stripe CLI
 2. Forward webhooks to local:
+
    ```bash
    stripe listen --forward-to localhost:5000/api/stripe/webhook
    ```
+
 3. Copy webhook signing secret to `.env` as `STRIPE_WEBHOOK_SECRET`
 4. Trigger test events via Stripe Dashboard
 
@@ -1449,38 +1529,46 @@ npm run db:push --force
 **Total Tables:** 50+
 
 **Core Tables:**
+
 - users, organizations, players
 - matches, tournaments, tournament_calcuttas, calcutta_bids
 - season_predictions, prediction_entries, added_money_fund
 - kelly_pools, money_games, bounties, charity_events
 
 **Payment Tables:**
+
 - payout_transfers, operator_subscription_splits
 - webhook_events, membership_subscriptions, rookie_subscriptions
 - operator_subscriptions
 
 **Social/Community:**
+
 - pool_halls, hall_matches, hall_rosters
 - live_streams, support_requests
 - checkins, attitude_votes, attitude_ballots, incidents
 
 **Training:**
+
 - training_sessions, session_analytics, shots
 - training_rewards, training_reward_recipients
 
 **Teams:**
+
 - team_stripe_accounts, team_registrations
 - match_divisions, match_entries
 - payout_distributions
 
 **Side Betting (Schema exists, API unclear):**
+
 - wallets, challenge_pools, challenge_entries
 - ledgers, resolutions
 
 **Files:**
+
 - uploaded_files, file_shares
 
 **Settings:**
+
 - operator_settings, operator_tiers
 
 ---
@@ -1507,6 +1595,7 @@ The following features have partial implementation and need testing:
 **Location:** `mobile-app/` directory
 
 **Files Present:**
+
 - App.js
 - app.json (Expo configuration)
 - package.json (dependencies)
@@ -1515,6 +1604,7 @@ The following features have partial implementation and need testing:
 - ACTIONLADDER_OPTIMIZATIONS.md
 
 **Capacitor Integration:**
+
 - capacitor.config.ts in root
 - @capacitor/android, @capacitor/cli, @capacitor/core installed
 - Android platform configured
@@ -1528,6 +1618,7 @@ The following features have partial implementation and need testing:
 See `PRODUCTION_DEPLOYMENT.md` for deployment instructions.
 
 **Key Points:**
+
 - Replit deployment configuration present
 - Requires all environment variables set
 - Database must be migrated (`npm run db:push`)
@@ -1547,4 +1638,3 @@ See `PRODUCTION_DEPLOYMENT.md` for deployment instructions.
 **Document Version:** 1.0
 **Last Verified:** October 17, 2025
 **Verification Method:** Direct codebase inspection via ls, grep, and file reading
-

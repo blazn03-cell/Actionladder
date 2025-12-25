@@ -4,9 +4,9 @@
 
 ### Prerequisites
 1. **Install Expo CLI globally:**
-   ```bash
+   ---bash
    npm install -g expo-cli
-   ```
+   ---
 
 2. **Install Expo Go app on your phone:**
    - **iOS**: Download from App Store
@@ -15,19 +15,19 @@
 ### Development Setup
 
 1. **Navigate to mobile app directory:**
-   ```bash
+   ---bash
    cd mobile-app
-   ```
+   ---
 
 2. **Install dependencies:**
-   ```bash
+   ---bash
    npm install
-   ```
+   ---
 
 3. **Start development server:**
-   ```bash
+   ---bash
    npm start
-   ```
+   ---
 
 4. **Connect your phone:**
    - Open Expo Go app on your phone
@@ -60,7 +60,7 @@
 
 ## 🔧 Development Commands
 
-```bash
+---bash
 # Start development server
 npm start
 
@@ -74,7 +74,7 @@ npm run preview:android
 # Build production apps
 npm run build:android  # Google Play Store
 npm run build:ios      # Apple App Store
-```
+---
 
 ## 🐛 Troubleshooting
 
@@ -97,10 +97,10 @@ npm run build:ios      # Apple App Store
    - Test on physical device (touch works better than simulators)
 
 ### Debug Mode:
-```bash
+---bash
 # Enable remote debugging
 npm start --dev-client
-```
+---
 
 ## 📊 Performance Monitoring
 
