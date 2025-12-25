@@ -1,4 +1,10 @@
 packages:
-  - 'client'
-  - 'server'
-  - 'shared'
+  - client
+  - server
+  - shared
+
+onlyBuiltDependencies:
+  - bufferutil
+  - es5-ext
+  - esbuild
+  - tesseract.js

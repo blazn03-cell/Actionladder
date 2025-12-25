@@ -19,7 +19,6 @@
       "bundleIdentifier": "net.actionladder.app",
       "supportsTablet": true,
       "requireFullScreen": false,
-      "statusBarStyle": "light",
       "infoPlist": {
         "NSCameraUsageDescription": "Camera is used for OCR score scanning, tournament bracket photos, and player verification in ActionLadder.",
         "NSMicrophoneUsageDescription": "Microphone is used for live stream commentary, match recordings, and voice notes in ActionLadder.",
@@ -28,9 +27,18 @@
         "CFBundleURLTypes": [
           {
             "CFBundleURLName": "actionladder",
-            "CFBundleURLSchemes": ["actionladder"]
+            "CFBundleURLSchemes": [
+              "actionladder"
+            ]
+          },
+          {
+            "CFBundleURLName": "actionladder",
+            "CFBundleURLSchemes": [
+              "actionladder"
+            ]
           }
-        ]
+        ],
+        "ITSAppUsesNonExemptEncryption": false
       },
       "buildNumber": "1"
     },
@@ -39,7 +47,7 @@
       "versionCode": 1,
       "permissions": [
         "INTERNET",
-        "CAMERA", 
+        "CAMERA",
         "RECORD_AUDIO",
         "WRITE_EXTERNAL_STORAGE",
         "READ_EXTERNAL_STORAGE",
@@ -74,6 +82,9 @@
         "apiUrl": "https://billiard-ladder-blazn03.replit.app",
         "version": "1.0.0",
         "environment": "production"
+      },
+      "eas": {
+        "projectId": "b13e1483-1746-4070-ad62-95f14ccb234d"
       }
     },
     "runtimeVersion": {

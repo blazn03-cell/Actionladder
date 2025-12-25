@@ -4,10 +4,10 @@ Estimated Launch Window: 3-4 weeks from today
 
 🔴 CRITICAL BLOCKERS (Must Fix Before Launch)
 Week 1: Foundation Setup
-[ ] Mobile Assets
-[ ] Create mobile-app/assets/icon.png (1024x1024px, dark theme)
-[ ] Create mobile-app/assets/splash.png (1284x2778px)
-[ ] Create mobile-app/assets/favicon.png (48x48px)
+[x] Mobile Assets
+[x] Create mobile-app/assets/icon.png (1024x1024px, dark theme)
+[x] Create mobile-app/assets/splash.png (1284x2778px)
+[x] Create mobile-app/assets/favicon.png (48x48px)
 Time: 2-4 hours | Blocker: Cannot build APK/IPA without
 [ ] Domain Setup
 [ ] Register domain (actionladder.com or similar)
