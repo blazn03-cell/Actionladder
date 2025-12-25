@@ -65,24 +65,6 @@ jobs:
           cd mobile-app
           npx eas build:download --platform ${{ matrix.platform }} --id $BUILD_ID --output ./builds/${{ matrix.platform }} || echo "No downloadable artifact for $BUILD_ID yet. Check EAS build logs."
 
-      - name: Submit Android build to Google Play (optional)
-        if: ${{ matrix.platform == 'android' && secrets.GOOGLE_SERVICE_ACCOUNT_JSON != '' }}
-        env:
-          EAS_TOKEN: ${{ secrets.EAS_TOKEN }}
-        run: |
-          set -e
-          echo "Preparing to submit Android build to Google Play via eas submit"
-          cd mobile-app
-          # Ensure the decoded service account exists (decoded earlier)
-          if [ ! -f ./google-service-account.json ]; then
-            echo "google-service-account.json not found; aborting submit"
-            exit 1
-          fi
-          export GOOGLE_APPLICATION_CREDENTIALS=$(pwd)/google-service-account.json
-          # Submit the latest Android build produced by EAS
-          npx eas submit --platform android --latest --non-interactive || echo "eas submit failed; check logs"
-          echo "Submit step finished"
-
       - name: Cleanup decoded credentials
         if: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON != '' }}
         run: |
@@ -95,3 +77,93 @@ jobs:
         with:
           name: mobile-app-${{ matrix.platform }}-build
           path: mobile-app/builds/${{ matrix.platform }}/**
+
+  release-submit:
+    name: "Release: Submit Android to Play"
+    runs-on: ubuntu-latest
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install mobile dependencies
+        run: cd mobile-app && npm ci
+
+      - name: Decode Google service account JSON (required for submit)
+        run: |
+          if [ -z "${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}" ]; then
+            echo "GOOGLE_SERVICE_ACCOUNT_JSON secret not set — skipping submit"
+            exit 1
+          fi
+          echo "Decoding GOOGLE_SERVICE_ACCOUNT_JSON into mobile-app/google-service-account.json"
+          mkdir -p mobile-app
+          echo "${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}" | base64 --decode > mobile-app/google-service-account.json
+          ls -l mobile-app/google-service-account.json || true
+        shell: bash
+
+      - name: Submit Android build to Google Play
+        env:
+          EAS_TOKEN: ${{ secrets.EAS_TOKEN }}
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/mobile-app/google-service-account.json
+        run: |
+          set -e
+          cd mobile-app
+          echo "Submitting latest Android build to Google Play via eas submit"
+          npx eas submit --platform android --latest --non-interactive
+
+      - name: Cleanup decoded credentials
+        run: |
+          rm -f mobile-app/google-service-account.json || true
+        shell: bash
+
+  release-submit-ios:
+    name: "Release: Submit iOS to App Store Connect"
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install mobile dependencies
+        run: cd mobile-app && npm ci
+
+      - name: Decode App Store Connect API key (required for iOS submit)
+        run: |
+          if [ -z "${{ secrets.APP_STORE_CONNECT_KEY_BASE64 }}" ]; then
+            echo "APP_STORE_CONNECT_KEY_BASE64 secret not set — skipping iOS submit"
+            exit 1
+          fi
+          echo "Decoding APP_STORE_CONNECT_KEY_BASE64 into mobile-app/appstoreconnect.json"
+          mkdir -p mobile-app
+          echo "${{ secrets.APP_STORE_CONNECT_KEY_BASE64 }}" | base64 --decode > mobile-app/appstoreconnect.json
+          ls -l mobile-app/appstoreconnect.json || true
+        shell: bash
+
+      - name: Submit iOS build to App Store Connect
+        env:
+          EAS_TOKEN: ${{ secrets.EAS_TOKEN }}
+          APP_STORE_CONNECT_API_KEY_PATH: ${{ github.workspace }}/mobile-app/appstoreconnect.json
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+        run: |
+          set -e
+          cd mobile-app
+          echo "Submitting latest iOS build to App Store Connect via eas submit"
+          npx eas submit --platform ios --latest --non-interactive || echo "eas submit failed; check logs"
+
+      - name: Cleanup decoded iOS credentials
+        run: |
+          rm -f mobile-app/appstoreconnect.json || true
+        shell: bash

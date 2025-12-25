@@ -331,11 +331,50 @@ To run the included GitHub Actions workflow (`.github/workflows/eas-build.yml`) 
 - **APPLE_APP_SPECIFIC_PASSWORD** (optional) — App-specific password for App Store Connect emails if using `eas submit`. Name the secret `APPLE_APP_SPECIFIC_PASSWORD` or `APP_STORE_CONNECT_PASSWORD`.
 - **OTHER_SECRETS** — If your project uses keystores, fastlane, or other credentials, add them as additional secrets and reference them in CI.
 
+Exact secret names and keystore guidance
+- `EAS_TOKEN` — Expo/EAS API token (required for builds/submits from CI).
+- `GOOGLE_SERVICE_ACCOUNT_JSON` — Base64-encoded Google Play service account JSON used for Android `eas submit` (name used in workflow).
+- `ANDROID_KEYSTORE_BASE64` (optional) — Base64-encoded Android keystore file if you prefer to manage your own keystore instead of letting EAS manage it.
+- `ANDROID_KEYSTORE_PASSWORD` — Keystore password (if providing keystore).
+- `ANDROID_KEY_ALIAS` — Key alias inside the keystore.
+- `ANDROID_KEY_PASSWORD` — Key password for the alias.
+- `APP_STORE_CONNECT_KEY_BASE64` — Base64-encoded App Store Connect API key JSON (used for non-interactive iOS submissions).
+- `APP_STORE_CONNECT_KEY_ID` — The Key ID from App Store Connect (for the API key).
+- `APP_STORE_CONNECT_ISSUER_ID` — The Issuer ID from App Store Connect.
+- `APPLE_APP_SPECIFIC_PASSWORD` (optional) — App-specific password for certain App Store operations.
+
+Keystore guidance
+- EAS can manage Android signing keys for you (recommended for simplicity). To let EAS manage keys, run interactive `npx eas build` once and accept the prompt to let EAS handle credentials.
+- If you manage your own Android keystore, create the keystore locally and then base64-encode it to store in `ANDROID_KEYSTORE_BASE64`:
+
+```bash
+base64 my-release-key.jks > android-keystore.b64
+gh secret set ANDROID_KEYSTORE_BASE64 --body "$(cat android-keystore.b64)"
+gh secret set ANDROID_KEYSTORE_PASSWORD --body "<keystore-password>"
+gh secret set ANDROID_KEY_ALIAS --body "<key-alias>"
+gh secret set ANDROID_KEY_PASSWORD --body "<key-password>"
+```
+
+iOS/App Store Connect guidance
+
+- For non-interactive iOS submission in CI, create an App Store Connect API key (in App Store Connect → Users and Access → Keys) and download the JSON. Base64-encode the JSON and save as `APP_STORE_CONNECT_KEY_BASE64` in GitHub Secrets. Also add `APP_STORE_CONNECT_KEY_ID` and `APP_STORE_CONNECT_ISSUER_ID`.
+
+```bash
+base64 AuthKey_ABC123XYZ.p8 > appstore-key.b64
+gh secret set APP_STORE_CONNECT_KEY_BASE64 --body "$(cat appstore-key.b64)"
+gh secret set APP_STORE_CONNECT_KEY_ID --body "ABC123XYZ"
+gh secret set APP_STORE_CONNECT_ISSUER_ID --body "00000000-0000-0000-0000-000000000000"
+```
+
+Security note: Always store sensitive JSONs and keystores in GitHub Secrets or EAS's credential store — do not check them into the repo. CI decodes them into the runner filesystem briefly and then removes them; our workflow includes cleanup steps to delete decoded files after use.
+
 Example: create an EAS token locally and add it with the GitHub CLI:
 
----bash
+```bash
 
-# log in and create token locally
+# log i# log in and create token locally
+
+npx eas loginn and create token locally
 
 npx eas login
 npx eas token:create --json
@@ -343,7 +382,11 @@ npx eas token:create --json
 # add secret with GitHub CLI (replace <token>)
 
 gh secret set EAS_TOKEN --body "<token>"
----
+
+```bash
+# log in and create token locally
+
+## CI / GitHub Actions (Google Play)
 
 Add the Google Play service account JSON (example using gh):
 
@@ -354,6 +397,46 @@ Add the Google Play service account JSON (example using gh):
 base64 service-account.json > sa.b64
 gh secret set GOOGLE_SERVICE_ACCOUNT_JSON --body "$(cat sa.b64)"
 ```
+
+Quick `gh` commands and helper usage
+
+Use the helper scripts in `scripts/` or the `gh` CLI directly. Examples:
+
+- Upload `EAS_TOKEN` (create with `npx eas token:create`):
+
+```bash
+gh secret set EAS_TOKEN --body "<your-eas-token>"
+```
+
+- Upload Google Play service account JSON using helper (recommended):
+
+```bash
+./scripts/upload-google-secret.sh ./path/to/service-account.json GOOGLE_SERVICE_ACCOUNT_JSON
+# PowerShell helper
+pwsh ./scripts/upload-google-secret.ps1 -FilePath .\path\to\service-account.json -SecretName GOOGLE_SERVICE_ACCOUNT_JSON
+```
+
+- Upload App Store Connect API key (use helper then set metadata IDs):
+
+```bash
+./scripts/upload-google-secret.sh ./path/to/AuthKey_ABC123XYZ.p8 APP_STORE_CONNECT_KEY_BASE64
+gh secret set APP_STORE_CONNECT_KEY_ID --body "ABC123XYZ"
+gh secret set APP_STORE_CONNECT_ISSUER_ID --body "00000000-0000-0000-0000-000000000000"
+```
+
+- Upload Android keystore (if managing your own):
+
+```bash
+./scripts/upload-google-secret.sh ./path/to/my-release-key.jks ANDROID_KEYSTORE_BASE64
+gh secret set ANDROID_KEYSTORE_PASSWORD --body "<keystore-password>"
+gh secret set ANDROID_KEY_ALIAS --body "<key-alias>"
+gh secret set ANDROID_KEY_PASSWORD --body "<key-password>"
+```
+
+Notes:
+
+- The helper scripts base64-encode the file and set the secret in the current GitHub repo (requires `gh` authenticated).
+- After adding secrets, trigger the workflow manually (Actions → EAS Build & Download → Run workflow) to perform release submits, or push a tag to run build-only flows.
 
 Workflow notes:
 
